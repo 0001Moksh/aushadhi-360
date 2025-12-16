@@ -14,7 +14,14 @@ interface User {
   id: string | number
   email: string
   name: string
+  storeName?: string
+  ownerName?: string
+  phone?: string
+  address?: string
   approved: boolean
+  role?: string
+  createdAt?: string
+  lastLogin?: string | null
 }
 
 interface RegistrationRequest {
@@ -36,6 +43,9 @@ export function AdminDashboard() {
 
   const [newEmail, setNewEmail] = useState("")
   const [newName, setNewName] = useState("")
+  const [newOwnerName, setNewOwnerName] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [newAddress, setNewAddress] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
@@ -51,7 +61,21 @@ export function AdminDashboard() {
       const response = await fetch("/api/admin/users")
       if (response.ok) {
         const data = await response.json()
-        setUsers(data.users.map((u: any) => ({ id: u._id, email: u.email, name: u.name, approved: u.approved })))
+        setUsers(
+          data.users.map((u: any) => ({
+            id: u._id,
+            email: u.email,
+            name: u.storeName || u.name,
+            storeName: u.storeName,
+            ownerName: u.ownerName,
+            phone: u.phone,
+            address: u.address,
+            approved: u.approved,
+            role: u.role,
+            createdAt: u.createdAt,
+            lastLogin: u.lastLogin,
+          }))
+        )
       }
     } catch (err) {
       console.error("Failed to load users:", err)
@@ -149,8 +173,8 @@ export function AdminDashboard() {
 
   const handleCreateUser = async () => {
     // Validation
-    if (!newEmail || !newName || !newPassword) {
-      setMessage({ type: "error", text: "Please fill in all fields" })
+    if (!newEmail || !newName || !newOwnerName || !newPhone || !newPassword) {
+      setMessage({ type: "error", text: "Please fill all required fields" })
       return
     }
 
@@ -170,7 +194,14 @@ export function AdminDashboard() {
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newEmail, name: newName, password: newPassword }),
+        body: JSON.stringify({
+          email: newEmail,
+          name: newName,
+          ownerName: newOwnerName,
+          phone: newPhone,
+          address: newAddress,
+          password: newPassword,
+        }),
       })
 
       const data = await response.json()
@@ -186,6 +217,10 @@ export function AdminDashboard() {
         id: data.user._id || Math.random(),
         email: newEmail,
         name: newName,
+        storeName: newName,
+        ownerName: newOwnerName,
+        phone: newPhone,
+        address: newAddress,
         approved: false,
       }
 
@@ -195,6 +230,9 @@ export function AdminDashboard() {
       // Reset form
       setNewEmail("")
       setNewName("")
+      setNewOwnerName("")
+      setNewPhone("")
+      setNewAddress("")
       setNewPassword("")
 
       // Clear message after 3 seconds
@@ -395,9 +433,9 @@ export function AdminDashboard() {
                 <UserPlus className="h-5 w-5" />
                 Add New Store User Manually
               </h2>
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="new-email">Email</Label>
+              <Label htmlFor="new-email">Email *</Label>
               <Input
                 id="new-email"
                 type="email"
@@ -408,7 +446,7 @@ export function AdminDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-name">Store Name</Label>
+              <Label htmlFor="new-name">Store Name *</Label>
               <Input
                 id="new-name"
                 placeholder="Medical Store Name"
@@ -418,7 +456,37 @@ export function AdminDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-password">Password</Label>
+              <Label htmlFor="new-owner">Owner Name *</Label>
+              <Input
+                id="new-owner"
+                placeholder="Owner full name"
+                value={newOwnerName}
+                onChange={(e) => setNewOwnerName(e.target.value)}
+                disabled={isCreating}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-phone">Phone *</Label>
+              <Input
+                id="new-phone"
+                placeholder="10-digit phone"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                disabled={isCreating}
+              />
+            </div>
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="new-address">Address</Label>
+              <Input
+                id="new-address"
+                placeholder="Store address"
+                value={newAddress}
+                onChange={(e) => setNewAddress(e.target.value)}
+                disabled={isCreating}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">Password *</Label>
               <Input
                 id="new-password"
                 type="password"
@@ -463,8 +531,13 @@ export function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Email</TableHead>
                       <TableHead>Store Name</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Last Login</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -472,29 +545,33 @@ export function AdminDashboard() {
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.name}</TableCell>
+                        <TableCell className="font-medium">{user.storeName || user.name}</TableCell>
+                        <TableCell>{user.ownerName || "-"}</TableCell>
+                        <TableCell className="text-sm">{user.email}</TableCell>
+                        <TableCell className="text-sm capitalize">{user.role || "user"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
+                        </TableCell>
+                        <TableCell className="text-sm">{user.phone || "-"}</TableCell>
                         <TableCell>
                           {user.approved ? (
                             <Badge variant="outline" className="text-success border-success">
                               <CheckCircle className="mr-1 h-3 w-3" />
-                              Approved
+                              Active
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-warning border-warning">
                               <XCircle className="mr-1 h-3 w-3" />
-                              Pending
+                              Pending Confirmation
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            {!user.approved && (
-                              <Button size="sm" variant="outline" onClick={() => handleApproveUser(user.id)}>
-                                <CheckCircle className="mr-1 h-4 w-4" />
-                                Approve
-                              </Button>
-                            )}
+                            {/* No manual approve; user confirms via email */}
                             <Button
                               size="sm"
                               variant="outline"

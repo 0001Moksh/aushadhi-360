@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -38,14 +38,43 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profile, setProfile] = useState<{ email: string; storeName?: string; ownerName?: string } | null>(null)
 
-  const userEmail = typeof window !== "undefined" ? localStorage.getItem("user_email") : null
-  const userName = userEmail?.split("@")[0] || "User"
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (typeof window === "undefined") return
+      const email = localStorage.getItem("user_email")
+      if (!email) return
+
+      try {
+        const response = await fetch(`/api/user/profile?email=${encodeURIComponent(email)}`)
+        if (!response.ok) return
+        const data = await response.json()
+        if (data?.user) {
+          setProfile({
+            email: data.user.email,
+            storeName: data.user.storeName || data.user.name,
+            ownerName: data.user.ownerName || data.user.name,
+          })
+        }
+      } catch (error) {
+        console.error("Failed to load profile for sidebar:", error)
+      }
+    }
+
+    loadProfile()
+  }, [])
+
+  const userEmail = profile?.email || (typeof window !== "undefined" ? localStorage.getItem("user_email") : null)
+  const storeName = profile?.storeName || "____"
+  const ownerName = profile?.ownerName || "____"
+  const initials = `${ownerName?.charAt(0) || ""}${storeName?.charAt(0) || ""}`.toUpperCase()
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_token")
       localStorage.removeItem("user_email")
+      localStorage.removeItem("user_role")
     }
     router.push("/")
   }
@@ -112,11 +141,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex items-center gap-3 mb-3">
                 <Avatar>
                   <AvatarImage src="/diverse-user-avatars.png" />
-                  <AvatarFallback>{userName[0].toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>{initials || "U"}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{userName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+                  <p className="text-sm font-medium truncate">{ownerName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{storeName}</p>
+
+                  {/* <p className="text-xs text-muted-foreground truncate">{userEmail}</p> */}
                 </div>
               </div>
               <Button variant="outline" className="w-full bg-transparent" size="sm" onClick={handleLogout}>

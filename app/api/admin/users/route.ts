@@ -11,12 +11,12 @@ async function getDatabase() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, name, password } = await request.json()
+    const { email, name, ownerName, phone, address, password } = await request.json()
 
     // Validation
-    if (!email || !name || !password) {
+    if (!email || !name || !ownerName || !phone || !password) {
       return NextResponse.json(
-        { message: "Email, name, and password are required" },
+        { message: "Email, store name, owner name, phone, and password are required" },
         { status: 400 }
       )
     }
@@ -34,23 +34,62 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new user
+    const confirmationToken = Math.random().toString(36).slice(2) + Date.now().toString(36)
+
     const newUser = {
       email,
-      name,
+      storeName: name,
+      ownerName: ownerName || name,
+      phone: phone || "",
+      address: address || "",
       password, // In production, hash this!
       role: "user",
       approved: false,
+      confirmationToken,
+      confirmationTokenExpires: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24h
       createdAt: new Date(),
       lastLogin: null,
+      // Initialize empty medicine inventory
+      medicines: [],
     }
 
     const result = await usersCollection.insertOne(newUser)
 
+    // Create a separate medicines collection for this user
+    const userMedicinesCollection = db.collection(`medicines_${result.insertedId}`)
+    await userMedicinesCollection.createIndex({ name: "text" })
+
+    // Send confirmation email
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+    const confirmUrl = `${baseUrl}/api/auth/confirm?token=${encodeURIComponent(confirmationToken)}&email=${encodeURIComponent(email)}`
+
+    try {
+      await fetch(`${baseUrl}/api/email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: email,
+          subject: "Confirm your Aushadhi 360 account",
+          message: `Hello ${newUser.ownerName || newUser.storeName},\n\nPlease confirm your account by clicking the link below:\n\n${confirmUrl}\n\nThis link will expire in 24 hours.\n\nThanks,\nAushadhi 360 Team`,
+        }),
+      })
+    } catch (e) {
+      console.error("Failed to send confirmation email:", e)
+    }
+
     return NextResponse.json(
       {
-        message: "User created successfully",
+        message: "User created. Confirmation email sent.",
         userId: result.insertedId,
-        user: newUser,
+        user: {
+          _id: result.insertedId,
+          email: newUser.email,
+          storeName: newUser.storeName,
+          ownerName: newUser.ownerName,
+          phone: newUser.phone,
+          address: newUser.address,
+          approved: newUser.approved,
+        },
       },
       { status: 201 }
     )
@@ -73,7 +112,22 @@ export async function GET(request: NextRequest) {
       .project({ password: 0 }) // Don't return passwords
       .toArray()
 
-    return NextResponse.json({ users }, { status: 200 })
+    // Map to correct format for frontend
+    const formattedUsers = users.map((u) => ({
+      _id: u._id,
+      email: u.email,
+      name: u.storeName || u.name, // Use storeName, fallback to name
+      storeName: u.storeName || u.name,
+      ownerName: u.ownerName || u.name,
+      phone: u.phone || "",
+      address: u.address || "",
+      approved: u.approved,
+      role: u.role || "user",
+      createdAt: u.createdAt,
+      lastLogin: u.lastLogin,
+    }))
+
+    return NextResponse.json({ users: formattedUsers }, { status: 200 })
   } catch (error) {
     console.error("Error fetching users:", error)
     return NextResponse.json(

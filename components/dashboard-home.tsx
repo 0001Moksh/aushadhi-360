@@ -1,19 +1,91 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { Receipt, Sparkles, Upload, AlertTriangle, TrendingUp, Package, Clock, DollarSign } from "lucide-react"
+import { Receipt, Sparkles, Upload, AlertTriangle, TrendingUp, Package, Clock, DollarSign, Loader2 } from "lucide-react"
+
+interface UserProfile {
+  email: string
+  storeName: string
+  ownerName: string
+  phone: string
+  address: string
+}
+
+interface DashboardStats {
+  totalMedicines: number
+  lowStockItems: number
+  expiringSoon: number
+}
 
 export function DashboardHome() {
   const router = useRouter()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      const email = localStorage.getItem("user_email")
+      if (!email) {
+        setIsLoading(false)
+        return
+      }
+
+      // Load user profile
+      const profileResponse = await fetch(`/api/user/profile?email=${encodeURIComponent(email)}`)
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json()
+        setProfile(profileData.user)
+      }
+
+      // Load medicines to calculate stats
+      const medicinesResponse = await fetch(`/api/user/medicines?email=${encodeURIComponent(email)}`)
+      if (medicinesResponse.ok) {
+        const medicinesData = await medicinesResponse.json()
+        const medicines = medicinesData.medicines || []
+
+        const lowStock = medicines.filter((m: any) => m.quantity < 20).length
+        const expiring = medicines.filter((m: any) => {
+          const expiryDate = new Date(m.expiryDate)
+          const today = new Date()
+          const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
+          return daysUntilExpiry <= 30 && daysUntilExpiry > 0
+        }).length
+
+        setStats({
+          totalMedicines: medicines.length,
+          lowStockItems: lowStock,
+          expiringSoon: expiring,
+        })
+      }
+    } catch (error) {
+      console.error("Error loading dashboard data:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-balance mb-2">Dashboard</h1>
-        <p className="text-muted-foreground text-pretty">Welcome to your medical store management system</p>
+        <h1 className="text-4xl font-bold text-balance mb-2">Welcome, {profile?.ownerName || "User"}</h1>
+        <p className="text-muted-foreground text-pretty">{profile?.storeName || "Your medical store"}</p>
       </div>
 
       {/* Quick Actions */}
@@ -69,18 +141,8 @@ export function DashboardHome() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Today's Sales</p>
-              <p className="text-2xl font-bold mt-1">₹12,450</p>
-            </div>
-            <DollarSign className="h-8 w-8 text-muted-foreground" />
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
               <p className="text-sm text-muted-foreground">Total Products</p>
-              <p className="text-2xl font-bold mt-1">2,847</p>
+              <p className="text-2xl font-bold mt-1">{stats?.totalMedicines || 0}</p>
             </div>
             <Package className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -90,7 +152,7 @@ export function DashboardHome() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-2xl font-bold mt-1 text-warning">23</p>
+              <p className="text-2xl font-bold mt-1 text-warning">{stats?.lowStockItems || 0}</p>
             </div>
             <AlertTriangle className="h-8 w-8 text-warning" />
           </div>
@@ -100,9 +162,19 @@ export function DashboardHome() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Expiring Soon</p>
-              <p className="text-2xl font-bold mt-1 text-destructive">8</p>
+              <p className="text-2xl font-bold mt-1 text-destructive">{stats?.expiringSoon || 0}</p>
             </div>
             <Clock className="h-8 w-8 text-destructive" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Status</p>
+              <p className="text-2xl font-bold mt-1 text-success">Active</p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-success" />
           </div>
         </Card>
       </div>

@@ -87,18 +87,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create new user
+    // Get the request details
+    const registrationRequest = await requestsCollection.findOne({ _id: new ObjectId(requestId) })
+    
+    if (!registrationRequest) {
+      return NextResponse.json(
+        { message: "Request not found" },
+        { status: 404 }
+      )
+    }
+
+    // Create new user with all details from request
     const newUser = {
       email,
-      name,
+      storeName: name, // Store name
+      ownerName: registrationRequest.name, // Owner's actual name
+      phone: registrationRequest.phone || "",
+      address: registrationRequest.address || "",
       password, // In production, hash this!
       role: "user",
       approved: true,
       createdAt: new Date(),
       lastLogin: null,
+      // Initialize empty medicine inventory for this user
+      medicines: [],
     }
 
-    await usersCollection.insertOne(newUser)
+    const result = await usersCollection.insertOne(newUser)
+
+    // Create a separate medicines collection for this user
+    const userMedicinesCollection = db.collection(`medicines_${result.insertedId}`)
+    await userMedicinesCollection.createIndex({ name: "text" })
 
     // Delete the request
     await requestsCollection.deleteOne({ _id: new ObjectId(requestId) })
