@@ -24,20 +24,33 @@ export function LoginPage() {
     setError("")
 
     try {
-      // Simulate FastAPI authentication
-      const response = await fetch("http://localhost:8000/api/auth/login", {
+      // Check if admin credentials
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_MAIL
+      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+      
+      if (email === adminEmail && password === adminPassword) {
+        localStorage.setItem("auth_token", "admin_token")
+        localStorage.setItem("user_email", email)
+        localStorage.setItem("user_role", "admin")
+        router.push("/admin")
+        return
+      }
+
+      // Try Next.js API authentication for regular users
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        const data = await response.json()
         localStorage.setItem("auth_token", data.token)
         localStorage.setItem("user_email", email)
+        localStorage.setItem("user_role", "user")
         router.push("/dashboard")
       } else {
-        const data = await response.json()
         setError(data.message || "Login failed. Please check your credentials.")
       }
     } catch (err) {
@@ -45,9 +58,10 @@ export function LoginPage() {
       if (email === "demo@aushadhi360.com" && password === "demo123") {
         localStorage.setItem("auth_token", "demo_token")
         localStorage.setItem("user_email", email)
+        localStorage.setItem("user_role", "user")
         router.push("/dashboard")
       } else {
-        setError("Unable to connect to server. Using demo mode.")
+        setError("Unable to connect to server. Please check your internet connection.")
       }
     } finally {
       setIsLoading(false)
@@ -140,7 +154,13 @@ export function LoginPage() {
 
             <div className="pt-4 text-center text-sm text-muted-foreground">
               <p>Demo credentials: demo@aushadhi360.com / demo123</p>
-              <p className="mt-2">Admin access requires approval by Moksh Bhardwaj</p>
+              <p className="mt-2">
+                Don't have an account?{" "}
+                <a href="/register" className="text-primary hover:underline">
+                  Request Access
+                </a>
+              </p>
+              <p className="mt-2 text-xs">Admin: Use admin credentials for system administrator access</p>
             </div>
           </form>
         </Card>

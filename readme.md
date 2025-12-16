@@ -3,7 +3,6 @@
 **Complete Medical Store Management Software**
 
 **Project Owner:** Moksh Bhardwaj
-**Project Type:** Personal Product Project (Not a company product)
 
 ---
 

@@ -2,31 +2,51 @@
 
 import { type NextRequest, NextResponse } from "next/server"
 
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com"
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587")
+const SMTP_USER = process.env.SMTP_USER || ""
+const SMTP_PASS = process.env.SMTP_PASS || ""
+
 export async function POST(request: NextRequest) {
   try {
-    const { to, subject, body, attachments, priority } = await request.json()
+    const { to, subject, message, body } = await request.json()
+    const emailBody = message || body
 
-    // In production, this would use nodemailer with Gmail SMTP
-    // For now, we'll simulate the email sending
-
-    const emailConfig = {
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
+    if (!to || !subject || !emailBody) {
+      return NextResponse.json(
+        { success: false, error: "To, subject, and message are required" },
+        { status: 400 }
+      )
     }
 
-    // Simulate email sending
-    console.log("[Email] Sending to:", to)
-    console.log("[Email] Subject:", subject)
-    console.log("[Email] Priority:", priority)
+    const nodemailer = require("nodemailer")
 
-    // In real implementation:
-    // const transporter = nodemailer.createTransport(emailConfig)
-    // await transporter.sendMail({ from: emailConfig.auth.user, to, subject, text: body, attachments })
+    const transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: false,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    })
+
+    const mailOptions = {
+      from: SMTP_USER,
+      to,
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Aushadhi 360 Notification</h2>
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            ${emailBody.replace(/\n/g, "<br>")}
+          </div>
+          <p style="color: #666; font-size: 12px;">This is an automated message from Aushadhi 360 Admin.</p>
+        </div>
+      `,
+    }
+
+    await transporter.sendMail(mailOptions)
 
     return NextResponse.json({
       success: true,
