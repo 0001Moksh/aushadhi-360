@@ -101,13 +101,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="flex flex-col h-full">
             {/* Logo */}
-            <div className="p-6 border-b border-sidebar-border">
-              <h1 className="text-2xl font-bold text-sidebar-primary text-balance">
-                NYT
-                <br />
-                Aushadhi 360
-              </h1>
+            <div className="p-4 border-b border-sidebar-border flex items-center justify-center">
+              <img
+                src="/logo2.png"
+                alt="Aushadhi 360 Logo"
+                className="h-20 w-auto object-contain"
+              />
             </div>
+
 
             {/* Navigation */}
             <ScrollArea className="flex-1 py-6">

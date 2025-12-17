@@ -48,8 +48,11 @@ async function sendEmailNotification(userDetails: any) {
           
           <p>Please login to the admin dashboard to review and approve this request.</p>
           
+          <a href="https://aushadhi-360.vercel.app/admin" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
+            Go to Admin Dashboard website
+          </a>
           <a href="http://localhost:3000/admin" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
-            Go to Admin Dashboard
+            Go to Admin Dashboard locally
           </a>
         </div>
       `,

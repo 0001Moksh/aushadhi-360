@@ -46,8 +46,11 @@ async function sendCredentialsEmail(email: string, name: string, password: strin
           
           <p><strong>Important:</strong> Please change your password after your first login.</p>
           
-          <a href="http://localhost:3000/" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
+          <a href="https://aushadhi-360.vercel.app/" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
             Login Now
+          </a>
+          <a href="http://localhost:3000/" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
+            Login Now locally
           </a>
           
           <p style="margin-top: 20px; color: #666;">If you have any questions, please contact the administrator.</p>
