@@ -20,6 +20,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if admin credentials (server-side env vars)
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_MAIL
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+
+    if (email === adminEmail && password === adminPassword) {
+      return NextResponse.json(
+        {
+          message: "Login successful",
+          token: `admin_token_${Date.now()}`,
+          role: "admin",
+          user: {
+            email: adminEmail,
+            name: "Admin",
+            role: "admin",
+          },
+        },
+        { status: 200 }
+      )
+    }
+
+    // Regular user login from database
     const db = await getDatabase()
     const usersCollection = db.collection("users")
 
@@ -44,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Check if user is approved
     if (!user.approved && user.role === "user") {
       return NextResponse.json(
-        { message: "Your account is pending admin approval" },
+        { message: "Your account is pending confirmation. Please check your email." },
         { status: 403 }
       )
     }
@@ -62,10 +83,11 @@ export async function POST(request: NextRequest) {
       {
         message: "Login successful",
         token,
+        role: user.role || "user",
         user: {
           email: user.email,
-          name: user.name,
-          role: user.role,
+          name: user.storeName || user.name,
+          role: user.role || "user",
         },
       },
       { status: 200 }

@@ -24,19 +24,7 @@ export function LoginPage() {
     setError("")
 
     try {
-      // Check if admin credentials
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_MAIL
-      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
-      
-      if (email === adminEmail && password === adminPassword) {
-        localStorage.setItem("auth_token", "admin_token")
-        localStorage.setItem("user_email", email)
-        localStorage.setItem("user_role", "admin")
-        router.push("/admin")
-        return
-      }
-
-      // Try Next.js API authentication for regular users
+      // Try login via API (handles both admin and regular users)
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,8 +36,14 @@ export function LoginPage() {
       if (response.ok) {
         localStorage.setItem("auth_token", data.token)
         localStorage.setItem("user_email", email)
-        localStorage.setItem("user_role", "user")
-        router.push("/dashboard")
+        localStorage.setItem("user_role", data.role || "user")
+        
+        // Redirect based on role
+        if (data.role === "admin") {
+          router.push("/admin")
+        } else {
+          router.push("/dashboard")
+        }
       } else {
         setError(data.message || "Login failed. Please check your credentials.")
       }
