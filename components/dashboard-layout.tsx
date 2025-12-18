@@ -11,6 +11,7 @@ import {
   Receipt,
   Sparkles,
   Upload,
+  Package,
   BarChart3,
   AlertTriangle,
   Settings,
@@ -29,6 +30,7 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: Package, label: "Products", href: "/dashboard/products" },
   { icon: Receipt, label: "Billing", href: "/dashboard/billing" },
   { icon: Sparkles, label: "AI Assist", href: "/dashboard/ai-assist" },
   { icon: Upload, label: "Import Medicine", href: "/dashboard/import" },

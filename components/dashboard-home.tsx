@@ -138,7 +138,18 @@ export function DashboardHome() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="p-6">
+        <Card
+          className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+          role="button"
+          tabIndex={0}
+          onClick={() => router.push("/dashboard/products")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              router.push("/dashboard/products")
+            }
+          }}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total Products</p>

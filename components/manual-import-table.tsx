@@ -119,7 +119,11 @@ export function ManualImportTable() {
     setCustomCategoryValue("")
   }
 
-  const allCategories = [...new Set([...categories, ...customCategories])].sort()
+  const categoryValuesInRows = rows
+    .map((r) => r.category)
+    .filter((c): c is string => Boolean(c && c.trim()))
+
+  const allCategories = [...new Set([...categories, ...customCategories, ...categoryValuesInRows])].sort()
 
   const saveToHistory = (newRows: Row[]) => {
     const newHistory = history.slice(0, historyIndex + 1)
@@ -216,20 +220,68 @@ export function ManualImportTable() {
       const res = await fetch("/api/import/parse-excel", { method: "POST", body: form })
       if (!res.ok) throw new Error("Failed to parse file")
       const data = await res.json()
+      
+      // Only these 4 columns are REQUIRED (normalize to compare)
+      const requiredColumns = [
+        "Batch_ID",
+        "Name of Medicine",
+        "Price_INR",
+        "Total_Quantity"
+      ]
+      
+      // Check if we have records
+      if (!data.records || data.records.length === 0) {
+        throw new Error("No data found in the uploaded file")
+      }
+      
+      // Check if first record has all required columns (flexible matching)
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+      const firstRecord = data.records[0]
+      const firstRecordKeys = Object.keys(firstRecord).map(normalize)
+
+      const missingColumns = requiredColumns.filter(col => {
+        const target = normalize(col)
+        return !firstRecordKeys.includes(target)
+      })
+      
+      if (missingColumns.length > 0) {
+        throw new Error(
+          `Missing required columns: ${missingColumns.join(", ")}.\n\n` +
+          `Required: Batch_ID, Name of Medicine, Price (INR), Total Quantity\n` +
+          `Other columns are optional.`
+        )
+      }
+      
+      // Helper to get value by flexible column matching
+      const getFieldValue = (record: any, fieldNames: string[]) => {
+        const recordKeys = Object.keys(record)
+        for (const fieldName of fieldNames) {
+          const matchedKey = recordKeys.find(key =>
+            key === fieldName ||
+            key.toLowerCase() === fieldName.toLowerCase() ||
+            key.replace(/[_\s]/g, "") === fieldName.replace(/[_\s]/g, "")
+          )
+          if (matchedKey !== undefined && record[matchedKey] !== null && record[matchedKey] !== "") {
+            return record[matchedKey]
+          }
+        }
+        return null
+      }
+
       const parsed = (data.records || []).map((r: any) => ({
         id: crypto.randomUUID(),
-        Batch_ID: r.Batch_ID || "",
-        name: r["Name of Medicine"] || "",
-        price: String(r.Price_INR ?? ""),
-        qty: String(r.Total_Quantity ?? ""),
-        category: r.Category,
-        form: r["Medicine Forms"],
-        qtyPerPack: r.Quantity_per_pack,
-        coverDisease: r["Cover Disease"],
-        symptoms: r.Symptoms,
-        sideEffects: r["Side Effects"],
-        instructions: r.Instructions,
-        hinglish: r["Description in Hinglish"],
+        Batch_ID: getFieldValue(r, ["Batch_ID", "BatchID", "batch_id"]) || "",
+        name: getFieldValue(r, ["Name of Medicine", "Name", "Medicine Name", "medicine_name"]) || "",
+        price: String(getFieldValue(r, ["Price (INR)", "Price_INR", "Price", "price_inr"]) ?? ""),
+        qty: String(getFieldValue(r, ["Total Quantity", "Total_Quantity", "Quantity", "quantity"]) ?? ""),
+        category: getFieldValue(r, ["Category", "category"]) || "",
+        form: getFieldValue(r, ["Medicine Forms", "Medicine_Forms", "Form", "form"]) || "",
+        qtyPerPack: getFieldValue(r, ["Quantity_per_pack", "Quantity per pack", "Qty/Pack", "qty_per_pack"]) || "",
+        coverDisease: getFieldValue(r, ["Cover Disease", "Cover_Disease", "Disease", "disease"]) || "",
+        symptoms: getFieldValue(r, ["Symptoms", "symptoms"]) || "",
+        sideEffects: getFieldValue(r, ["Side Effects", "Side_Effects", "SideEffects", "side_effects"]) || "",
+        instructions: getFieldValue(r, ["Instructions", "instructions"]) || "",
+        hinglish: getFieldValue(r, ["Description in Hinglish", "Description_in_Hinglish", "Hinglish", "hinglish"]) || "",
       }))
       setPreviewData(parsed.length ? parsed : [emptyRow()])
       setShowPreview(true)
@@ -591,6 +643,13 @@ export function ManualImportTable() {
                   <th className="p-2">Price</th>
                   <th className="p-2">Quantity</th>
                   <th className="p-2">Category</th>
+                  <th className="p-2">Form</th>
+                  <th className="p-2">Qty/Pack</th>
+                  <th className="p-2">Cover Disease</th>
+                  <th className="p-2">Symptoms</th>
+                  <th className="p-2">Side Effects</th>
+                  <th className="p-2">Instructions</th>
+                  <th className="p-2">Hinglish</th>
                 </tr>
               </thead>
               <tbody>
@@ -601,6 +660,13 @@ export function ManualImportTable() {
                     <td className="p-2">{r.price}</td>
                     <td className="p-2">{r.qty}</td>
                     <td className="p-2">{r.category || "-"}</td>
+                    <td className="p-2">{r.form || "-"}</td>
+                    <td className="p-2">{r.qtyPerPack || "-"}</td>
+                    <td className="p-2">{r.coverDisease || "-"}</td>
+                    <td className="p-2">{r.symptoms || "-"}</td>
+                    <td className="p-2">{r.sideEffects || "-"}</td>
+                    <td className="p-2">{r.instructions || "-"}</td>
+                    <td className="p-2">{r.hinglish || "-"}</td>
                   </tr>
                 ))}
               </tbody>

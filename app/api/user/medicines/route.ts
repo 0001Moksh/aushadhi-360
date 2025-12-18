@@ -26,12 +26,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Get medicines for this user
-    const medicines = await medicinesCollection
-      .find({ userId: user._id.toString() })
-      .toArray()
+    // Get medicines for this user (prefer dedicated collection, fallback to embedded array)
+    let medicines = await medicinesCollection.find({ userId: user._id.toString() }).toArray()
 
-    return NextResponse.json({ medicines })
+    if ((!medicines || medicines.length === 0) && Array.isArray(user.medicines)) {
+      medicines = user.medicines
+    }
+
+    return NextResponse.json({ medicines: medicines || [] })
   } catch (error) {
     console.error("Error fetching medicines:", error)
     return NextResponse.json({ error: "Failed to fetch medicines" }, { status: 500 })
