@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import {
   Upload, Plus, Trash2, Copy, GripVertical, RotateCcw,
   RotateCw, Clipboard, Download, Eye
@@ -220,7 +221,7 @@ export function ManualImportTable() {
       const res = await fetch("/api/import/parse-excel", { method: "POST", body: form })
       if (!res.ok) throw new Error("Failed to parse file")
       const data = await res.json()
-      
+
       // Only these 4 columns are REQUIRED (normalize to compare)
       const requiredColumns = [
         "Batch_ID",
@@ -228,12 +229,12 @@ export function ManualImportTable() {
         "Price_INR",
         "Total_Quantity"
       ]
-      
+
       // Check if we have records
       if (!data.records || data.records.length === 0) {
         throw new Error("No data found in the uploaded file")
       }
-      
+
       // Check if first record has all required columns (flexible matching)
       const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
       const firstRecord = data.records[0]
@@ -243,7 +244,7 @@ export function ManualImportTable() {
         const target = normalize(col)
         return !firstRecordKeys.includes(target)
       })
-      
+
       if (missingColumns.length > 0) {
         throw new Error(
           `Missing required columns: ${missingColumns.join(", ")}.\n\n` +
@@ -251,7 +252,7 @@ export function ManualImportTable() {
           `Other columns are optional.`
         )
       }
-      
+
       // Helper to get value by flexible column matching
       const getFieldValue = (record: any, fieldNames: string[]) => {
         const recordKeys = Object.keys(record)
@@ -627,52 +628,60 @@ export function ManualImportTable() {
 
       {/* Preview Modal */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] p-1 flex flex-col">
+          <DialogHeader className="p-6 pb-4 border-b">
             <DialogTitle>Import Preview</DialogTitle>
             <DialogDescription>
               Review the imported data before adding to the table. Found {previewData?.length || 0} rows.
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-muted">
-                <tr className="text-left">
-                  <th className="p-2">Batch_ID</th>
-                  <th className="p-2">Name</th>
-                  <th className="p-2">Price</th>
-                  <th className="p-2">Quantity</th>
-                  <th className="p-2">Category</th>
-                  <th className="p-2">Form</th>
-                  <th className="p-2">Qty/Pack</th>
-                  <th className="p-2">Cover Disease</th>
-                  <th className="p-2">Symptoms</th>
-                  <th className="p-2">Side Effects</th>
-                  <th className="p-2">Instructions</th>
-                  <th className="p-2">Hinglish</th>
-                </tr>
-              </thead>
-              <tbody>
-                {previewData?.map((r, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="p-2">{r.Batch_ID}</td>
-                    <td className="p-2">{r.name}</td>
-                    <td className="p-2">{r.price}</td>
-                    <td className="p-2">{r.qty}</td>
-                    <td className="p-2">{r.category || "-"}</td>
-                    <td className="p-2">{r.form || "-"}</td>
-                    <td className="p-2">{r.qtyPerPack || "-"}</td>
-                    <td className="p-2">{r.coverDisease || "-"}</td>
-                    <td className="p-2">{r.symptoms || "-"}</td>
-                    <td className="p-2">{r.sideEffects || "-"}</td>
-                    <td className="p-2">{r.instructions || "-"}</td>
-                    <td className="p-2">{r.hinglish || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max text-sm border-collapse">
+                  <thead className="sticky top-0 bg-muted z-10">
+                    <tr className="text-left border-b">
+                      <th className="p-3 font-medium min-w-[100px]">Batch_ID</th>
+                      <th className="p-3 font-medium min-w-[150px]">Name</th>
+                      <th className="p-3 font-medium min-w-[100px]">Price</th>
+                      <th className="p-3 font-medium min-w-[100px]">Quantity</th>
+                      <th className="p-3 font-medium min-w-[120px]">Category</th>
+                      <th className="p-3 font-medium min-w-[120px]">Form</th>
+                      <th className="p-3 font-medium min-w-[100px]">Qty/Pack</th>
+                      <th className="p-3 font-medium min-w-[150px]">Cover Disease</th>
+                      <th className="p-3 font-medium min-w-[150px]">Symptoms</th>
+                      <th className="p-3 font-medium min-w-[150px]">Side Effects</th>
+                      <th className="p-3 font-medium min-w-[150px]">Instructions</th>
+                      <th className="p-3 font-medium min-w-[150px]">Hinglish</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewData?.map((r, i) => (
+                      <tr key={i} className="border-b hover:bg-muted/50 transition-colors">
+                        <td className="p-3">{r.Batch_ID}</td>
+                        <td className="p-3">{r.name}</td>
+                        <td className="p-3">{r.price}</td>
+                        <td className="p-3">{r.qty}</td>
+                        <td className="p-3">{r.category || "-"}</td>
+                        <td className="p-3">{r.form || "-"}</td>
+                        <td className="p-3">{r.qtyPerPack || "-"}</td>
+                        <td className="p-3">{r.coverDisease || "-"}</td>
+                        <td className="p-3">{r.symptoms || "-"}</td>
+                        <td className="p-3">{r.sideEffects || "-"}</td>
+                        <td className="p-3">{r.instructions || "-"}</td>
+                        <td className="p-3">{r.hinglish || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <ScrollBar orientation="horizontal" />
+              <ScrollBar orientation="vertical" />
+            </ScrollArea>
           </div>
-          <div className="flex justify-end gap-2">
+
+          <div className="flex justify-end gap-3 p-6 border-t">
             <Button variant="outline" onClick={() => setShowPreview(false)}>
               Cancel
             </Button>

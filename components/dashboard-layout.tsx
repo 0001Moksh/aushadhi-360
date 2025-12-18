@@ -1,6 +1,7 @@
 "use client"
 
 import { type ReactNode, useEffect, useState } from "react"
+import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -89,15 +90,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <SystemStatusIndicator />
-
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
-        <h1 className="text-xl font-bold">Aushadhi 360</h1>
+        <Image
+          src="/logo1.png"
+          alt="Aushadhi 360"
+          width={60}
+          height={60}
+          className="object-contain"
+          priority
+        />
+
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? <X /> : <Menu />}
         </Button>
       </div>
-
       <div className="flex">
         {/* Sidebar */}
         <aside
