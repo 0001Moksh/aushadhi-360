@@ -1,11 +1,18 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Upload, Plus, Trash2, Copy, GripVertical, RotateCcw,
   RotateCw, Clipboard, Download, Eye
@@ -51,7 +58,68 @@ export function ManualImportTable() {
   const [draggedRow, setDraggedRow] = useState<number | null>(null)
   const [previewData, setPreviewData] = useState<Row[] | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [categories, setCategories] = useState<string[]>([])
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [showCustomInput, setShowCustomInput] = useState<number | null>(null)
+  const [customCategoryValue, setCustomCategoryValue] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Load categories from user's medicines and custom categories from localStorage
+  useEffect(() => {
+    const loadCategories = async () => {
+      const email = localStorage.getItem("user_email")
+      if (!email) return
+
+      try {
+        // Fetch unique categories from user's medicines
+        const res = await fetch(`/api/medicines/categories?email=${encodeURIComponent(email)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setCategories(data.categories || [])
+        }
+      } catch (e) {
+        console.error("Failed to load categories:", e)
+      }
+
+      // Load custom categories from localStorage
+      const stored = localStorage.getItem(`custom_categories_${email}`)
+      if (stored) {
+        try {
+          setCustomCategories(JSON.parse(stored))
+        } catch (e) {
+          console.error("Failed to parse custom categories:", e)
+        }
+      }
+    }
+
+    loadCategories()
+  }, [])
+
+  // Save custom categories to localStorage
+  const saveCustomCategories = (newCategories: string[]) => {
+    const email = localStorage.getItem("user_email")
+    if (!email) return
+    localStorage.setItem(`custom_categories_${email}`, JSON.stringify(newCategories))
+    setCustomCategories(newCategories)
+  }
+
+  const addCustomCategory = (rowIndex: number) => {
+    const trimmed = customCategoryValue.trim()
+    if (!trimmed) return
+
+    // Add to custom categories if not already exists
+    if (!categories.includes(trimmed) && !customCategories.includes(trimmed)) {
+      const newCustom = [...customCategories, trimmed]
+      saveCustomCategories(newCustom)
+    }
+
+    // Update the row
+    update(rowIndex, "category", trimmed)
+    setShowCustomInput(null)
+    setCustomCategoryValue("")
+  }
+
+  const allCategories = [...new Set([...categories, ...customCategories])].sort()
 
   const saveToHistory = (newRows: Row[]) => {
     const newHistory = history.slice(0, historyIndex + 1)
@@ -306,7 +374,7 @@ export function ManualImportTable() {
                 <th className="p-2 border-b whitespace-nowrap min-w-[180px]">Name of Medicine</th>
                 <th className="p-2 border-b whitespace-nowrap min-w-[100px]">Price (INR)</th>
                 <th className="p-2 border-b whitespace-nowrap min-w-[100px]">Total Quantity</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[120px]">Category</th>
+                <th className="p-2 border-b whitespace-nowrap min-w-[150px]">Category</th>
                 <th className="p-2 border-b whitespace-nowrap min-w-[120px]">Medicine Forms</th>
                 <th className="p-2 border-b whitespace-nowrap min-w-[100px]">Qty/Pack</th>
                 <th className="p-2 border-b whitespace-nowrap min-w-[200px]">Cover Disease</th>
@@ -366,12 +434,56 @@ export function ManualImportTable() {
                     />
                   </td>
                   <td className="p-2">
-                    <Input
-                      value={r.category || ""}
-                      onChange={(e) => update(i, "category", e.target.value)}
-                      onBlur={handleBlur}
-                      className="min-w-[120px]"
-                    />
+                    {showCustomInput === i ? (
+                      <div className="flex gap-1">
+                        <Input
+                          value={customCategoryValue}
+                          onChange={(e) => setCustomCategoryValue(e.target.value)}
+                          placeholder="New category"
+                          className="min-w-[100px]"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              addCustomCategory(i)
+                            } else if (e.key === "Escape") {
+                              setShowCustomInput(null)
+                              setCustomCategoryValue("")
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => addCustomCategory(i)}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    ) : (
+                      <Select
+                        value={r.category || ""}
+                        onValueChange={(value) => {
+                          if (value === "__other__") {
+                            setShowCustomInput(i)
+                            setCustomCategoryValue("")
+                          } else {
+                            update(i, "category", value)
+                            handleBlur()
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="min-w-[150px]">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allCategories.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__other__">+ Add New Category</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </td>
                   <td className="p-2">
                     <Input
