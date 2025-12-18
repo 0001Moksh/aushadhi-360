@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { MongoClient } from "mongodb"
+import { getEnrichmentService } from "@/lib/services/medicine-enrichment.service"
+import type { EnrichedMedicineData } from "@/lib/services/medicine-enrichment.service"
 
 const MONGODB_URI = process.env.DATABASE_URL || ""
 
@@ -371,66 +373,61 @@ async function matchAndUpdateRecords(
   }
 }
 
-// LAYER 5 & 6: Medicine Enrichment
+// LAYER 5 & 6: Medicine Enrichment (fail-fast via shared 2-layer service)
 async function enrichMedicineData(records: MedicineRecord[]): Promise<MedicineRecord[]> {
-  const apiKey = process.env.GEMINI_MEDICINE_ENRICHMENT_API_KEY
+  console.log(`[Enrichment] Starting enrichment for ${records.length} new records...`)
+
+  let service: any
+  try {
+    service = getEnrichmentService()
+    console.log(`[Enrichment] Service initialized successfully`)
+  } catch (initError) {
+    console.error(`[Enrichment] CRITICAL: Failed to initialize service:`, initError instanceof Error ? initError.message : initError)
+    throw new Error("ENRICHMENT_INIT_FAILED: AI enrichment service not available")
+  }
+
   const enriched: MedicineRecord[] = []
 
   for (const record of records) {
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `Enrich this medicine data: "${record["Name of Medicine"]}"
+      console.log(`[Enrichment] Processing: ${record.Batch_ID} - ${record["Name of Medicine"]}`)
 
-Return ONLY this JSON structure:
-{
-  "Category": "string (ONE category only)",
-  "Medicine Forms": "string (ONE form only: Tablet/Capsule/Syrup/Injection/Cream/Powder/Drops)",
-  "Quantity_per_pack": "string",
-  "Cover Disease": "string (3-4 keywords)",
-  "Symptoms": "string (3-4 keywords)",
-  "Side Effects": "string (3-4 keywords)",
-  "Instructions": "string (full sentence)",
-  "Description in Hinglish": "string (full sentence in Hinglish)"
-}
-
-Use "not_found" if data cannot be inferred. Be factual and concise.`,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
+      const data: EnrichedMedicineData = await service.enrichMedicine(
+        record.Batch_ID,
+        record["Name of Medicine"]
       )
 
-      const data = await response.json()
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      console.log(`[Enrichment] ✓ Successfully enriched: ${record["Name of Medicine"]}`)
 
-      if (jsonMatch) {
-        const enrichment = JSON.parse(jsonMatch[0])
-        enriched.push({
-          ...record,
-          ...enrichment,
-          status_import: "new item added",
-        })
-      } else {
-        enriched.push({ ...record, status_import: "new item added" })
-      }
+      enriched.push({
+        Batch_ID: data.Batch_ID,
+        "Name of Medicine": data["Name of Medicine"],
+        Category: data.Category,
+        "Medicine Forms": data["Medicine Forms"],
+        Quantity_per_pack: data.Quantity_per_pack,
+        "Cover Disease": data["Cover Disease"],
+        Symptoms: data.Symptoms,
+        "Side Effects": data["Side Effects"],
+        Instructions: data.Instructions,
+        "Description in Hinglish": data["Description in Hinglish"],
+        Price_INR: record.Price_INR,
+        Total_Quantity: record.Total_Quantity,
+        status_import: "new item added",
+      })
+
+      await new Promise((r) => setTimeout(r, 1000))
     } catch (error) {
-      console.error(`Enrichment error for ${record["Name of Medicine"]}:`, error)
-      enriched.push({ ...record, status_import: "new item added" })
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error(`[Enrichment] ✗ FAILED for ${record["Name of Medicine"]}:`, msg)
+      // Fail-fast: propagate with clear marker
+      if (/429|Too Many Requests|quota/i.test(msg)) {
+        throw new Error(`ENRICHMENT_RATE_LIMIT: ${msg}`)
+      }
+      throw new Error(`ENRICHMENT_FAILED: ${msg}`)
     }
   }
 
+  console.log(`[Enrichment] Complete. Enriched: ${enriched.length}`)
   return enriched
 }
 
@@ -568,8 +565,34 @@ export async function POST(request: NextRequest) {
     // LAYER 3 & 4: Match and categorize records
     const { updated, newRecords } = await matchAndUpdateRecords(extractedRecords, userEmail)
 
-    // LAYER 5 & 6: Enrich new records
-    const enrichedNewRecords = await enrichMedicineData(newRecords)
+    // LAYER 5 & 6: Enrich new records (fail-fast)
+    let enrichedNewRecords: MedicineRecord[] = []
+    try {
+      enrichedNewRecords = await enrichMedicineData(newRecords)
+    } catch (enrichError) {
+      const message = enrichError instanceof Error ? enrichError.message : String(enrichError)
+      console.error(`[Pipeline] Enrichment aborted:`, message)
+      const isRateLimit = /ENRICHMENT_RATE_LIMIT|429|Too Many Requests|quota/i.test(message)
+      return NextResponse.json(
+        {
+          error: isRateLimit ? "AI rate limit exceeded" : "AI enrichment failed",
+          details: message,
+          stage: "enrichment",
+          action_required: "Please add these medicines manually",
+          reason:
+            isRateLimit
+              ? "Gemini free-tier limit (20 requests/day for gemini-2.5-flash) was exceeded."
+              : "AI enrichment encountered an error.",
+          tips: [
+            "Open Dashboard → Import → Add manually",
+            "Enable billing on Google AI Studio to increase Gemini quota",
+            "Re-try later when quota resets (daily)",
+          ],
+          affected_new_records: newRecords,
+        },
+        { status: 429 }
+      )
+    }
 
     // LAYER 7 & 8: Consolidate and sync to database
     const success = await syncToDatabase(updated, enrichedNewRecords, userEmail)

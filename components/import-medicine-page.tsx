@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Upload, Camera, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
@@ -93,6 +94,14 @@ export function ImportMedicinePage() {
         <p className="text-muted-foreground text-pretty">
           Upload supplier bill photos to quickly add stock (max 10 items per bill)
         </p>
+        <div className="flex items-center justify-end mt-4">
+          <Link href="/dashboard/manual-import">
+            <Button variant="outline" className="text-primary">
+              Add medicines manually
+            </Button>
+          </Link>
+        </div>
+
       </div>
 
       {error && (
@@ -159,6 +168,7 @@ export function ImportMedicinePage() {
                     if (uploadedFile) handleFileUpload(uploadedFile)
                   }}
                 />
+
               </div>
 
               {isProcessing && (
