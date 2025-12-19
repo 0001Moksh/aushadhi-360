@@ -106,70 +106,277 @@ export function DashboardHome() {
   const buildInvoiceHtml = (payload: any) => {
     const invoiceDate = new Date(payload.invoiceDate)
     const formattedDate = invoiceDate.toLocaleDateString("en-IN", {
-      year: "numeric", month: "long", day: "numeric",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     })
-    const headerStoreName = payload.storeName || profile?.storeName || "Medical Store"
-    
+    const invoiceNumber = payload.billId || `INV-${invoiceDate.getTime()}`
+    const headerStoreName = payload.storeName || profile?.storeName || "Your Pharmacy"
+    const headerStorePhone = payload.storePhone || profile?.phone || ""
+    const headerStoreAddress = payload.storeAddress || profile?.address || ""
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
   <title>Invoice - ${headerStoreName}</title>
+
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; padding: 30px; color: #333; }
-    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
-    .brand { font-size: 24px; font-weight: bold; color: #2563eb; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
-    th { text-align: left; padding: 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
-    td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: #f7f9fc;
+      padding: 30px;
+      color: #1f2937;
+    }
+
+    .invoice {
+      max-width: 900px;
+      margin: auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      border: 1px solid #e5e7eb;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 12px;
+      gap: 12px;
+    }
+
+    .brand {
+      font-size: 26px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .brand span {
+      font-size: 13px;
+      font-weight: 500;
+      display: block;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .contact {
+      text-align: right;
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    .invoice-badge {
+      background: #2563eb;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Info */
+    .info {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      font-size: 14px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .info div p {
+      margin: 4px 0;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+      font-size: 14px;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 12px;
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 600;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    tbody td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
     .right { text-align: right; }
-    .totals { display: flex; justify-content: flex-end; margin-top: 20px; }
-    .totals-box { width: 300px; }
-    .row { display: flex; justify-content: space-between; padding: 8px 0; }
-    .grand { font-weight: bold; font-size: 18px; border-top: 2px solid #e2e8f0; padding-top: 12px; margin-top: 8px; }
+    .muted { color: #6b7280; font-size: 12px; }
+
+    /* Totals */
+    .totals {
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .totals-box {
+      width: 320px;
+      font-size: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .totals-box div {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+    }
+
+    .totals-box div:last-child { border-bottom: none; }
+
+    .totals-box .grand {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2563eb;
+      border-top: 2px solid #e5e7eb;
+      padding-top: 10px;
+      margin-top: 8px;
+      background: #f8fafc;
+    }
+
+    /* Notes */
+    .notes {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    @media print {
+      body { padding: 0; background: #fff; }
+      .invoice { box-shadow: none; border: 1px solid #e5e7eb; border-radius: 0; }
+      @page { size: A4; margin: 12mm; }
+    }
   </style>
 </head>
-<body>
-  <div class="header">
-    <div>
-      <div class="brand">${headerStoreName}</div>
-      <div>${payload.storeAddress || profile?.address || ""}</div>
-      <div>${payload.storePhone || profile?.phone || ""}</div>
-    </div>
-    <div style="text-align: right;">
-      <h2 style="margin: 0 0 10px 0;">INVOICE</h2>
-      <div>#${payload.billId}</div>
-      <div>${formattedDate}</div>
-    </div>
-  </div>
-  
-  <table>
-    <thead>
-      <tr><th>Item</th><th>Batch</th><th class="right">Qty</th><th class="right">Price</th><th class="right">Total</th></tr>
-    </thead>
-    <tbody>
-      ${payload.items.map((item: any) => `
-        <tr>
-          <td>${item.name}</td>
-          <td>${item.batch}</td>
-          <td class="right">${item.quantity}</td>
-          <td class="right">₹${item.price}</td>
-          <td class="right">₹${(item.price * item.quantity).toFixed(2)}</td>
-        </tr>
-      `).join("")}
-    </tbody>
-  </table>
 
-  <div class="totals">
-    <div class="totals-box">
-      <div class="row"><span>Subtotal</span><span>₹${payload.subtotal.toFixed(2)}</span></div>
-      <div class="row"><span>GST (18%)</span><span>₹${payload.gst.toFixed(2)}</span></div>
-      <div class="row grand"><span>Total</span><span>₹${payload.total.toFixed(2)}</span></div>
+<body>
+  <div class="invoice">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="brand">
+        ${headerStoreName}
+        <span>Powered by Aushadhi 360 (software)</span>
+      </div>
+      <div class="contact">
+        <div class="invoice-badge" style="float:right; margin-bottom:8px;">INVOICE</div>
+        ${headerStorePhone ? `<div><strong>Phone:</strong> ${headerStorePhone}</div>` : ""}
+        ${headerStoreAddress ? `<div><strong>Address:</strong> ${headerStoreAddress}</div>` : ""}
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="info">
+      <div>
+        <p><strong>Date:</strong> ${formattedDate}</p>
+        <p><strong>Invoice No:</strong> ${invoiceNumber}</p>
+      </div>
+      <div>
+        ${payload.customerEmail ? `<p><strong>Customer:</strong> ${payload.customerEmail}</p>` : `<p><strong>Customer:</strong> Walk-in</p>`}
+        <p class="muted">This is a system generated invoice.</p>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <table>
+      <thead>
+        <tr>
+          <th>Medicine</th>
+          <th>Batch</th>
+          <th class="right">Qty</th>
+          <th class="right">Price</th>
+          <th class="right">Amount</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${payload.items.map((item: any) => `
+          <tr>
+            <td>${item.name}</td>
+            <td>${item.batch}</td>
+            <td class="right">${item.quantity}</td>
+            <td class="right">₹${item.price.toFixed(2)}</td>
+            <td class="right">₹${(item.price * item.quantity).toFixed(2)}</td>
+            <td>${item.description || "Medicine sale"}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals">
+      <div class="totals-box">
+        <div>
+          <span>Subtotal</span>
+          <span>₹${payload.subtotal.toFixed(2)}</span>
+        </div>
+        <div>
+          <span>GST (18%)</span>
+          <span>₹${payload.gst.toFixed(2)}</span>
+        </div>
+        <div class="grand">
+          <span>Total</span>
+          <span>₹${payload.total.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+      <strong>Notes & Guidance</strong><br/>
+      • Medicines once sold will not be returned.<br/>
+      • Please consult physician before use.<br/>
+      • For support, contact your pharmacist.<br/>
+      ${headerStorePhone ? `• Store Phone: ${headerStorePhone}<br/>` : ""}
+      ${headerStoreAddress ? `• Address: ${headerStoreAddress}` : ""}
+    </div>
+ 
+    <!-- Footer -->
+    <div class="footer">
+      Thank you for choosing ${headerStoreName}<br />
     </div>
   </div>
 </body>
-</html>`
+</html>
+    `
   }
 
   const previewInvoice = (bill: BillHistory) => {
@@ -312,10 +519,10 @@ export function DashboardHome() {
               View All
             </Button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             {recentBills.map((bill) => (
-              <Card key={bill.id} className="p-3 md:p-3">
-                <div className="flex items-start justify-between mb-2">
+              <Card key={bill.id} className="p-3">
+                <div className="flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-sm">{bill.billId}</p>
                     <p className="text-xs text-muted-foreground">
@@ -325,15 +532,15 @@ export function DashboardHome() {
                       })}
                     </p>
                   </div>
-                  <Badge variant="outline">{bill.itemCount} items</Badge>
                 </div>
-                <div className="flex items-center justify-between text-sm mb-2">
+                <div className="flex items-center text-sm">
                   <span className="text-muted-foreground">Total:</span>
-                  <span className="font-semibold text-primary">₹{bill.total.toFixed(2)}</span>
+                  <span className="font-semibold ml-1 text-primary">₹{bill.total.toFixed(2)}</span>
+                  <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
                 </div>
-                {bill.customerEmail && (
-                  <p className="text-xs text-muted-foreground mb-2 truncate">{bill.customerEmail}</p>
-                )}
+                {/* {bill.customerEmail && (
+                  <p className="text-xs text-muted-foreground truncate">{bill.customerEmail}</p>
+                )} */}
                 <Button size="sm" variant="outline" className="w-full" onClick={() => previewInvoice(bill)}>
                   <Eye className="h-3 w-3 mr-1" />
                   Invoice

@@ -31,7 +31,7 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Package, label: "Products", href: "/dashboard/products" },
+  // { icon: Package, label: "Products", href: "/dashboard/products" },
   { icon: Receipt, label: "Billing", href: "/dashboard/billing" },
   { icon: Sparkles, label: "AI Assist", href: "/dashboard/ai-assist" },
   { icon: Upload, label: "Import Medicine", href: "/dashboard/import" },
@@ -138,7 +138,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Button
                   size="icon"
                   variant="outline"
-                  className="rounded-full w-6 h-15 bg-background hover:bg-muted"
+                  className="rounded-full w-6 h-15 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary hover:text-primary"
                   onClick={() => setIsExpanded(false)}
                   aria-label="Collapse sidebar"
                 >
@@ -148,7 +148,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Button
                   size="icon"
                   variant="outline"
-                  className="rounded-full w-6 h-15 bg-background hover:bg-muted"
+                  className="rounded-full w-6 h-15 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary hover:text-primary"
                   onClick={() => setIsExpanded(true)}
                   aria-label="Expand sidebar"
                 >
@@ -219,7 +219,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <Button
                 variant="outline"
-                className={cn("w-full text-red-500", !isExpanded && "w-10 h-10 p-6")}
+                className={cn("w-full text-aceent-500", !isExpanded && "w-10 h-10 p-6")}
                 size={isExpanded ? "sm" : "icon"}
                 onClick={handleLogout}
               >

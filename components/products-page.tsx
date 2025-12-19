@@ -163,67 +163,41 @@ export function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-balance mb-1">All Products</h1>
-          <p className="text-muted-foreground text-pretty">Complete list of medicines with expiry-aware status colors.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">All Products</h1>
+          <p className="text-muted-foreground text-sm md:text-base text-pretty">Complete list of medicines with expiry-aware status colors.</p>
         </div>
         <div className="flex items-center gap-2">
           <Input
-            placeholder="Search by name, batch, category"
+            placeholder="Search..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-[260px]"
+            className="w-full md:w-[260px]"
           />
-          <Button variant="outline" onClick={loadMedicines} disabled={isLoading}>
-            <RefreshCcw className="h-4 w-4 mr-2" /> Refresh
+          <Button variant="outline" size="icon" className="shrink-0 md:w-auto md:px-4" onClick={loadMedicines} disabled={isLoading}>
+            <RefreshCcw className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Total Products</p>
-          <p className="text-2xl font-bold mt-1">{summary.total}</p>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Total Products</p>
+          <p className="text-xl font-bold mt-1">{summary.total}</p>
         </Card>
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Fresh Stock</p>
-          <p className="text-2xl font-bold mt-1 text-success">{summary.fresh}</p>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Fresh Stock</p>
+          <p className="text-xl font-bold mt-1 text-success">{summary.fresh}</p>
         </Card>
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Expiring Soon</p>
-          <p className="text-2xl font-bold mt-1 text-warning">{summary.expiring}</p>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Expiring Soon</p>
+          <p className="text-xl font-bold mt-1 text-warning">{summary.expiring}</p>
         </Card>
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Expired</p>
-          <p className="text-2xl font-bold mt-1 text-destructive">{summary.expired}</p>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Expired</p>
+          <p className="text-xl font-bold mt-1 text-destructive">{summary.expired}</p>
         </Card>
       </div>
 
-      <Card className="p-4 flex items-center flex-wrap gap-2 border-dashed">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={toneStyles.destructive.badge}>
-            Expired
-          </Badge>
-          <span className="text-sm text-muted-foreground">Past expiry date</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={toneStyles.warning.badge}>
-            Expiring Soon
-          </Badge>
-          <span className="text-sm text-muted-foreground">Within 30 days</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={toneStyles.success.badge}>
-            Fresh
-          </Badge>
-          <span className="text-sm text-muted-foreground">30+ days remaining</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={toneStyles.muted.badge}>
-            Unknown
-          </Badge>
-          <span className="text-sm text-muted-foreground">Missing expiry info</span>
-        </div>
-      </Card>
 
       {error && (
         <Alert variant="destructive">
@@ -238,54 +212,86 @@ export function ProductsPage() {
           <p className="text-muted-foreground text-sm">Fetching your medicines…</p>
         </div>
       ) : (
-        <Card className="p-0">
+        <>
           {filteredMedicines.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <Card className="flex flex-col items-center justify-center py-16 gap-3 text-center">
               <PackageSearch className="h-8 w-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">No medicines match your filters yet.</p>
-            </div>
+            </Card>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Batch</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile View: Cards */}
+              <div className="grid grid-cols-1 gap-2 md:hidden">
                 {filteredMedicines.map((m) => {
                   const tone = toneStyles[m.tone]
                   return (
-                    <TableRow key={m.id} className={tone.row}>
-                      <TableCell>
+                    <Card key={m.id} className={`p-3 flex flex-col gap-3 ${tone.row}`}>
+                      <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col">
-                          <span className="font-medium text-sm">{m.name}</span>
-                          {m.category && <span className="text-xs text-muted-foreground">{m.category}</span>}
+                          <span className="font-medium text-sm line-clamp-1">{m.name}</span>
+                          {m.category && <span className="text-[10px] text-muted-foreground line-clamp-1">{m.category}</span>}
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.batch}</TableCell>
-                      <TableCell className="text-sm">{m.quantity}</TableCell>
-                      <TableCell className="text-sm">{m.price ? `₹${m.price.toFixed(2)}` : "—"}</TableCell>
-                      <TableCell className="text-sm">{m.expiryLabel}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={tone.badge}>
+                        <Badge variant="outline" className={`${tone.badge} text-[10px] px-1.5 h-5 whitespace-nowrap shrink-0`}>
                           {m.statusLabel}
-                          {m.daysToExpiry !== null && (
-                            <span className="ml-2 text-xs text-muted-foreground">{m.daysToExpiry}d</span>
-                          )}
                         </Badge>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-y-1 text-xs">
+                        <div className="text-muted-foreground">Batch: <span className="text-foreground font-medium">{m.batch}</span></div>
+                        <div className="text-muted-foreground text-right">Qty: <span className="text-foreground font-medium">{m.quantity}</span></div>
+                        <div className="text-muted-foreground">Price: <span className="text-foreground font-medium">{m.price ? `₹${m.price.toFixed(2)}` : "—"}</span></div>
+                        {/* <div className="text-muted-foreground text-right">Exp: <span className="text-foreground font-medium">{m.expiryLabel}</span></div> */}
+                      </div>
+                    </Card>
                   )
                 })}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop View: Table */}
+              <Card className="hidden md:block p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Batch</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Expiry</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMedicines.map((m) => {
+                      const tone = toneStyles[m.tone]
+                      return (
+                        <TableRow key={m.id} className={tone.row}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">{m.name}</span>
+                              {m.category && <span className="text-xs text-muted-foreground">{m.category}</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{m.batch}</TableCell>
+                          <TableCell className="text-sm">{m.quantity}</TableCell>
+                          <TableCell className="text-sm">{m.price ? `₹${m.price.toFixed(2)}` : "—"}</TableCell>
+                          {/* <TableCell className="text-sm">{m.expiryLabel}</TableCell> */}
+                          <TableCell>
+                            <Badge variant="outline" className={tone.badge}>
+                              {m.statusLabel}
+                              {m.daysToExpiry !== null && (
+                                <span className="ml-2 text-xs text-muted-foreground">{m.daysToExpiry}d</span>
+                              )}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+            </>
           )}
-        </Card>
+        </>
       )}
     </div>
   )
