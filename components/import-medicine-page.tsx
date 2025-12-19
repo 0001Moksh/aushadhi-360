@@ -90,7 +90,7 @@ export function ImportMedicinePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-balance mb-2">Import Medicine</h1>
+        <h1 className="text-2xl font-bold text-balance mb-2">Import Medicine</h1>
         <p className="text-muted-foreground text-pretty">
           Upload supplier bill photos to quickly add stock (max 10 items per bill)
         </p>
@@ -111,13 +111,13 @@ export function ImportMedicinePage() {
         </Alert>
       )}
 
-      <Card className="p-12 text-center">
+      <Card className="p-6 md:p-8 text-center">
         <div className="max-w-2xl mx-auto space-y-6">
           {success && result ? (
             <>
-              <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
+              <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
               <h3 className="text-2xl font-semibold">Import Successful!</h3>
-              <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 max-w-lg mx-auto">
                 <Card className="p-4">
                   <div className="text-2xl font-bold text-blue-600">{result.total}</div>
                   <div className="text-sm text-muted-foreground">Total Processed</div>
@@ -144,8 +144,8 @@ export function ImportMedicinePage() {
             </>
           ) : (
             <>
-              <div className="p-8 rounded-2xl bg-primary/5 border-2 border-dashed border-primary/20">
-                <Upload className="h-16 w-16 text-primary mx-auto mb-4" />
+              <div className="p-4 md:p-6 rounded-2xl bg-primary/5 border-2 border-dashed border-primary/20">
+                <Upload className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Drop Bill Image Here</h3>
                 <p className="text-sm text-muted-foreground mb-4">Supports JPG, PNG, PDF, Excel, CSV</p>
                 <div className="flex gap-3 justify-center">

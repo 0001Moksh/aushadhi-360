@@ -355,8 +355,8 @@ export function ManualImportTable() {
   return (
     <div className="space-y-4">
       {/* Fixed Header Controls */}
-      <Card className="p-4 sticky top-0 z-10 bg-background">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+      <Card className="p-2 md:p-3 sticky top-0 z-10 bg-background">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={addRow}>
               <Plus className="h-4 w-4 mr-2" /> Add Row
@@ -419,23 +419,23 @@ export function ManualImportTable() {
       {/* Scrollable Table */}
       <Card className="p-0">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-          <table className="w-full text-sm border-collapse">
+          <table className="w-full text-xs md:text-sm border-collapse">
             <thead className="sticky top-0 bg-muted z-10">
               <tr className="text-left">
-                <th className="p-2 border-b w-10"></th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[120px]">Batch_ID</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[180px]">Name of Medicine</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[100px]">Price (INR)</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[100px]">Total Quantity</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[150px]">Category</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[120px]">Medicine Forms</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[100px]">Qty/Pack</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[200px]">Cover Disease</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[200px]">Symptoms</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[200px]">Side Effects</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[200px]">Instructions</th>
-                <th className="p-2 border-b whitespace-nowrap min-w-[200px]">Description (Hinglish)</th>
-                <th className="p-2 border-b w-[120px]">Actions</th>
+                <th className="p-1.5 border-b w-10"></th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[120px]">Batch_ID</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[180px]">Name of Medicine</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[100px]">Price (INR)</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[100px]">Total Quantity</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[150px]">Category</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[120px]">Medicine Forms</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[100px]">Qty/Pack</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[200px]">Cover Disease</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[200px]">Symptoms</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[200px]">Side Effects</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[200px]">Instructions</th>
+                <th className="p-1.5 border-b whitespace-nowrap min-w-[200px]">Description (Hinglish)</th>
+                <th className="p-1.5 border-b w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -449,51 +449,51 @@ export function ManualImportTable() {
                   onDragEnd={handleDragEnd}
                   style={{ opacity: draggedRow === i ? 0.5 : 1 }}
                 >
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Input
                       value={r.Batch_ID}
                       onChange={(e) => update(i, "Batch_ID", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[120px]"
+                      className="min-w-[120px] h-8 text-xs"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Input
                       value={r.name}
                       onChange={(e) => update(i, "name", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[180px]"
+                      className="min-w-[180px] h-8 text-xs"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Input
                       type="number"
                       value={r.price}
                       onChange={(e) => update(i, "price", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[100px]"
+                      className="min-w-[100px] h-8 text-xs"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Input
                       type="number"
                       value={r.qty}
                       onChange={(e) => update(i, "qty", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[100px]"
+                      className="min-w-[100px] h-8 text-xs"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     {showCustomInput === i ? (
                       <div className="flex gap-1">
                         <Input
                           value={customCategoryValue}
                           onChange={(e) => setCustomCategoryValue(e.target.value)}
                           placeholder="New category"
-                          className="min-w-[100px]"
+                          className="min-w-[100px] h-8 text-xs"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               addCustomCategory(i)
@@ -524,7 +524,7 @@ export function ManualImportTable() {
                           }
                         }}
                       >
-                        <SelectTrigger className="min-w-[150px]">
+                        <SelectTrigger className="min-w-[150px] h-8 text-xs">
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
@@ -538,68 +538,68 @@ export function ManualImportTable() {
                       </Select>
                     )}
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Input
                       value={r.form || ""}
                       onChange={(e) => update(i, "form", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[120px]"
+                      className="min-w-[120px] h-8 text-xs"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Input
                       value={r.qtyPerPack || ""}
                       onChange={(e) => update(i, "qtyPerPack", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[100px]"
+                      className="min-w-[100px] h-8 text-xs"
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Textarea
                       value={r.coverDisease || ""}
                       onChange={(e) => update(i, "coverDisease", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[200px] min-h-[60px]"
+                      className="min-w-[200px] min-h-[60px] text-xs"
                       rows={2}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Textarea
                       value={r.symptoms || ""}
                       onChange={(e) => update(i, "symptoms", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[200px] min-h-[60px]"
+                      className="min-w-[200px] min-h-[60px] text-xs"
                       rows={2}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Textarea
                       value={r.sideEffects || ""}
                       onChange={(e) => update(i, "sideEffects", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[200px] min-h-[60px]"
+                      className="min-w-[200px] min-h-[60px] text-xs"
                       rows={2}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Textarea
                       value={r.instructions || ""}
                       onChange={(e) => update(i, "instructions", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[200px] min-h-[60px]"
+                      className="min-w-[200px] min-h-[60px] text-xs"
                       rows={2}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <Textarea
                       value={r.hinglish || ""}
                       onChange={(e) => update(i, "hinglish", e.target.value)}
                       onBlur={handleBlur}
-                      className="min-w-[200px] min-h-[60px]"
+                      className="min-w-[200px] min-h-[60px] text-xs"
                       rows={2}
                     />
                   </td>
-                  <td className="p-2">
+                  <td className="p-1.5">
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"

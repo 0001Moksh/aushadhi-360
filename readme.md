@@ -2,7 +2,8 @@
 
 **Complete Medical Store Management Software**
 
-**Project Owner:** Moksh Bhardwaj
+**Project Owner:** Moksh Bhardwaj  
+Full project docs are consolidated in [COMBINED_DOCS.md](COMBINED_DOCS.md).
 
 ---
 
@@ -202,7 +203,252 @@ Rapid inventory updates using supplier bills or digital files.
 
 ---
 
-## 🚀 Future Enhancements
+## � Technical Architecture & Data Flow
+
+### Technology Stack
+
+**Frontend:**
+- Next.js 16.0.10 (React framework)
+- TypeScript (type-safe development)
+- Tailwind CSS + shadcn/ui (modern UI components)
+- React Hooks (state management)
+
+**Backend:**
+- Next.js API Routes (serverless functions)
+- MongoDB (NoSQL database)
+- Mongoose (ODM for MongoDB)
+- JWT (JSON Web Tokens for authentication)
+
+**Additional Services:**
+- Nodemailer (email delivery)
+- LocalStorage (client-side persistence for drafts/favorites)
+
+### 📋 Detailed Billing Workflow
+
+#### 1. Medicine Search Flow
+```
+User Input → Search API → MongoDB Query → Medicine Results
+                                           ↓
+                              [Name, Batch, Price, Quantity,
+                               Category, Form, Description]
+```
+
+**API Endpoint:** `/api/medicines/search`
+- Searches by name, batch, or category
+- Returns medicine details including "Description in Hinglish"
+- Includes stock availability check
+
+#### 2. Cart Management Flow
+```
+Medicine Selected → Add to Cart → Cart State (React)
+                                        ↓
+                         [Items Array with Descriptions]
+                                        ↓
+                              Local State Management
+```
+
+**Features:**
+- Real-time quantity validation
+- Automatic price calculation
+- Description propagation from API
+- Out-of-stock prevention
+
+#### 3. Draft Bill System Flow
+```
+Cart Items → Save Draft → LocalStorage
+                              ↓
+                    [DraftBill Interface]
+              {id, createdAt, items, totals, customerEmail}
+                              ↓
+                    Drafts Tab Display
+                              ↓
+              [Restore] ← User Action → [Delete]
+```
+
+**Features:**
+- Persistent draft storage using browser localStorage
+- Multiple drafts support with unique IDs
+- One-click restore to cart
+- Draft metadata (timestamp, totals, customer info)
+
+#### 4. Checkout & Invoice Generation Flow
+```
+Cart Items → Checkout → Bill Creation API → MongoDB Save
+                             ↓                    ↓
+                    Invoice HTML Generator    Bill Record
+                             ↓                    ↓
+                    [Invoice Template]      [History Entry]
+                             ↓
+                    Print Window / Email Service
+```
+
+**API Endpoint:** `/api/billing/create`
+- Creates bill record in database
+- Updates medicine inventory (reduces stock)
+- Generates unique bill ID with timestamp
+- Returns bill data for invoice generation
+
+**Invoice Template Variables:**
+- `payload.items` - Cart items with descriptions
+- `payload.subtotal` - Pre-tax amount
+- `payload.gst` - 18% tax amount
+- `payload.total` - Final payable amount
+- `payload.customerEmail` - Customer identifier
+- `payload.billId` - Unique invoice number
+- `payload.invoiceDate` - Transaction timestamp
+- `payload.storeName`, `storePhone`, `storeAddress` - Store details
+
+#### 5. Billing History Flow
+```
+User Request → History API → MongoDB Query (limit: 200)
+                                  ↓
+                          Sort by Date (Ascending)
+                                  ↓
+                          [All User Bills]
+                                  ↓
+                    Display in History Tab
+                                  ↓
+              View Invoice → Reuse Invoice Generator
+                                  ↓
+                          Preview in New Window
+```
+
+**API Endpoint:** `/api/billing/history`
+- Fetches up to 200 recent bills (ascending order - oldest first)
+- Includes full bill data (items, totals, customer info, store name)
+- Supports invoice preview/reprint functionality
+
+#### 6. Email Invoice Flow (Optional)
+```
+Customer Email Provided? → Yes → Email API → Nodemailer
+                                       ↓
+                              Generate HTML Invoice
+                                       ↓
+                              Send via SMTP
+                                       ↓
+                         Confirmation to User
+```
+
+**API Endpoint:** `/api/email/invoice`
+- Sends invoice to customer email
+- Uses same HTML template as print invoice
+- Includes store branding and contact info
+
+### 🗄️ Database Schema
+
+#### Medicine Collection
+```typescript
+{
+  _id: ObjectId,
+  name: string,
+  batch: string,
+  price: number,
+  quantity: number,
+  category: string,
+  form: string,
+  "Description in Hinglish": string,  // Primary description field
+  expiryDate?: Date,
+  manufacturer?: string,
+  // ... other fields
+}
+```
+
+#### Bills Collection
+```typescript
+{
+  _id: ObjectId,
+  userId: ObjectId,  // Reference to user
+  billId: string,    // Unique invoice number (format: BILL-YYYYMMDD-HHMMSS)
+  items: [
+    {
+      medicineId: ObjectId,
+      name: string,
+      batch: string,
+      quantity: number,
+      price: number,
+      subtotal: number,
+      description?: string
+    }
+  ],
+  subtotal: number,
+  gst: number,
+  total: number,
+  customerEmail?: string,
+  createdAt: Date
+}
+```
+
+#### Users Collection
+```typescript
+{
+  _id: ObjectId,
+  email: string,
+  passwordHash: string,  // Hashed password
+  fullName: string,
+  role: 'user' | 'admin',
+  storeName?: string,
+  storePhone?: string,
+  storeAddress?: string,
+  isApproved: boolean,   // Admin approval status
+  createdAt: Date
+}
+```
+
+### 🔐 Security & Authentication
+
+**Password Security:**
+- Passwords hashed using bcrypt
+- Never stored or transmitted in plain text
+- Admin can reset passwords but never view them
+
+**API Security:**
+- JWT-based authentication
+- Protected routes require valid tokens
+- Role-based access control (user vs admin)
+
+**Data Validation:**
+- Input sanitization on all API routes
+- TypeScript type checking
+- Mongoose schema validation
+
+### 📱 Client-Side State Management
+
+**React Hooks Used:**
+- `useState` - Component state (cart, medicines, drafts, bills)
+- `useEffect` - Side effects (API calls, localStorage sync)
+- `useCallback` - Memoized functions (search, checkout)
+- `useRef` - DOM references (search input focus)
+
+**LocalStorage Keys:**
+- `billing_drafts` - Draft bills array
+- `billing_favorites` - Favorite medicine IDs
+
+### 🎨 UI Component Structure
+
+```
+billing-page.tsx (Main Component)
+  ├── Search Tab
+  │   ├── Search Input (with debounce)
+  │   ├── Medicine Cards
+  │   └── Add to Cart Buttons
+  ├── Drafts Tab
+  │   ├── Draft Cards
+  │   ├── Restore Draft Button
+  │   └── Delete Draft Button
+  ├── History Tab
+  │   ├── Bill Cards
+  │   └── View Invoice Button
+  └── Cart Section
+      ├── Cart Items List
+      ├── Price Summary (Subtotal, GST, Total)
+      ├── Customer Email Input
+      ├── Save to Draft Button
+      └── Generate Bill Button
+```
+
+---
+
+## �🚀 Future Enhancements
 
 * Barcode & QR scanning
 * Voice-based medicine search
