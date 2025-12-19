@@ -99,6 +99,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     localStorage.setItem("sidebarExpanded", String(expanded))
   }
 
+  const showFullSidebar = isExpanded || sidebarOpen
+
   return (
     <div className="min-h-screen bg-background">
       <SystemStatusIndicator />
@@ -124,24 +126,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 ease-in-out",
             "lg:translate-x-0",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
-            isExpanded ? "w-64" : "w-20"
+            showFullSidebar ? "w-64" : "w-20"
           )}
-          onClick={(e) => {
-            // Clicking empty space expands when collapsed
-            if (!isExpanded && (e.target as HTMLElement).closest("button") === null) {
-              toggleSidebar(true)
-            }
-          }}
         >
           <div className="flex flex-col h-full">
             {/* Logo */}
             <div className="h-[113px] p-4 border-b border-sidebar-border flex items-center justify-center relative">
               <img
-                src={isExpanded ? "/logo2.png" : "/logo1.png"}
+                src={showFullSidebar ? "/logo2.png" : "/logo1.png"}
                 alt="Aushadhi 360 Logo"
                 className={cn(
                   "w-auto object-contain transition-all duration-300",
-                  isExpanded ? "h-20" : "h-10"
+                  showFullSidebar ? "h-20" : "h-10"
                 )}
               />
             </div>
@@ -174,7 +170,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <TooltipProvider disableHoverableContent delayDuration={50} skipDelayDuration={0}>
                 <nav
                   className={cn(
-                    isExpanded ? "space-y-1 px-3" : "grid grid-cols-1 justify-items-center"
+                    showFullSidebar ? "space-y-1 px-3" : "grid grid-cols-1 justify-items-center"
                   )}
                 >
                   {navItems.map((item) => {
@@ -184,11 +180,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       <Button
                         key={item.href}
                         variant={isActive ? "secondary" : "ghost"}
-                        size={isExpanded ? "default" : "icon"}
+                        size={showFullSidebar ? "default" : "icon"}
                         aria-label={item.label}
                         className={cn(
-                          isExpanded ? "w-full justify-start" : "w-10 h-10",
-                          !isExpanded && "py-1",
+                          showFullSidebar ? "w-full justify-start" : "w-10 h-10",
+                          !showFullSidebar && "py-1",
                           isActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90",
                         )}
                         onClick={(e) => {
@@ -197,12 +193,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                           setSidebarOpen(false)
                         }}
                       >
-                        <Icon className={cn("h-5 w-5", isExpanded && "mr-3")} />
-                        <span className={cn("truncate", !isExpanded && "hidden")}>{item.label}</span>
+                        <Icon className={cn("h-5 w-5", showFullSidebar && "mr-3")} />
+                        <span className={cn("truncate", !showFullSidebar && "hidden")}>{item.label}</span>
                       </Button>
                     )
 
-                    if (isExpanded) return button
+                    if (showFullSidebar) return button
 
                     return (
                       <Tooltip key={item.href} disableHoverableContent delayDuration={50}>
@@ -218,25 +214,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </ScrollArea>
 
             {/* User profile */}
-            <div className={cn("p-4 border-t border-sidebar-border", !isExpanded && "p-2")}>
-              <div className={cn("flex items-center gap-3 mb-3", !isExpanded && "justify-center")}>
+            <div className={cn("p-4 border-t border-sidebar-border", !showFullSidebar && "p-2")}>
+              <div className={cn("flex items-center gap-3 mb-3", !showFullSidebar && "justify-center")}>
                 <Avatar>
                   <AvatarImage src="/diverse-user-avatars.png" />
                   <AvatarFallback>{initials || "U"}</AvatarFallback>
                 </Avatar>
-                <div className={cn("flex-1 min-w-0", !isExpanded && "hidden")}>
+                <div className={cn("flex-1 min-w-0", !showFullSidebar && "hidden")}>
                   <p className="text-sm font-medium truncate">{ownerName}</p>
                   <p className="text-xs text-muted-foreground truncate">{storeName}</p>
                 </div>
               </div>
               <Button
                 variant="outline"
-                className={cn("w-full text-aceent-500", !isExpanded && "w-10 h-10 p-6")}
-                size={isExpanded ? "sm" : "icon"}
+                className={cn("w-full text-aceent-500", !showFullSidebar && "w-10 h-10 p-6")}
+                size={showFullSidebar ? "sm" : "icon"}
                 onClick={handleLogout}
               >
-                <LogOut className={cn("h-4 w-4", isExpanded && "mr-2")} />
-                <span className={cn(!isExpanded && "hidden")}>Logout</span>
+                <LogOut className={cn("h-4 w-4", showFullSidebar && "mr-2")} />
+                <span className={cn(!showFullSidebar && "hidden")}>Logout</span>
               </Button>
             </div>
           </div>
@@ -249,10 +245,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Main content */}
         <main className={cn("flex-1 transition-all duration-300 ease-in-out", isExpanded ? "lg:ml-64" : "lg:ml-20")}>
-          <div className="relative p-6 lg:p-8">
-
-            {/* Sidebar Toggle Button */}
+          <div className="relative p-4 lg:p-6">
             {children}
+
+            <footer className="mt-6 border-t pt-4 text-center text-[10px] text-muted-foreground flex flex-col gap-1">
+              <p>&copy; {new Date().getFullYear()} Aushadhi 360. All rights reserved.</p>
+              <p>
+                Powered by{" "}
+                <a
+                  href="https://mokshbhardwaj.netlify.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:text-primary transition-colors"
+                >
+                  Moksh Bhardwaj
+                </a>
+              </p>
+              <p className="opacity-50">v1.0.0</p>
+            </footer>
           </div>
         </main>
       </div>

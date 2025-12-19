@@ -945,10 +945,7 @@ export function BillingPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">Manual Billing</h1>
-          {/* <p className="text-sm text-muted-foreground text-pretty">Search medicines and generate bills with real-time inventory updates</p> */}
-        </div>
-        <div className="flex flex-wrap gap-2 justify-end">
-          <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
+           <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
             {isOnline ? "Online" : "Offline"}
             {offlineQueueCount > 0 && <span className="text-xs">• {offlineQueueCount} queued</span>}
           </Badge>
@@ -964,24 +961,32 @@ export function BillingPage() {
               Sync queued
             </Button>
           )}
+          {/* <p className="text-sm text-muted-foreground text-pretty">Search medicines and generate bills with real-time inventory updates</p> */}
+        </div>
+        <div className="flex flex-wrap gap-2 justify-end">
+         
+          {/* Quick Mode Button */}
           <Button
             variant={isQuickMode ? "default" : "outline"}
             size="sm"
-            onClick={() => setIsQuickMode((v) => !v)}
-            className="gap-2"
-          >
-            <Zap className="h-4 w-4" />
-            {isQuickMode ? "Quick Mode On" : "Quick Mode"}
+            onClick={() => setIsQuickMode(v => !v)}
+            className="hidden md:flex items-center gap-2 transition-all">
+            <Zap className={`h-4 w-4 ${isQuickMode ? "animate-pulse" : ""}`} />
+            <span className="font-medium">
+              {isQuickMode ? "Quick Mode On" : "Quick Mode"}
+            </span>
           </Button>
+
+          {/* Shortcuts Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowShortcuts(true)}
-            className="gap-2"
-          >
+            className="hidden md:flex items-center gap-2 transition-all">
             <Keyboard className="h-4 w-4" />
-            Shortcuts
+            <span className="font-medium">Shortcuts</span>
           </Button>
+
           {cart.length > 0 && (
             <>
               {/* <Button
@@ -1167,8 +1172,8 @@ export function BillingPage() {
                         >
                           <Star
                             className={`h-4 w-4 ${favorites.includes(medicine.id)
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-muted-foreground"
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-muted-foreground"
                               }`}
                           />
                         </Button>
