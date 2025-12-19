@@ -813,7 +813,7 @@ export function BillingPage() {
           </Button>
           {cart.length > 0 && (
             <>
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 onClick={downloadInvoicePdf}
@@ -821,7 +821,7 @@ export function BillingPage() {
               >
                 <Download className="h-4 w-4" />
                 Save PDF
-              </Button>
+              </Button> */}
               <Button
                 variant="outline"
                 size="sm"
