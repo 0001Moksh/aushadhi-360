@@ -836,19 +836,23 @@ export function BillingPage() {
         </div>
       </div>
 
-      {/* Status Messages */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      {/* Status Messages (float above layout to avoid shift) */}
+      {(error || success) && (
+        <div className="fixed top-4 right-4 z-50 space-y-3 w-[min(420px,calc(100%-1.5rem))] pointer-events-none">
+          {error && (
+            <Alert variant="destructive" className="pointer-events-auto shadow-lg">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-      {success && (
-        <Alert className="border-green-500 text-green-700 dark:text-green-400">
-          <CheckCircle className="h-4 w-4" />
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
+          {success && (
+            <Alert className="border-green-500 text-green-700 dark:text-green-400 pointer-events-auto shadow-lg">
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          )}
+        </div>
       )}
 
       {/* Keyboard Shortcuts Dialog */}

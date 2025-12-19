@@ -287,13 +287,13 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex items-center gap-3">
-          <Shield className="h-8 w-8 text-primary" />
+    <div className="min-h-screen bg-background p-3 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Shield className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           <div>
-            <h1 className="text-4xl font-bold text-balance">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Moksh Bhardwaj - System Administrator</p>
+            <h1 className="text-2xl md:text-4xl font-bold text-balance">Admin Dashboard</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">Moksh Bhardwaj - System Administrator</p>
           </div>
         </div>
 
@@ -312,7 +312,7 @@ export function AdminDashboard() {
         )}
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-6">
             <p className="text-sm text-muted-foreground">Total Users</p>
             <p className="text-3xl font-bold mt-2">{users.length}</p>
@@ -341,7 +341,7 @@ export function AdminDashboard() {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="users" className="w-full">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="users">
               <UserCheck className="mr-2 h-4 w-4" />
               Manage Users
@@ -373,8 +373,8 @@ export function AdminDashboard() {
                 <div className="space-y-4">
                   {requests.map((request) => (
                     <Card key={request._id} className="p-4 border-2">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-2 flex-1">
+                      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                        <div className="space-y-2 flex-1 w-full">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-lg">{request.storeName}</h3>
                             <Badge variant="outline" className="text-warning border-warning">
@@ -399,7 +399,7 @@ export function AdminDashboard() {
                             Requested: {new Date(request.createdAt).toLocaleString()}
                           </p>
                         </div>
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 w-full md:w-auto">
                           <Button
                             size="sm"
                             onClick={() => handleApproveRequest(request._id, request)}
@@ -475,7 +475,7 @@ export function AdminDashboard() {
                 disabled={isCreating}
               />
             </div>
-            <div className="space-y-2 lg:col-span-2">
+            <div className="space-y-2 md:col-span-2 lg:col-span-2">
               <Label htmlFor="new-address">Address</Label>
               <Input
                 id="new-address"
@@ -528,73 +528,130 @@ export function AdminDashboard() {
               ) : users.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No users found</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Store Name</TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Last Login</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* Mobile View: Cards */}
+                  <div className="grid gap-4 md:hidden">
                     {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.storeName || user.name}</TableCell>
-                        <TableCell>{user.ownerName || "-"}</TableCell>
-                        <TableCell className="text-sm">{user.email}</TableCell>
-                        <TableCell className="text-sm capitalize">{user.role || "user"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
-                        </TableCell>
-                        <TableCell className="text-sm">{user.phone || "-"}</TableCell>
-                        <TableCell>
+                      <Card key={user.id} className="p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{user.storeName || user.name}</h3>
+                            <p className="text-sm text-muted-foreground">{user.ownerName}</p>
+                          </div>
                           {user.approved ? (
                             <Badge variant="outline" className="text-success border-success">
-                              <CheckCircle className="mr-1 h-3 w-3" />
                               Active
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-warning border-warning">
-                              <XCircle className="mr-1 h-3 w-3" />
-                              Pending Confirmation
+                              Pending
                             </Badge>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            {/* No manual approve; user confirms via email */}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSendEmail(user.email, user.name)}
-                              title="Send Email"
-                            >
-                              <Mail className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive"
-                              onClick={() => handleDeleteUser(user.id)}
-                              title="Delete User"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                        </div>
+                        <div className="text-sm space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-3 w-3 text-muted-foreground" />
+                            {user.email}
                           </div>
-                        </TableCell>
-                      </TableRow>
+                          <div className="flex items-center gap-2">
+                            <span className="capitalize text-muted-foreground">{user.role || "user"}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">{user.phone || "No phone"}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => handleSendEmail(user.email, user.name)}
+                          >
+                            <Mail className="h-4 w-4 mr-2" /> Email
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          </Button>
+                        </div>
+                      </Card>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Store Name</TableHead>
+                          <TableHead>Owner</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead>Last Login</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.storeName || user.name}</TableCell>
+                            <TableCell>{user.ownerName || "-"}</TableCell>
+                            <TableCell className="text-sm">{user.email}</TableCell>
+                            <TableCell className="text-sm capitalize">{user.role || "user"}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
+                            </TableCell>
+                            <TableCell className="text-sm">{user.phone || "-"}</TableCell>
+                            <TableCell>
+                              {user.approved ? (
+                                <Badge variant="outline" className="text-success border-success">
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-warning border-warning">
+                                  <XCircle className="mr-1 h-3 w-3" />
+                                  Pending Confirmation
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                {/* No manual approve; user confirms via email */}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSendEmail(user.email, user.name)}
+                                  title="Send Email"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  title="Delete User"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </Card>
           </TabsContent>
