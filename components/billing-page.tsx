@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import type React from "react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw } from "lucide-react"
 
 interface Medicine {
   id: string
@@ -74,7 +75,13 @@ export function BillingPage() {
   const [storeName, setStoreName] = useState("Your Pharmacy")
   const [storePhone, setStorePhone] = useState<string | undefined>()
   const [storeAddress, setStoreAddress] = useState<string | undefined>()
+  const [isQuickMode, setIsQuickMode] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
+  const [isOnline, setIsOnline] = useState(true)
+  const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const draggingFavorite = useRef<string | null>(null)
 
   const loadMedicines = useCallback(async () => {
     setIsSearching(true)
@@ -172,6 +179,30 @@ export function BillingPage() {
     })
   }
 
+  const reorderFavorites = (sourceId: string, targetId: string) => {
+    setFavorites((prev) => {
+      const sourceIndex = prev.indexOf(sourceId)
+      const targetIndex = prev.indexOf(targetId)
+      if (sourceIndex === -1 || targetIndex === -1) return prev
+      const updated = [...prev]
+      updated.splice(sourceIndex, 1)
+      updated.splice(targetIndex, 0, sourceId)
+      localStorage.setItem("billing_favorites", JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const handleFavoriteDragStart = (id: string) => {
+    draggingFavorite.current = id
+  }
+
+  const handleFavoriteDrop = (targetId: string) => {
+    if (draggingFavorite.current && draggingFavorite.current !== targetId) {
+      reorderFavorites(draggingFavorite.current, targetId)
+    }
+    draggingFavorite.current = null
+  }
+
   const saveDraft = () => {
     if (cart.length === 0) {
       setError("Add items to cart before saving a draft")
@@ -259,6 +290,75 @@ export function BillingPage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  // Online/offline state and offline queue sync
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine)
+    updateOnline()
+    setOfflineQueueCount(getOfflineQueue().length)
+
+    const handleOnline = () => {
+      updateOnline()
+      syncOfflineQueue()
+    }
+
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", updateOnline)
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", updateOnline)
+    }
+  }, [])
+
+  const getOfflineQueue = () => {
+    try {
+      return JSON.parse(localStorage.getItem("offline_bills_queue") || "[]") as any[]
+    } catch {
+      return []
+    }
+  }
+
+  const setOfflineQueue = (queue: any[]) => {
+    localStorage.setItem("offline_bills_queue", JSON.stringify(queue))
+    setOfflineQueueCount(queue.length)
+  }
+
+  const enqueueOfflineBill = (payload: any) => {
+    const queue = getOfflineQueue()
+    queue.push({ ...payload, queuedAt: Date.now() })
+    setOfflineQueue(queue)
+  }
+
+  const syncOfflineQueue = async () => {
+    const queue = getOfflineQueue()
+    if (!navigator.onLine || queue.length === 0) return
+    setSyncingOfflineQueue(true)
+    try {
+      const email = localStorage.getItem("user_email")
+      if (!email) return
+      const remaining: any[] = []
+      for (const job of queue) {
+        try {
+          const res = await fetch("/api/billing/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(job),
+          })
+          if (!res.ok) throw new Error("sync failed")
+        } catch (err) {
+          console.error("Offline sync failed for a bill", err)
+          remaining.push(job)
+        }
+      }
+      setOfflineQueue(remaining)
+      if (remaining.length === 0) {
+        setSuccess("Offline bills synced")
+        setTimeout(() => setSuccess(null), 3000)
+      }
+    } finally {
+      setSyncingOfflineQueue(false)
+    }
+  }
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -286,6 +386,16 @@ export function BillingPage() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [cart, isCheckingOut])
+
+  useEffect(() => {
+    if (isQuickMode) {
+      searchInputRef.current?.focus()
+    }
+  }, [isQuickMode])
+
+  useEffect(() => {
+    setHighlightedIndex(0)
+  }, [medicines, favorites])
 
   const addToCart = (medicine: Medicine) => {
     const existing = cart.find((item) => item.id === medicine.id && item.batch === medicine.batch)
@@ -360,9 +470,33 @@ export function BillingPage() {
     }
   }
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, orderedMedicines: Medicine[]) => {
+    if (orderedMedicines.length === 0) return
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setHighlightedIndex((prev) => Math.min(prev + 1, orderedMedicines.length - 1))
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setHighlightedIndex((prev) => Math.max(prev - 1, 0))
+    }
+    if (e.key === "Enter") {
+      e.preventDefault()
+      const target = orderedMedicines[highlightedIndex] || orderedMedicines[0]
+      if (target) addToCart(target)
+    }
+  }
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const gst = subtotal * 0.18
   const total = subtotal + gst
+
+  const favoriteMedicines = favorites
+    .map((id) => medicines.find((m) => m.id === id))
+    .filter(Boolean) as Medicine[]
+  const otherMedicines = medicines.filter((m) => !favorites.includes(m.id))
+  const orderedMedicines = [...favoriteMedicines, ...otherMedicines]
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -388,26 +522,38 @@ export function BillingPage() {
         return
       }
 
+      const payload = {
+        email,
+        items: cart.map(item => ({
+          medicineId: item.id,
+          name: item.name,
+          batch: item.batch,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.price * item.quantity,
+          description: item.description,
+        })),
+        subtotal,
+        gst,
+        total,
+        customerEmail: customerEmail || undefined,
+      }
+
+      // If offline, queue and exit early
+      if (!navigator.onLine) {
+        enqueueOfflineBill(payload)
+        setSuccess("Offline: bill queued and will sync when you are online")
+        setCart([])
+        setCustomerEmail("")
+        setIsCheckingOut(false)
+        return
+      }
+
       // Create bill and update inventory
       const billRes = await fetch("/api/billing/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          items: cart.map(item => ({
-            medicineId: item.id,
-            name: item.name,
-            batch: item.batch,
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.price * item.quantity,
-            description: item.description,
-          })),
-          subtotal,
-          gst,
-          total,
-          customerEmail: customerEmail || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!billRes.ok) {
@@ -801,7 +947,32 @@ export function BillingPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">Manual Billing</h1>
           {/* <p className="text-sm text-muted-foreground text-pretty">Search medicines and generate bills with real-time inventory updates</p> */}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-end">
+          <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
+            {isOnline ? "Online" : "Offline"}
+            {offlineQueueCount > 0 && <span className="text-xs">• {offlineQueueCount} queued</span>}
+          </Badge>
+          {offlineQueueCount > 0 && isOnline && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncOfflineQueue}
+              disabled={syncingOfflineQueue}
+              className="gap-2"
+            >
+              {syncingOfflineQueue ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Sync queued
+            </Button>
+          )}
+          <Button
+            variant={isQuickMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsQuickMode((v) => !v)}
+            className="gap-2"
+          >
+            <Zap className="h-4 w-4" />
+            {isQuickMode ? "Quick Mode On" : "Quick Mode"}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -885,7 +1056,7 @@ export function BillingPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid lg:grid-cols-2 gap-4 md:gap-6">
+      <div className={`grid gap-4 md:gap-6 ${isQuickMode ? "lg:grid-cols-[1.4fr,1fr]" : "lg:grid-cols-2"}`}>
         {/* Search & Add */}
         <Card className="p-4 md:p-6">
           <Tabs defaultValue="search" className="w-full">
@@ -916,9 +1087,9 @@ export function BillingPage() {
                   <Package className="h-5 w-5" />
                   Search Medicine
                 </h2>
-                {!isSearching && medicines.length > 0 && (
+                {!isSearching && orderedMedicines.length > 0 && (
                   <Badge variant="secondary" className="text-xs">
-                    {medicines.length} found
+                    {orderedMedicines.length} found
                   </Badge>
                 )}
               </div>
@@ -929,30 +1100,63 @@ export function BillingPage() {
                   placeholder="Search by name, batch, or category... (Ctrl+K)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
                   className="pl-10 pr-10"
                 />
                 {isSearching && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
                 )}
               </div>
+              {isQuickMode && (
+                <p className="text-xs text-muted-foreground mb-2">Keyboard: ↑/↓ to highlight, Enter to add, Ctrl+Enter to checkout.</p>
+              )}
+
+              {favoriteMedicines.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">Pinned / Favorites</span>
+                    <span className="text-xs text-muted-foreground">Drag to reorder</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {favoriteMedicines.map((fav) => (
+                      <div
+                        key={fav.id}
+                        draggable
+                        onDragStart={() => handleFavoriteDragStart(fav.id)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleFavoriteDrop(fav.id)}
+                        className="px-3 py-2 rounded-full border bg-card shadow-sm flex items-center gap-2 cursor-move"
+                        title={fav.name}
+                      >
+                        <Star className="h-3 w-3 text-yellow-400" />
+                        <span className="text-sm truncate max-w-[160px]">{fav.name}</span>
+                        <Badge variant="outline" className="text-[11px]">₹{fav.price.toFixed(2)}</Badge>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => addToCart(fav)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-                {isSearching && medicines.length === 0 ? (
+                {isSearching && orderedMedicines.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                     Loading medicines...
                   </div>
-                ) : medicines.length === 0 ? (
+                ) : orderedMedicines.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>No medicines found</p>
                     <p className="text-xs mt-1">Try a different search term</p>
                   </div>
                 ) : (
-                  medicines.map((medicine) => (
+                  orderedMedicines.map((medicine, idx) => (
                     <div
                       key={`${medicine.id}-${medicine.batch}`}
-                      className="flex items-center justify-between p-2 rounded-lg border hover:border-accent transition-colors group"
+                      className={`flex items-center justify-between p-2 rounded-lg border hover:border-accent transition-colors group ${idx === highlightedIndex ? "border-primary bg-primary/5" : ""}`}
                     >
                       <div className="flex items-start gap-2 flex-1 min-w-0">
                         <Button

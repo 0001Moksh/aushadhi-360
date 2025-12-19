@@ -49,6 +49,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [profile, setProfile] = useState<{ email: string; storeName?: string; ownerName?: string } | null>(null)
 
   useEffect(() => {
+    const savedState = localStorage.getItem("sidebarExpanded")
+    if (savedState !== null) {
+      setIsExpanded(savedState === "true")
+    }
+  }, [])
+
+  useEffect(() => {
     const loadProfile = async () => {
       if (typeof window === "undefined") return
       const email = localStorage.getItem("user_email")
@@ -87,6 +94,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     router.push("/")
   }
 
+  const toggleSidebar = (expanded: boolean) => {
+    setIsExpanded(expanded)
+    localStorage.setItem("sidebarExpanded", String(expanded))
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <SystemStatusIndicator />
@@ -117,7 +129,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick={(e) => {
             // Clicking empty space expands when collapsed
             if (!isExpanded && (e.target as HTMLElement).closest("button") === null) {
-              setIsExpanded(true)
+              toggleSidebar(true)
             }
           }}
         >
@@ -139,7 +151,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   size="icon"
                   variant="outline"
                   className="rounded-full w-6 h-15 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary hover:text-primary"
-                  onClick={() => setIsExpanded(false)}
+                  onClick={() => toggleSidebar(false)}
                   aria-label="Collapse sidebar"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -149,7 +161,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   size="icon"
                   variant="outline"
                   className="rounded-full w-6 h-15 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary hover:text-primary"
-                  onClick={() => setIsExpanded(true)}
+                  onClick={() => toggleSidebar(true)}
                   aria-label="Expand sidebar"
                 >
                   <ChevronRight className="h-4 w-4" />
