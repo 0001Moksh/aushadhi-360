@@ -80,6 +80,7 @@ export function BillingPage() {
   const [isOnline, setIsOnline] = useState(true)
   const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
   const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+  const [activeTab, setActiveTab] = useState("search")
   const searchInputRef = useRef<HTMLInputElement>(null)
   const draggingFavorite = useRef<string | null>(null)
 
@@ -116,7 +117,12 @@ export function BillingPage() {
       const res = await fetch(`/api/billing/history?email=${encodeURIComponent(email)}&limit=50`)
       if (res.ok) {
         const data = await res.json()
-        setRecentBills(data.bills || [])
+        const allBills = data.bills || []
+        const today = new Date().toDateString()
+        const todaysBills = allBills
+          .filter((bill: any) => new Date(bill.date).toDateString() === today)
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        setRecentBills(todaysBills)
       }
     } catch (err) {
       console.error("Failed to load recent bills:", err)
@@ -365,7 +371,8 @@ export function BillingPage() {
       // Ctrl/Cmd + K: Focus search
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault()
-        searchInputRef.current?.focus()
+        setActiveTab("search")
+        setTimeout(() => searchInputRef.current?.focus(), 10)
       }
       // Ctrl/Cmd + Enter: Checkout
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && cart.length > 0) {
@@ -381,11 +388,42 @@ export function BillingPage() {
         e.preventDefault()
         setShowShortcuts(true)
       }
+      // Ctrl + S: Save Draft
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault()
+        saveDraft()
+      }
+      // Ctrl + P: Print
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+        e.preventDefault()
+        printBill()
+      }
+      // Ctrl + Q: Toggle Quick Mode
+      if ((e.ctrlKey || e.metaKey) && e.key === "q") {
+        e.preventDefault()
+        setIsQuickMode(v => !v)
+      }
+      // Alt + 1: Search Tab
+      if (e.altKey && e.key === "1") {
+        e.preventDefault()
+        setActiveTab("search")
+        setTimeout(() => searchInputRef.current?.focus(), 10)
+      }
+      // Alt + 2: Drafts Tab
+      if (e.altKey && e.key === "2") {
+        e.preventDefault()
+        setActiveTab("drafts")
+      }
+      // Alt + 3: History Tab
+      if (e.altKey && e.key === "3") {
+        e.preventDefault()
+        setActiveTab("history")
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [cart, isCheckingOut])
+  }, [cart, isCheckingOut, isQuickMode, activeTab])
 
   useEffect(() => {
     if (isQuickMode) {
@@ -945,7 +983,7 @@ export function BillingPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">Manual Billing</h1>
-           <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
+          <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
             {isOnline ? "Online" : "Offline"}
             {offlineQueueCount > 0 && <span className="text-xs">• {offlineQueueCount} queued</span>}
           </Badge>
@@ -964,12 +1002,13 @@ export function BillingPage() {
           {/* <p className="text-sm text-muted-foreground text-pretty">Search medicines and generate bills with real-time inventory updates</p> */}
         </div>
         <div className="flex flex-wrap gap-2 justify-end">
-         
+
           {/* Quick Mode Button */}
           <Button
             variant={isQuickMode ? "default" : "outline"}
             size="sm"
             onClick={() => setIsQuickMode(v => !v)}
+            title="Toggle Quick Mode (Ctrl+Q)"
             className="hidden md:flex items-center gap-2 transition-all">
             <Zap className={`h-4 w-4 ${isQuickMode ? "animate-pulse" : ""}`} />
             <span className="font-medium">
@@ -982,6 +1021,7 @@ export function BillingPage() {
             variant="outline"
             size="sm"
             onClick={() => setShowShortcuts(true)}
+            title="View Shortcuts (Ctrl+/)"
             className="hidden md:flex items-center gap-2 transition-all">
             <Keyboard className="h-4 w-4" />
             <span className="font-medium">Shortcuts</span>
@@ -1002,6 +1042,7 @@ export function BillingPage() {
                 variant="outline"
                 size="sm"
                 onClick={printBill}
+                title="Print Bill (Ctrl+P)"
                 className="gap-2"
               >
                 <Printer className="h-4 w-4" />
@@ -1041,21 +1082,41 @@ export function BillingPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-2 rounded hover:bg-accent">
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
               <span>Focus search</span>
               <Badge variant="outline">Ctrl + K</Badge>
             </div>
-            <div className="flex items-center justify-between p-2 rounded hover:bg-accent">
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
+              <span>Toggle Quick Mode</span>
+              <Badge variant="outline">Ctrl + Q</Badge>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
               <span>Generate bill</span>
               <Badge variant="outline">Ctrl + Enter</Badge>
             </div>
-            <div className="flex items-center justify-between p-2 rounded hover:bg-accent">
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
+              <span>Save Draft</span>
+              <Badge variant="outline">Ctrl + S</Badge>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
+              <span>Print Bill</span>
+              <Badge variant="outline">Ctrl + P</Badge>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
               <span>Clear cart</span>
               <Badge variant="outline">Esc</Badge>
             </div>
-            <div className="flex items-center justify-between p-2 rounded hover:bg-accent">
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
+              <span>Switch Tabs</span>
+              <Badge variant="outline">Alt + 1/2/3</Badge>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
               <span>Show shortcuts</span>
               <Badge variant="outline">Ctrl + /</Badge>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded border hover:border-accent">
+              <span>NavBar shortcuts</span>
+              <Badge variant="outline">Ctrl + B</Badge>
             </div>
           </div>
         </DialogContent>
@@ -1064,20 +1125,20 @@ export function BillingPage() {
       <div className={`grid gap-4 md:gap-6 ${isQuickMode ? "lg:grid-cols-[1.4fr,1fr]" : "lg:grid-cols-2"}`}>
         {/* Search & Add */}
         <Card className="p-4 md:p-6">
-          <Tabs defaultValue="search" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="search" className="gap-2">
+              <TabsTrigger value="search" className="gap-2" title="Search (Alt+1)">
                 <Search className="h-4 w-4" />
                 Search
               </TabsTrigger>
-              <TabsTrigger value="drafts" className="gap-2">
+              <TabsTrigger value="drafts" className="gap-2" title="Drafts (Alt+2)">
                 <FileText className="h-4 w-4" />
                 Drafts
                 <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-2 text-xs font-medium text-primary">
                   {drafts.length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="gap-2">
+              <TabsTrigger value="history" className="gap-2" title="History (Alt+3)">
                 <History className="h-4 w-4" />
                 Recent Bills
                 <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-2 text-xs font-medium text-primary">
@@ -1220,7 +1281,12 @@ export function BillingPage() {
                   </div>
                 ) : (
                   drafts.map((draft) => {
-                    const names = draft.items.map(i => i.name).join(", ")
+                    const names = draft.items
+                      .map(i => i.name)
+                      .join(", ")
+                      .split(" ")
+                      .slice(0, 3)
+                      .join(" ") + "..."
                     const createdStr = new Date(draft.createdAt).toLocaleString("en-IN", {
                       day: "2-digit", month: "short", year: "numeric",
                       hour: "2-digit", minute: "2-digit"
@@ -1428,6 +1494,7 @@ export function BillingPage() {
                     variant="outline"
                     size="lg"
                     onClick={saveDraft}
+                    title="Save Draft (Ctrl+S)"
                     disabled={isCheckingOut || cart.length === 0}
                   >
                     <Save className="h-4 w-4 mr-2" />
@@ -1437,6 +1504,7 @@ export function BillingPage() {
                     className="w-full"
                     size="lg"
                     onClick={handleCheckout}
+                    title="Generate Bill (Ctrl+Enter)"
                     disabled={isCheckingOut || cart.length === 0}
                   >
                     {isCheckingOut ? (

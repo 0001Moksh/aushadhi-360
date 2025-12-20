@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SystemStatusIndicator } from "@/components/system-status-indicator"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -99,6 +100,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     localStorage.setItem("sidebarExpanded", String(expanded))
   }
 
+  // Keyboard shortcut for sidebar toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault()
+        toggleSidebar(!isExpanded)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isExpanded])
+
   const showFullSidebar = isExpanded || sidebarOpen
 
   return (
@@ -123,7 +136,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Sidebar */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 ease-in-out",
+            "fixed inset-y-0 left-0 z-50 bg-sidebar border-r-2  transform transition-all duration-300 ease-in-out",
             "lg:translate-x-0",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
             showFullSidebar ? "w-64" : "w-20"
@@ -131,7 +144,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="flex flex-col h-full">
             {/* Logo */}
-            <div className="h-[113px] p-4 border-b border-sidebar-border flex items-center justify-center relative">
+            <div className="h-[113px] p-1 flex items-center justify-center relative">
               <img
                 src={showFullSidebar ? "/logo2.png" : "/logo1.png"}
                 alt="Aushadhi 360 Logo"
@@ -141,24 +154,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 )}
               />
             </div>
-            <div className="absolute top-21 -right-3 hidden lg:block">
+            <div className="absolute top-10 -right-3 hidden lg:block">
               {isExpanded ? (
                 <Button
                   size="icon"
-                  variant="outline"
-                  className="rounded-full w-6 h-15 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary hover:text-primary"
+                  // variant="outline"
+                  className="rounded-full w-6 h-15 border-2 bg-background text-border hover:border-r-5 hover:border-l-1 hover:bg-sidebar"
                   onClick={() => toggleSidebar(false)}
                   aria-label="Collapse sidebar"
+                  title="Collapse sidebar (Ctrl+B)"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button
                   size="icon"
-                  variant="outline"
-                  className="rounded-full w-6 h-15 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary hover:text-primary"
+                  // variant="outline"
+                  className="rounded-full w-6 h-15 border-2 bg-sidebar text-border hover:border-l-5 hover:border-r-1 hover:bg-background"
                   onClick={() => toggleSidebar(true)}
                   aria-label="Expand sidebar"
+                  title="Expand sidebar (Ctrl+B)"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -212,6 +227,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </nav>
               </TooltipProvider>
             </ScrollArea>
+            <div className="md:hidden flex items-center justify-between gap-3 rounded-xl border bg-card p-1 px-5">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-foreground">
+                  Theme
+                </span>
+              </div>
+
+              <ThemeToggle/>
+            </div>
+
+
 
             {/* User profile */}
             <div className={cn("p-4 border-t border-sidebar-border", !showFullSidebar && "p-2")}>
@@ -225,15 +251,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <p className="text-xs text-muted-foreground truncate">{storeName}</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                className={cn("w-full text-aceent-500", !showFullSidebar && "w-10 h-10 p-6")}
-                size={showFullSidebar ? "sm" : "icon"}
-                onClick={handleLogout}
-              >
-                <LogOut className={cn("h-4 w-4", showFullSidebar && "mr-2")} />
-                <span className={cn(!showFullSidebar && "hidden")}>Logout</span>
-              </Button>
+              <div className={cn("flex gap-2", !showFullSidebar && "flex-col items-center")}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "text-muted-foreground hover:text-red-500 hover:bg-transparent border-none shadow-none",
+                    showFullSidebar ? "flex-1" : "w-10 h-10 p-0"
+                  )}
+                  size={showFullSidebar ? "sm" : "icon"}
+                  onClick={handleLogout}
+                >
+                  <LogOut className={cn("h-4 w-4", showFullSidebar && "mr-2")} />
+                  <span className={cn(!showFullSidebar && "hidden")}>Logout</span>
+                </Button>
+              </div>
+
             </div>
           </div>
         </aside>
@@ -246,6 +278,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main content */}
         <main className={cn("flex-1 transition-all duration-300 ease-in-out", isExpanded ? "lg:ml-64" : "lg:ml-20")}>
           <div className="relative p-4 lg:p-6">
+            {/* Top-right controls (desktop only) */}
+            <div className="hidden lg:flex items-center gap-1 absolute right-6 top-6 z-10">
+              <ThemeToggle />
+            </div>
             {children}
 
             <footer className="mt-6 border-t pt-4 text-center text-[10px] text-muted-foreground flex flex-col gap-1">
