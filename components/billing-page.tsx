@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw } from "lucide-react"
 
 interface Medicine {
@@ -81,6 +82,7 @@ export function BillingPage() {
   const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
   const [offlineQueueCount, setOfflineQueueCount] = useState(0)
   const [activeTab, setActiveTab] = useState("search")
+  const [viewMedicineId, setViewMedicineId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const draggingFavorite = useRef<string | null>(null)
 
@@ -196,6 +198,10 @@ export function BillingPage() {
       localStorage.setItem("billing_favorites", JSON.stringify(updated))
       return updated
     })
+  }
+
+  const toggleViewDetails = (id: string) => {
+    setViewMedicineId((prev) => (prev === id ? null : id))
   }
 
   const handleFavoriteDragStart = (id: string) => {
@@ -1124,43 +1130,34 @@ export function BillingPage() {
 
       <div className={`grid gap-4 md:gap-6 ${isQuickMode ? "lg:grid-cols-[1.4fr,1fr]" : "lg:grid-cols-2"}`}>
         {/* Search & Add */}
-        <Card className="p-4 md:p-6">
+        <Card className="p-1 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="search" className="gap-2" title="Search (Alt+1)">
                 <Search className="h-4 w-4" />
                 Search
               </TabsTrigger>
-              <TabsTrigger value="drafts" className="gap-2" title="Drafts (Alt+2)">
+              <TabsTrigger value="drafts" className="gap-1" title="Drafts (Alt+2)">
                 <FileText className="h-4 w-4" />
                 Drafts
-                <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-2 text-xs font-medium text-primary">
+                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
                   {drafts.length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="gap-2" title="History (Alt+3)">
+              <TabsTrigger value="history" className="gap-1" title="History (Alt+3)">
                 <History className="h-4 w-4" />
                 Recent Bills
-                <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-2 text-xs font-medium text-primary">
+                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
                   {recentBills.length}
                 </span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="search" className="mt-0">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Search Medicine
-                </h2>
-                {!isSearching && orderedMedicines.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {orderedMedicines.length} found
-                  </Badge>
-                )}
-              </div>
+
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+
                 <Input
                   ref={searchInputRef}
                   placeholder="Search by name, batch, or category... (Ctrl+K)"
@@ -1169,6 +1166,8 @@ export function BillingPage() {
                   onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
                   className="pl-10 pr-10"
                 />
+
+
                 {isSearching && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
                 )}
@@ -1176,13 +1175,16 @@ export function BillingPage() {
               {isQuickMode && (
                 <p className="text-xs text-muted-foreground mb-2">Keyboard: ↑/↓ to highlight, Enter to add, Ctrl+Enter to checkout.</p>
               )}
-
+              {/* <div className="flex items-center justify-end mb-2">
+                {!isSearching && orderedMedicines.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Package className="h-5 w-5" />
+                    {orderedMedicines.length} found
+                  </Badge>
+                )}
+              </div> */}
               {favoriteMedicines.length > 0 && (
                 <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold">Pinned / Favorites</span>
-                    <span className="text-xs text-muted-foreground">Drag to reorder</span>
-                  </div>
                   <div className="flex gap-2 flex-wrap">
                     {favoriteMedicines.map((fav) => (
                       <div
@@ -1203,6 +1205,14 @@ export function BillingPage() {
                       </div>
                     ))}
                   </div>
+                  <div className="flex items-center justify-end">
+                    {!isSearching && orderedMedicines.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Package className="h-5 w-5" />
+                        {orderedMedicines.length} found
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1219,54 +1229,132 @@ export function BillingPage() {
                     <p className="text-xs mt-1">Try a different search term</p>
                   </div>
                 ) : (
-                  orderedMedicines.map((medicine, idx) => (
-                    <div
-                      key={`${medicine.id}-${medicine.batch}`}
-                      className={`flex items-center justify-between p-2 rounded-lg border hover:border-accent transition-colors group ${idx === highlightedIndex ? "border-primary bg-primary/5" : ""}`}
-                    >
-                      <div className="flex items-start gap-2 flex-1 min-w-0">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => toggleFavorite(medicine.id)}
-                        >
-                          <Star
-                            className={`h-4 w-4 ${favorites.includes(medicine.id)
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-muted-foreground"
-                              }`}
-                          />
-                        </Button>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-sm">{medicine.name}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                            <span>₹{medicine.price.toFixed(2)}</span>
-                            <span>•</span>
-                            <span>Batch: {medicine.batch}</span>
-                            <span>•</span>
-                            <Badge variant={medicine.quantity > 10 ? "secondary" : "destructive"} className="text-xs">
-                              {medicine.quantity} left
-                            </Badge>
+                  orderedMedicines.map((medicine, idx) => {
+                    const cardId = `${medicine.id}-${medicine.batch}`
+                    const isViewing = viewMedicineId === cardId
+                    const descriptionText = medicine.description?.trim() || [medicine.category, medicine.form].filter(Boolean).join(" • ") || "No description available"
+
+                    return (
+                      <div
+                        key={cardId}
+                        className={`p-3 rounded-xl border transition-all hover:shadow-sm group ${idx === highlightedIndex ? "border-primary bg-primary/5" : "hover:border-accent"}`}>
+                        <div className="flex items-center justify-between">
+                          {/* Left Content */}
+                          <div className="flex gap-3 flex-1 min-w-0">
+                            {/* Favorite */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition"
+                              onClick={() => toggleFavorite(medicine.id)}
+                            >
+                              <Star
+                                className={`h-4 w-4 ${favorites.includes(medicine.id)
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-muted-foreground"
+                                  }`}
+                              />
+                            </Button>
+
+                            {/* Medicine Info */}
+                            <div className="flex-1 min-w-0 space-y-1">
+                              {/* Name */}
+                              <p className="flex font-semibold text-sm truncate" title={medicine.name}>
+                                {medicine.name}
+                              </p>
+                              {/* Meta info */}
+                              {/* <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px]">
+                                  {medicine.category}
+                                </Badge>
+                                <Badge variant="outline" className="border-primary ml-1 text-[10px]">
+                                  {medicine.form}
+                                </Badge>
+                              </div> */}
+
+                              {/* Price + Stock */}
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="font-medium text-foreground">
+                                  ₹{medicine.price.toFixed(2)}
+                                </span>
+                                <Badge
+                                  variant={medicine.quantity > 10 ? "secondary" : "destructive"}
+                                  className="text-[10px]"
+                                >
+                                  {medicine.quantity} left
+                                </Badge>
+                              </div>
+
+                              {/* Description with hover */}
+
+                            </div>
                           </div>
-                          {medicine.category && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {medicine.category} • {medicine.form}
-                            </p>
-                          )}
+
+                          {/* Action Buttons */}
+                          <Tooltip delayDuration={150}>
+                            <TooltipTrigger asChild>
+
+                              <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => toggleViewDetails(cardId)}
+                                  className="gap-1"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  {isViewing ? "Hide" : "View"}
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  onClick={() => addToCart(medicine)}
+                                  disabled={medicine.quantity === 0}
+                                  className="flex-shrink-0"
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Add
+                                </Button>
+                              </div>
+
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-sm whitespace-pre-line">
+                              {descriptionText}
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
+
+                        {isViewing && (
+                          <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Name</span>
+                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.name}>{medicine.name}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Price</span>
+                              <span className="ml-2 font-semibold text-foreground">₹{medicine.price.toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Available</span>
+                              <span className="ml-2 font-medium text-foreground">{medicine.quantity}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Batch</span>
+                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.batch}>{medicine.batch}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Category</span>
+                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.category}>{medicine.category}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Form</span>
+                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.form}>{medicine.form}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => addToCart(medicine)}
-                        disabled={medicine.quantity === 0}
-                        className="ml-2 flex-shrink-0"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
-                  ))
+
+                    )
+                  })
                 )}
               </div>
             </TabsContent>
@@ -1432,7 +1520,8 @@ export function BillingPage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
 
                       <Badge variant="outline" className="text-xs mt-1">
-                        {item.availableQty} available
+                        {item.availableQty} <br />
+                        instock
                       </Badge>
 
                       <Input
@@ -1515,7 +1604,7 @@ export function BillingPage() {
                     ) : (
                       <>
                         <CheckCircle className="h-4 w-4 mr-2" />
-                        Generate Bill
+                        Payment Done
                       </>
                     )}
                   </Button>
