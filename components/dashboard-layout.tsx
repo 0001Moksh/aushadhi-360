@@ -233,7 +233,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   Theme
                 </span>
               </div>
-
               <ThemeToggle/>
             </div>
 

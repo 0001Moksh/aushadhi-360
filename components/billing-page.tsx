@@ -1302,7 +1302,9 @@ export function BillingPage() {
                                   className="gap-1"
                                 >
                                   <Eye className="h-4 w-4" />
+                                  <span className="md:visible hidden">
                                   {isViewing ? "Hide" : "View"}
+                                  </span>
                                 </Button>
 
                                 <Button
