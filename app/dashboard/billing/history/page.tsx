@@ -412,12 +412,13 @@ export default function BillingHistoryPage() {
           </div>
 
           {/* Quick Filters */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap ">
             {["all", "today", "7days", "month"].map((f) => (
               <Button
                 key={f}
                 size="sm"
                 variant={quickFilter === f ? "default" : "outline"}
+                className="hover:text-foreground/60"
                 onClick={() => setQuickFilter(f as any)}
               > 
                 {f === "all" ? "All" : f === "today" ? "Today" : f === "7days" ? "Last 7 Days" : "This Month"}
@@ -441,7 +442,7 @@ export default function BillingHistoryPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredBills.map((bill) => (
             <Card key={bill.id} className="p-3 hover:shadow-lg hover:border-accent transition">
-              <div className="flex justify-between mb-2">
+              <div className="flex justify-between">
                 <div>
                   <p className="font-semibold">{bill.billId}</p>
                   <p className="text-xs text-muted-foreground">
@@ -457,14 +458,14 @@ export default function BillingHistoryPage() {
                 </p>
               )} */}
 
-              <div className="text-xl font-bold text-primary mb-4">
+              <div className="text-xl font-bold text-primary">
                 ₹{bill.total.toFixed(2)}
               </div>
 
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full"
+                className="w-full hover:text-primary"
                 onClick={() => previewInvoice(bill)}
               >
                 <Eye className="h-4 w-4 mr-2" />
