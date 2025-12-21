@@ -358,10 +358,11 @@ export function ManualImportTable() {
       <Card className="p-2 md:p-3 sticky top-0 z-10 bg-background">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={addRow}>
+            <Button className="hover:text-primary" variant="outline" size="sm" onClick={addRow}>
               <Plus className="h-4 w-4 mr-2" /> Add Row
             </Button>
             <Button
+              className="hover:text-primary"
               variant="outline"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
@@ -375,7 +376,7 @@ export function ManualImportTable() {
               className="hidden"
               onChange={(e) => e.target.files?.[0] && uploadCSV(e.target.files[0])}
             />
-            <Button variant="outline" size="sm" onClick={copyToClipboard}>
+            <Button variant="outline" className="hover:text-primary" size="sm" onClick={copyToClipboard}>
               <Clipboard className="h-4 w-4 mr-2" /> Copy All
             </Button>
           </div>
@@ -682,7 +683,7 @@ export function ManualImportTable() {
           </div>
 
           <div className="flex justify-end gap-3 p-6 border-t">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
+            <Button className="hover:text-destructive" variant="outline" onClick={() => setShowPreview(false)}>
               Cancel
             </Button>
             <Button onClick={confirmPreview}>

@@ -150,7 +150,7 @@ export function SettingsPage() {
               <AvatarImage src="/diverse-user-avatars.png" />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" className="hover:text-primary" size="sm">
               <Upload className="mr-2 h-4 w-4" />
               Change Photo
             </Button>
@@ -256,7 +256,7 @@ export function SettingsPage() {
               <Shield className="h-5 w-5" />
               <h3 className="font-semibold">Security</h3>
             </div>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button variant="outline" className="hover:text-primary w-full justify-start bg-transparent">
               Change Password
             </Button>
           </Card>

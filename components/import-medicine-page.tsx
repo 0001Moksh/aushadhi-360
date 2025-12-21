@@ -291,7 +291,7 @@ export function ImportMedicinePage() {
             <span>Import saved to inventory.</span>
           </div>
           {lastImportId && (
-            <Button size="sm" variant="outline" onClick={undoLastImport} disabled={isProcessing}>
+            <Button className="hover:text-primary" size="sm" variant="outline" onClick={undoLastImport} disabled={isProcessing}>
               <RotateCw className="h-4 w-4 mr-1" /> Undo last import
             </Button>
           )}
@@ -406,7 +406,7 @@ export function ImportMedicinePage() {
                       </div>
                     )}
                     <div className="flex justify-end gap-2 mt-3">
-                      <Button variant="outline" onClick={() => { setFile(null); setPreviewUrl(null); setExtractedItems([]); }} size="sm">
+                      <Button className="hover:text-destructive" variant="outline" onClick={() => { setFile(null); setPreviewUrl(null); setExtractedItems([]); }} size="sm">
                         Clear
                       </Button>
                       <Button onClick={startProcessing} disabled={isProcessing} size="sm">
@@ -420,7 +420,7 @@ export function ImportMedicinePage() {
               </div>
               <div className="flex items-center justify-center space-x-4">
                 <Link href="/dashboard/manual-import">
-                  <Button variant="outline" className="text-primary">
+                  <Button variant="outline" className="border-2 hover:text-primary ">
                     Add medicines manually
                   </Button>
                 </Link>
@@ -518,7 +518,7 @@ export function ImportMedicinePage() {
                     </table>
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => { setExtractedItems([]); setIsReviewing(false); }}>
+                    <Button className="hover:text-destructive" variant="outline" size="sm" onClick={() => { setExtractedItems([]); setIsReviewing(false); }}>
                       Cancel review
                     </Button>
                     <Button size="sm" onClick={handleSaveToInventory} disabled={isProcessing}>

@@ -104,7 +104,7 @@ export function OCRUploadWrapper({ onMedicinesDetected, onManualEntry }: Props) 
               className="hidden"
               onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
             />
-            <Button variant="outline" className="w-full gap-2 bg-transparent" disabled={processing} asChild>
+            <Button variant="outline" className="w-full gap-2 bg-transparent hover:text-primary" disabled={processing} asChild>
               <span>
                 <Upload className="h-4 w-4" />
                 Upload from Gallery

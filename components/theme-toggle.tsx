@@ -41,7 +41,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         ref={ref}
         layout
         className={cn(
-          "relative flex items-center p-1.5 rounded-full border border-transparent hover:md:border-border hover:md:bg-foreground/5 hover:shadow-sm",
+          "relative flex items-center p-1.5 rounded-full border border-transparent hover:md:border-border hover:md:bg-sidebar hover:shadow-sm",
           className
         )}
         onPointerEnter={(e) => e.pointerType === "mouse" && setIsOpen(true)}

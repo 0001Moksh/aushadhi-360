@@ -207,7 +207,7 @@ export function AlertsPage() {
           <h1 className="text-3xl font-bold">Alerts & Notifications</h1>
           <p className="text-muted-foreground">Monitor stock, expiry dates, and top-selling medicines</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline"className="hover:text-primary">
           <Download className="mr-2 h-4 w-4" />
           Export Report
         </Button>
@@ -332,7 +332,7 @@ export function AlertsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {[5, 10, 20, 30, 50].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
+                      <SelectItem className="text-muted-foreground" key={num} value={num.toString()}>
                         Top {num}
                       </SelectItem>
                     ))}

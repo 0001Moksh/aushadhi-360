@@ -97,11 +97,24 @@ export function DashboardHome() {
         })
       }
 
-      // Load recent bills
-      const billsRes = await fetch(`/api/billing/history?email=${encodeURIComponent(email)}&limit=6`)
+      // Load recent bills - today's last 5 bills only
+      const billsRes = await fetch(`/api/billing/history?email=${encodeURIComponent(email)}&limit=50`)
       if (billsRes.ok) {
         const data = await billsRes.json()
-        setRecentBills(data.bills || [])
+        const allBills = data.bills || []
+        
+        // Filter for today's bills only
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        const todayBills = allBills.filter((bill: BillHistory) => {
+          const billDate = new Date(bill.date)
+          billDate.setHours(0, 0, 0, 0)
+          return billDate.getTime() === today.getTime()
+        })
+        
+        // Get last 5 bills from today
+        setRecentBills(todayBills.slice(0, 5))
       }
     } catch (error) {
       console.error("Error loading dashboard data:", error)
@@ -535,7 +548,7 @@ export function DashboardHome() {
       {recentBills.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Recent Bills</h2>
+            <h2 className="text-lg font-semibold">Today's Recent Bills</h2>
             <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/billing/history")}>
               View All
             </Button>
@@ -562,7 +575,7 @@ export function DashboardHome() {
                 {/* {bill.customerEmail && (
                   <p className="text-xs text-muted-foreground truncate">{bill.customerEmail}</p>
                 )} */}
-                <Button size="sm" variant="outline" className="w-full" onClick={() => previewInvoice(bill)}>
+                <Button size="sm" variant="outline" className="hover:text-primary w-full" onClick={() => previewInvoice(bill)}>
                   <Eye className="h-3 w-3 mr-1" />
                   Invoice
                 </Button>

@@ -50,7 +50,7 @@ export function OfflineSyncIndicator() {
           size="sm"
           onClick={handleManualSync}
           disabled={syncing}
-          className="gap-2 bg-transparent"
+          className="gap-2 bg-transparent hover:text-primary"
         >
           <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
           {syncing ? "Syncing..." : "Sync Now"}

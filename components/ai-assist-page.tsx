@@ -95,7 +95,7 @@ export function AIAssistPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Suggestions</h2>
             {suggestions.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => alert("Added all to cart!")}>
+              <Button className="hover:text-primary" variant="outline" size="sm" onClick={() => alert("Added all to cart!")}>
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Add All
               </Button>

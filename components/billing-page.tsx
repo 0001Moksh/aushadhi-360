@@ -999,7 +999,7 @@ export function BillingPage() {
               size="sm"
               onClick={syncOfflineQueue}
               disabled={syncingOfflineQueue}
-              className="gap-2"
+              className="gap-2 hover:text-primary"
             >
               {syncingOfflineQueue ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Sync queued
@@ -1028,7 +1028,7 @@ export function BillingPage() {
             size="sm"
             onClick={() => setShowShortcuts(true)}
             title="View Shortcuts (Ctrl+/)"
-            className="hidden md:flex items-center gap-2 transition-all">
+            className="hidden md:flex items-center gap-2 transition-all hover:text-primary">
             <Keyboard className="h-4 w-4" />
             <span className="font-medium">Shortcuts</span>
           </Button>
@@ -1049,7 +1049,7 @@ export function BillingPage() {
                 size="sm"
                 onClick={printBill}
                 title="Print Bill (Ctrl+P)"
-                className="gap-2"
+                className="gap-2 hover:text-primary"
               >
                 <Printer className="h-4 w-4" />
                 Print
@@ -1404,7 +1404,7 @@ export function BillingPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1"
+                            className="flex-1 hover:text-primary"
                             onClick={() => restoreDraft(draft.id)}
                             disabled={isCheckingOut}
                           >
@@ -1476,7 +1476,7 @@ export function BillingPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className="w-full hover:text-primary"
                         onClick={() => previewInvoice(bill)}
                       >
                         <Eye className="h-3 w-3 mr-1" />
@@ -1581,6 +1581,7 @@ export function BillingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
+                    className="hover:text-primary"
                     size="lg"
                     onClick={saveDraft}
                     title="Save Draft (Ctrl+S)"

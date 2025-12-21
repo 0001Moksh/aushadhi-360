@@ -101,7 +101,7 @@ Thank you for choosing Aushadhi 360!
             <Mail className="h-4 w-4" />
             {sending ? "Sending..." : "Send Email"}
           </Button>
-          <Button variant="outline" onClick={handleDownload} className="gap-2 bg-transparent">
+          <Button variant="outline" onClick={handleDownload} className="gap-2 bg-transparent hover:text-primary">
             <Download className="h-4 w-4" />
             Download
           </Button>

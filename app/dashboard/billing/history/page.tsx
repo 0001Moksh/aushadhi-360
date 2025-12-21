@@ -393,7 +393,7 @@ export default function BillingHistoryPage() {
           </p>
         </div>
         <Link href="/dashboard/billing">
-          <Button variant="outline">Back to Billing</Button>
+          <Button variant="outline" className="hover:text-primary">Back to Billing</Button>
         </Link>
       </div>
 

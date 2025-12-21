@@ -173,7 +173,7 @@ export function ProductsPage() {
             onChange={(e) => setQuery(e.target.value)}
             className="w-full md:w-[260px]"
           />
-          <Button variant="outline" size="icon" className="shrink-0 md:w-auto md:px-4" onClick={loadMedicines} disabled={isLoading}>
+          <Button variant="outline" size="icon" className="shrink-0 md:w-auto md:px-4 hover:text-primary" onClick={loadMedicines} disabled={isLoading}>
             <RefreshCcw className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Refresh</span>
           </Button>
         </div>

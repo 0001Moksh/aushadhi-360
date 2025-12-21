@@ -84,7 +84,7 @@ export function AISuggestionWrapper({ onSuggestionSelect, onManualSearch }: Prop
               {loading ? "Getting Suggestions..." : "Get AI Suggestions"}
             </Button>
 
-            <Button variant="outline" onClick={onManualSearch} className="gap-2 bg-transparent">
+            <Button variant="outline" onClick={onManualSearch} className="gap-2 bg-transparent hover:text-primary">
               <Search className="h-4 w-4" />
               Manual Search Instead
             </Button>
@@ -98,7 +98,7 @@ export function AISuggestionWrapper({ onSuggestionSelect, onManualSearch }: Prop
               {suggestions.map((medicine, index) => (
                 <div key={index} className="flex items-center justify-between rounded-lg border p-2">
                   <span>{medicine}</span>
-                  <Button size="sm" variant="outline" onClick={() => onSuggestionSelect([medicine])}>
+                  <Button size="sm" className="hover:text-primary" variant="outline" onClick={() => onSuggestionSelect([medicine])}>
                     Add to Cart
                   </Button>
                 </div>
