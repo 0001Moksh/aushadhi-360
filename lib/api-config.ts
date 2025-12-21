@@ -77,7 +77,7 @@ export const apiConfig: APIConfig = {
       priority: 1,
       isHealthy: true,
       lastHealthCheck: new Date(),
-      endpoint: process.env.MONGODB_URI,
+      endpoint: process.env.DATABASE_URL,
     },
     {
       name: "LocalStorage",

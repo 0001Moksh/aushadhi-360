@@ -227,8 +227,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </nav>
               </TooltipProvider>
             </ScrollArea>
-            <div className="flex items-center justify-between gap-3 rounded-xl border bg-card p-1 px-5">
-              <div className="flex flex-col">
+            <div className="flex mr-4 items-center md:justify-start justify-between gap-3 rounded-xl p-1 px-5">
+              <div className="flex md:hidden flex-col">
                 <span className="text-sm font-medium text-foreground">
                   Theme
                 </span>
