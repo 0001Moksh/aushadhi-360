@@ -227,7 +227,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </nav>
               </TooltipProvider>
             </ScrollArea>
-            <div className="md:hidden flex items-center justify-between gap-3 rounded-xl border bg-card p-1 px-5">
+            <div className="flex items-center justify-between gap-3 rounded-xl border bg-card p-1 px-5">
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-foreground">
                   Theme
@@ -279,9 +279,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <main className={cn("flex-1 transition-all duration-300 ease-in-out", isExpanded ? "lg:ml-64" : "lg:ml-20")}>
           <div className="relative p-4 lg:p-6">
             {/* Top-right controls (desktop only) */}
-            <div className="hidden lg:flex items-center gap-1 absolute right-6 top-6 z-10">
+            {/* <div className="hidden lg:flex items-center gap-1 absolute right-6 top-6 z-10">
               <ThemeToggle />
-            </div>
+            </div> */}
             {children}
 
             <footer className="mt-6 border-t pt-4 text-center text-[10px] text-muted-foreground flex flex-col gap-1">

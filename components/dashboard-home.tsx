@@ -41,6 +41,7 @@ export function DashboardHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentBills, setRecentBills] = useState<BillHistory[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [thresholds, setThresholds] = useState({ lowStockMin: 50, expiryDays: 365 })
 
   useEffect(() => {
     loadDashboardData()
@@ -61,18 +62,32 @@ export function DashboardHome() {
         setProfile(profileData.user)
       }
 
-      // Load medicines to calculate stats
-      const medicinesResponse = await fetch(`/api/user/medicines?email=${encodeURIComponent(email)}`)
+      // Load medicines using the alerts source so dashboard counts stay aligned with Alerts page
+      // Get thresholds from localStorage or use defaults
+      const savedThresholds = localStorage.getItem('alertThresholds')
+      const loadedThresholds = savedThresholds
+        ? JSON.parse(savedThresholds)
+        : { lowStockMin: 50, expiryDays: 365 }
+      setThresholds(loadedThresholds)
+      const lowStockThreshold = loadedThresholds.lowStockMin
+      const expiryThresholdDays = loadedThresholds.expiryDays
+      const medicinesResponse = await fetch(`/api/medicines/search?email=${encodeURIComponent(email)}&query=`)
       if (medicinesResponse.ok) {
         const medicinesData = await medicinesResponse.json()
         const medicines = medicinesData.medicines || []
 
-        const lowStock = medicines.filter((m: any) => m.quantity < 20).length
+        const lowStock = medicines.filter((m: any) => {
+          if (typeof m?.quantity !== "number") return false
+          return m.quantity < lowStockThreshold
+        }).length
+
         const expiring = medicines.filter((m: any) => {
+          if (!m?.expiryDate) return false
           const expiryDate = new Date(m.expiryDate)
+          if (Number.isNaN(expiryDate.getTime())) return false
           const today = new Date()
           const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
-          return daysUntilExpiry <= 30 && daysUntilExpiry > 0
+          return daysUntilExpiry <= expiryThresholdDays && daysUntilExpiry > 0
         }).length
 
         setStats({
@@ -483,7 +498,10 @@ export function DashboardHome() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground">Low Stock</p>
-              <p className="text-xl md:text-2xl font-bold mt-1 text-warning">{stats?.lowStockItems || 0}</p>
+              <div className="flex">
+                <p className="text-xl md:text-2xl font-bold mt-1 text-warning">{stats?.lowStockItems || 0}</p>
+                <p className="text-xs mt-4 ml-1 text-muted-foreground mt-1">&lt;{thresholds.lowStockMin} units</p>
+              </div>
             </div>
             <AlertTriangle className="h-6 w-6 text-warning" />
           </div>
@@ -493,7 +511,10 @@ export function DashboardHome() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground">Expiring Soon</p>
-              <p className="text-xl md:text-2xl font-bold mt-1 text-destructive">{stats?.expiringSoon || 0}</p>
+              <div className="flex">
+                <p className="text-xl md:text-2xl font-bold mt-1 text-destructive">{stats?.expiringSoon || 0}</p>
+                <p className="text-xs mt-4 ml-1 text-muted-foreground mt-1">within {thresholds.expiryDays} days</p>
+              </div>
             </div>
             <Clock className="h-6 w-6 text-destructive" />
           </div>
