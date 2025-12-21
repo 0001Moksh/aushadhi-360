@@ -17,6 +17,7 @@ interface ManualMedicineRecord {
   Price_INR: number
   Total_Quantity: number
   status_import?: string
+  customFields?: Record<string, string>
 }
 
 async function getDatabase() {
