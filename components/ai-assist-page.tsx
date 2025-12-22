@@ -54,95 +54,156 @@ export function AIAssistPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-balance mb-2">AI Assistant</h1>
-        <p className="text-muted-foreground text-pretty">Get medicine recommendations based on symptoms</p>
-      </div>
+    //   <div className="space-y-6">
+    //     <div>
+    //       <h1 className="text-3xl font-bold text-balance mb-2">AI Assistant</h1>
+    //       <p className="text-muted-foreground text-pretty">Get medicine recommendations based on symptoms</p>
+    //     </div>
 
-      <Card className="p-6 bg-accent/10 border-accent">
-        <div className="flex gap-3">
-          <AlertCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-          <div className="space-y-2 text-sm">
-            <p className="font-medium">Safety Disclaimer</p>
-            <p className="text-muted-foreground text-pretty">
-              This AI assistant provides suggestions for OTC medicines only. Prescription medicines are blocked. Final
-              decision remains with the pharmacist.
-            </p>
-          </div>
-        </div>
-      </Card>
+    //     <Card className="p-6 bg-accent/10 border-accent">
+    //       <div className="flex gap-3">
+    //         <AlertCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+    //         <div className="space-y-2 text-sm">
+    //           <p className="font-medium">Safety Disclaimer</p>
+    //           <p className="text-muted-foreground text-pretty">
+    //             This AI assistant provides suggestions for OTC medicines only. Prescription medicines are blocked. Final
+    //             decision remains with the pharmacist.
+    //           </p>
+    //         </div>
+    //       </div>
+    //     </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Input */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Describe Symptoms</h2>
-          <Textarea
-            placeholder="Example: I have stomach pain and gas after eating..."
-            value={symptoms}
-            onChange={(e) => setSymptoms(e.target.value)}
-            rows={8}
-            className="mb-4"
+    //     <div className="grid lg:grid-cols-2 gap-6">
+    //       {/* Input */}
+    //       <Card className="p-6">
+    //         <h2 className="text-xl font-semibold mb-4">Describe Symptoms</h2>
+    //         <Textarea
+    //           placeholder="Example: I have stomach pain and gas after eating..."
+    //           value={symptoms}
+    //           onChange={(e) => setSymptoms(e.target.value)}
+    //           rows={8}
+    //           className="mb-4"
+    //         />
+    //         <Button className="w-full" size="lg" onClick={handleAIAssist} disabled={!symptoms.trim() || isLoading}>
+    //           <Sparkles className="mr-2 h-5 w-5" />
+    //           {isLoading ? "Analyzing..." : "Get AI Suggestions"}
+    //         </Button>
+    //       </Card>
+
+    //       {/* Suggestions */}
+    //       <Card className="p-6">
+    //         <div className="flex items-center justify-between mb-4">
+    //           <h2 className="text-xl font-semibold">Suggestions</h2>
+    //           {suggestions.length > 0 && (
+    //             <Button className="hover:text-primary" variant="outline" size="sm" onClick={() => alert("Added all to cart!")}>
+    //               <ShoppingCart className="mr-2 h-4 w-4" />
+    //               Add All
+    //             </Button>
+    //           )}
+    //         </div>
+
+    //         {suggestions.length === 0 ? (
+    //           <div className="text-center text-muted-foreground py-12">
+    //             <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-50" />
+    //             <p>Enter symptoms to get AI recommendations</p>
+    //           </div>
+    //         ) : (
+    //           <div className="space-y-4">
+    //             {suggestions.map((suggestion, idx) => (
+    //               <div key={idx} className="p-4 rounded-lg border bg-card space-y-2">
+    //                 <div className="flex items-start justify-between">
+    //                   <div>
+    //                     <h3 className="font-semibold">{suggestion.name}</h3>
+    //                     {suggestion.available ? (
+    //                       <Badge variant="outline" className="text-success border-success mt-1">
+    //                         In Stock
+    //                       </Badge>
+    //                     ) : (
+    //                       <Badge variant="outline" className="text-destructive border-destructive mt-1">
+    //                         Out of Stock
+    //                       </Badge>
+    //                     )}
+    //                   </div>
+    //                   <Button size="sm" disabled={!suggestion.available}>
+    //                     <Plus className="h-4 w-4 mr-1" />
+    //                     Add
+    //                   </Button>
+    //                 </div>
+    //                 <div className="text-sm space-y-1">
+    //                   <p>
+    //                     <span className="font-medium">Usage:</span> {suggestion.usage}
+    //                   </p>
+    //                   <p>
+    //                     <span className="font-medium">Quantity:</span> {suggestion.quantity}
+    //                   </p>
+    //                 </div>
+    //               </div>
+    //             ))}
+    //           </div>
+    //         )}
+    //       </Card>
+    //     </div>
+    //   </div>
+    // )
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <main className="flex flex-1 flex-col items-center justify-center text-center gap-4 px-4">
+
+        {/* Image Wrapper */}
+        <div className="relative w-64 h-64">
+
+          {/* Base Image */}
+          <img
+            src="/error.png"
+            alt="Base"
+            className="w-full h-full opacity-90"
           />
-          <Button className="w-full" size="lg" onClick={handleAIAssist} disabled={!symptoms.trim() || isLoading}>
-            <Sparkles className="mr-2 h-5 w-5" />
-            {isLoading ? "Analyzing..." : "Get AI Suggestions"}
-          </Button>
-        </Card>
 
-        {/* Suggestions */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Suggestions</h2>
-            {suggestions.length > 0 && (
-              <Button className="hover:text-primary" variant="outline" size="sm" onClick={() => alert("Added all to cart!")}>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Add All
-              </Button>
-            )}
-          </div>
+          {/* Rotating Overlay Image */}
+          <img
+            src="/error1.png"
+            alt="Rotating"
+            className="absolute inset-0 w-full h-full"
+            style={{
+              animation: "rotateWobble 5s ease-in-out infinite",
+              transformOrigin: "50% 50%",
+            }}
+          />
+        </div>
 
-          {suggestions.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">
-              <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Enter symptoms to get AI recommendations</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {suggestions.map((suggestion, idx) => (
-                <div key={idx} className="p-4 rounded-lg border bg-card space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold">{suggestion.name}</h3>
-                      {suggestion.available ? (
-                        <Badge variant="outline" className="text-success border-success mt-1">
-                          In Stock
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-destructive border-destructive mt-1">
-                          Out of Stock
-                        </Badge>
-                      )}
-                    </div>
-                    <Button size="sm" disabled={!suggestion.available}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                  <div className="text-sm space-y-1">
-                    <p>
-                      <span className="font-medium">Usage:</span> {suggestion.usage}
-                    </p>
-                    <p>
-                      <span className="font-medium">Quantity:</span> {suggestion.quantity}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+        <h2 className="text-xl font-semibold">
+          coming soon...
+        </h2>
+
+        <p className="text-sm text-muted-foreground max-w-md">
+          This feature is currently restricted for Demo Account
+        </p>
+
+        {/* KEYFRAMES (MANDATORY) */}
+        <style jsx>{`
+      @keyframes rotateWobble {
+  0% {
+    transform: rotate(30deg);
+  }
+  25% {
+    transform: rotate(55deg);
+  }
+  50% {
+    transform: rotate(90deg);
+  }
+  75% {
+    transform: rotate(55deg);
+  }
+  100% {
+    transform: rotate(30deg);
+  }
+}
+
+    `}</style>
+
+      </main>
     </div>
+
+
+
   )
 }
