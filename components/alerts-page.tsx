@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertTriangle, Clock, TrendingUp, Download, Loader2, Settings } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { normalizeExpiryDate } from "@/lib/date-parser"
 
 interface Medicine {
   id: string
@@ -36,15 +37,13 @@ interface TopSellingMedicine {
 }
 
 interface AlertsData {
-  lowStock: Medicine[]
-  expiringSoon: Medicine[]
+  medicines: Medicine[]
   topSelling: TopSellingMedicine[]
 }
 
 export function AlertsPage() {
   const [data, setData] = useState<AlertsData>({
-    lowStock: [],
-    expiringSoon: [],
+    medicines: [],
     topSelling: [],
   })
   const [isLoading, setIsLoading] = useState(true)
@@ -54,20 +53,27 @@ export function AlertsPage() {
       const saved = localStorage.getItem('alertThresholds')
       if (saved) {
         try {
-          return JSON.parse(saved)
+          const parsed = JSON.parse(saved)
+          // Backward-compatible defaults
+          return {
+            lowStockMin: parsed.lowStockMin ?? 50,
+            expiryValue: parsed.expiryValue ?? (parsed.expiryDays ?? 365),
+            expiryUnit: parsed.expiryUnit ?? 'days',
+          }
         } catch {
-          return { lowStockMin: 50, expiryDays: 365 }
+          return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days' }
         }
       }
     }
-    return { lowStockMin: 50, expiryDays: 365 }
+    return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days' }
   })
   const [topCount, setTopCount] = useState<number>(20) // Default to top 20
-  const [filteredData, setFilteredData] = useState<AlertsData>({
-    lowStock: [],
-    expiringSoon: [],
-    topSelling: [],
+  const [filteredData, setFilteredData] = useState({
+    lowStock: [] as Medicine[],
+    topSelling: [] as TopSellingMedicine[],
+    expiringSoon: [] as Medicine[],
   })
+  const [activeTab, setActiveTab] = useState("low-stock")
 
   useEffect(() => {
     loadAlertsData()
@@ -104,6 +110,7 @@ export function AlertsPage() {
     try {
       const email = localStorage.getItem("user_email")
       if (!email) {
+        console.warn("Alerts: No user_email in localStorage; skipping fetch.")
         setIsLoading(false)
         return
       }
@@ -116,9 +123,57 @@ export function AlertsPage() {
 
       if (medicinesRes.ok) {
         const medicinesData = await medicinesRes.json()
-        medicines = medicinesData.medicines || []
+        const rawMedicines = Array.isArray(medicinesData)
+          ? medicinesData
+          : medicinesData.medicines || medicinesData.items || medicinesData.data || []
+
+        medicines = rawMedicines.map((item: any) => {
+          const id = item.id || item._id || item.medicineId || item.medicine_id || Math.random().toString(36).slice(2)
+          const name = item.name || item.medicineName || item.MedicineName || item["Name of Medicine"] || item.title || "Unknown"
+          const batch = item.batch || item.batchNumber || item.batch_number || item.Batch_ID || item.batchId || "N/A"
+          const price = Number(
+            item.price ?? item.Price_INR ?? item.Price ?? item.unitPrice ?? item.unit_price ?? item.MRP ?? 0
+          ) || 0
+          const quantity = Number(
+            item.quantity ?? item.currentStock ?? item.current_stock ?? item.Total_Quantity ?? item.qty ?? item.total_quantity ?? 0
+          ) || 0
+          const category = item.category || item.Category || ""
+          const form = item.form || item.Form || item["Medicine Forms"] || ""
+
+          const expiryRaw =
+            item.expiryDate ||
+            item.expiry_date ||
+            item.expiry ||
+            item.expDate ||
+            item.exp_date ||
+            item.exp ||
+            item.expirationDate ||
+            item.expiration_date ||
+            item.Expiry ||
+            item.ExpiryDate ||
+            item.expiryDateString ||
+            item.Expiry_Date ||
+            item.Expiry_date ||
+            item["Expiry Date"] ||
+            (item.expiryDate instanceof Date ? item.expiryDate.toISOString() : null)
+
+          let expiryDate: string | undefined = undefined
+          if (expiryRaw) {
+            const rawValue = expiryRaw instanceof Date ? expiryRaw.toISOString().split("T")[0] : expiryRaw
+            const { normalized, raw } = normalizeExpiryDate(rawValue)
+            expiryDate = normalized || (typeof raw === 'string' && raw.trim() ? raw : undefined)
+          }
+
+          return { id, name, batch, price, quantity, category, form, expiryDate } as Medicine
+        })
+
+        console.debug("Alerts: Medicines fetched", {
+          count: medicines.length,
+          sample: medicines.slice(0, 3)
+        })
       } else {
-        console.error("Failed to load medicines")
+        const text = await medicinesRes.text().catch(() => "")
+        console.error("Failed to load medicines", { status: medicinesRes.status, text })
       }
 
       if (topSellingRes.ok) {
@@ -127,13 +182,14 @@ export function AlertsPage() {
           ? topSellingData
           : topSellingData.topSelling || topSellingData.data?.topSelling || topSellingData.items || []
         topSelling = normalizeTopSelling(rawTop)
+        console.debug("Alerts: Top selling fetched", { count: topSelling.length, sample: topSelling.slice(0, 3) })
       } else {
-        console.error("Failed to load top selling")
+        const text = await topSellingRes.text().catch(() => "")
+        console.error("Failed to load top selling", { status: topSellingRes.status, text })
       }
 
       setData({
-        lowStock: medicines,
-        expiringSoon: medicines,
+        medicines,
         topSelling,
       })
       setError(null)
@@ -145,18 +201,38 @@ export function AlertsPage() {
     }
   }
 
+  const toDays = (value: number, unit: 'days' | 'months' | 'years') => {
+    if (unit === 'days') return value
+    if (unit === 'months') return Math.round(value * 30)
+    return Math.round(value * 365)
+  }
+
+  const daysUntil = (dateStr: string) => {
+    const parsed = new Date(dateStr)
+    if (Number.isNaN(parsed.getTime())) return null
+    // Normalize to local midnight to avoid timezone drift between today/expiry
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const startOfExpiry = new Date(parsed)
+    startOfExpiry.setHours(0, 0, 0, 0)
+    return Math.floor((startOfExpiry.getTime() - startOfToday.getTime()) / 86400000)
+  }
+
   const applyThresholds = () => {
     // Low Stock
-    const lowStock = data.lowStock.filter((m) => m.quantity < thresholds.lowStockMin)
+    const lowStock = data.medicines.filter((m) => m.quantity < thresholds.lowStockMin)
 
-    // Expiring Soon
-    const expiringSoon = data.expiringSoon.filter((m) => {
-      if (!m.expiryDate) return false
-      const expiry = new Date(m.expiryDate)
-      const today = new Date()
-      const daysUntil = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 3600 * 24))
-      return daysUntil <= thresholds.expiryDays && daysUntil > 0
-    })
+    const expiryThresholdDays = toDays(thresholds.expiryValue, thresholds.expiryUnit)
+    const expiringSoon = data.medicines
+      .map((m) => {
+        if (!m.expiryDate) return null
+        const diff = daysUntil(m.expiryDate)
+        if (diff === null) return null
+        return { medicine: m, diff }
+      })
+      .filter((entry): entry is { medicine: Medicine; diff: number } => !!entry && entry.diff <= expiryThresholdDays)
+      .sort((a, b) => a.diff - b.diff)
+      .map((entry) => entry.medicine)
 
     // Top Selling: Sort by units sold desc, then revenue desc, then limit to top N
     const topSelling = [...data.topSelling]
@@ -169,13 +245,15 @@ export function AlertsPage() {
 
     setFilteredData({
       lowStock,
-      expiringSoon,
       topSelling,
+      expiringSoon,
     })
   }
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-IN", {
+    const parsed = new Date(dateStr)
+    if (Number.isNaN(parsed.getTime())) return "" 
+    return parsed.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -183,9 +261,53 @@ export function AlertsPage() {
   }
 
   const getDaysRemaining = (expiryDate: string) => {
-    const today = new Date()
-    const expiry = new Date(expiryDate)
-    return Math.floor((expiry.getTime() - today.getTime()) / (1000 * 3600 * 24))
+    const diff = daysUntil(expiryDate)
+    return diff === null ? 0 : diff
+  }
+
+  const handleExport = () => {
+    const downloadCSV = (headers: string[], rows: (string | number)[][], filename: string) => {
+      const csvContent = [
+        headers.join(","),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      ].join("\n")
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement("a")
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob)
+        link.setAttribute("href", url)
+        link.setAttribute("download", filename)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+    }
+
+    const dateStr = new Date().toISOString().split('T')[0]
+
+    if (activeTab === "low-stock") {
+      const headers = ["Name", "Batch", "Quantity", "Price", "Category", "Form"]
+      const rows = filteredData.lowStock.map(m => [m.name, m.batch, m.quantity, m.price, m.category || "", m.form || ""])
+      downloadCSV(headers, rows, `low_stock_report_${dateStr}.csv`)
+    } else if (activeTab === "top-selling") {
+      const headers = ["Name", "Batch", "Units Sold", "Revenue", "Current Stock", "Price", "Category"]
+      const rows = filteredData.topSelling.map(m => [m.name, m.batch, m.totalUnitsSold, m.totalRevenue.toFixed(2), m.currentStock, m.price, m.category || ""])
+      downloadCSV(headers, rows, `top_selling_report_${dateStr}.csv`)
+    } else if (activeTab === "expiring-soon") {
+      const headers = ["Name", "Batch", "Quantity", "Expiry Date", "Days Remaining", "Category", "Form"]
+      const rows = filteredData.expiringSoon.map(m => [
+        m.name,
+        m.batch,
+        m.quantity,
+        m.expiryDate ? formatDate(m.expiryDate) : "",
+        m.expiryDate ? getDaysRemaining(m.expiryDate) : "",
+        m.category || "",
+        m.form || "",
+      ])
+      downloadCSV(headers, rows, `expiring_soon_report_${dateStr}.csv`)
+    }
   }
 
   if (isLoading) {
@@ -207,17 +329,17 @@ export function AlertsPage() {
           <h1 className="text-3xl font-bold">Alerts & Notifications</h1>
           <p className="text-muted-foreground">Monitor stock, expiry dates, and top-selling medicines</p>
         </div>
-        <Button variant="outline"className="hover:text-primary">
+        <Button variant="outline" className="hover:text-primary" onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />
           Export Report
         </Button>
       </div>
 
-      <Tabs defaultValue="low-stock" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="low-stock">Low Stock ({filteredData.lowStock.length})</TabsTrigger>
-          <TabsTrigger value="expiring">Expiring Soon ({filteredData.expiringSoon.length})</TabsTrigger>
           <TabsTrigger value="top-selling">Top Selling ({filteredData.topSelling.length})</TabsTrigger>
+          <TabsTrigger value="expiring-soon">Expiring Soon ({filteredData.expiringSoon.length})</TabsTrigger>
         </TabsList>
 
         {/* Low Stock Tab */}
@@ -265,55 +387,6 @@ export function AlertsPage() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No low stock items detected
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Expiring Soon Tab */}
-        <TabsContent value="expiring" className="space-y-3">
-          <Card className="p-4 bg-muted/50">
-            <div className="flex items-center gap-4">
-              <Settings className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <Label htmlFor="expiryThreshold" className="text-sm font-medium">
-                  Expiry Threshold
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">Show medicines expiring within this period</p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="expiryThreshold"
-                    type="number"
-                    min="1"
-                    value={thresholds.expiryDays}
-                    onChange={(e) => setThresholds((prev: typeof thresholds) => ({ ...prev, expiryDays: parseInt(e.target.value) || 365 }))}
-                    className="w-32"
-                  />
-                  <span className="text-sm text-muted-foreground">days</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {filteredData.expiringSoon.length > 0 ? (
-            filteredData.expiringSoon.map((medicine) => (
-              <Card key={medicine.id} className="p-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-red-500 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-medium">{medicine.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Expires on: {formatDate(medicine.expiryDate!)} ({getDaysRemaining(medicine.expiryDate!)} days)
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-red-500 border-red-500">
-                    Expiring
-                  </Badge>
-                </div>
-              </Card>
-            ))
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No medicines expiring soon
             </div>
           )}
         </TabsContent>
@@ -375,6 +448,76 @@ export function AlertsPage() {
             <div className="text-center py-12 text-muted-foreground">
               <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-40" />
               No sales data available yet
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Expiring Soon Tab */}
+        <TabsContent value="expiring-soon" className="space-y-4">
+          <Card className="p-4 bg-muted/50">
+            <div className="flex items-center gap-4">
+              <Settings className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="expiryValue" className="text-sm font-medium">Expiry Window</Label>
+                    <p className="text-xs text-muted-foreground mb-2">Show medicines expiring within this window</p>
+                    <Input
+                      id="expiryValue"
+                      type="number"
+                      min="1"
+                      value={thresholds.expiryValue}
+                      onChange={(e) => setThresholds((prev: typeof thresholds) => ({ ...prev, expiryValue: parseInt(e.target.value) || 1 }))}
+                      className="w-32"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Time Unit</Label>
+                    <p className="text-xs text-muted-foreground mb-2">Choose the unit for the expiry window</p>
+                    <Select value={thresholds.expiryUnit} onValueChange={(val) => setThresholds((prev: typeof thresholds) => ({ ...prev, expiryUnit: val as 'days' | 'months' | 'years' }))}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="days">Days</SelectItem>
+                        <SelectItem value="months">Months</SelectItem>
+                        <SelectItem value="years">Years</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {filteredData.expiringSoon.length > 0 ? (
+            filteredData.expiringSoon.map((medicine) => {
+              const daysRemaining = medicine.expiryDate ? getDaysRemaining(medicine.expiryDate) : null
+              const isExpired = daysRemaining !== null && daysRemaining < 0
+
+              return (
+                <Card key={`${medicine.id}-expiry`} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className={`h-5 w-5 flex-shrink-0 mt-1 ${isExpired ? 'text-destructive' : 'text-orange-500'}`} />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-semibold">{medicine.name}</p>
+                        <Badge variant={isExpired ? "destructive" : "secondary"}>
+                          {medicine.expiryDate ? (isExpired ? "Expired" : `${daysRemaining} days left`) : "No date"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Batch: {medicine.batch} • Quantity: {medicine.quantity} • Expiry: {medicine.expiryDate ? formatDate(medicine.expiryDate) : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-40" />
+              No medicines are nearing expiry
             </div>
           )}
         </TabsContent>

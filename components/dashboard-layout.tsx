@@ -283,7 +283,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div> */}
             {children}
 
-            <footer className="mt-6 border-t pt-4 text-center text-[10px] text-muted-foreground flex flex-col gap-1">
+            <footer className="mt-1 border-t pt-1 text-center text-[10px] text-muted-foreground flex flex-col gap-1">
               <p>&copy; {new Date().getFullYear()} Aushadhi 360. All rights reserved.</p>
               <p>
                 Powered by{" "}

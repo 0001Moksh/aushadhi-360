@@ -71,19 +71,22 @@ export function DashboardHome() {
       setThresholds(loadedThresholds)
       const lowStockThreshold = loadedThresholds.lowStockMin
       const expiryThresholdDays = loadedThresholds.expiryDays
-      const medicinesResponse = await fetch(`/api/medicines/search?email=${encodeURIComponent(email)}&query=`)
+      const medicinesResponse = await fetch(`/api/user/medicines?email=${encodeURIComponent(email)}`)
       if (medicinesResponse.ok) {
         const medicinesData = await medicinesResponse.json()
         const medicines = medicinesData.medicines || []
 
         const lowStock = medicines.filter((m: any) => {
-          if (typeof m?.quantity !== "number") return false
-          return m.quantity < lowStockThreshold
+          const qty = m.quantity ?? m.Total_Quantity ?? m.qty
+          const val = Number(qty)
+          if (isNaN(val)) return false
+          return val < lowStockThreshold
         }).length
 
         const expiring = medicines.filter((m: any) => {
-          if (!m?.expiryDate) return false
-          const expiryDate = new Date(m.expiryDate)
+          const exp = m.expiryDate ?? m.Expiry_date ?? m.expiry_date ?? m["Expiry Date"]
+          if (!exp) return false
+          const expiryDate = new Date(exp)
           if (Number.isNaN(expiryDate.getTime())) return false
           const today = new Date()
           const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24))

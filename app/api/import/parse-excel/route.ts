@@ -30,8 +30,13 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Parse with xlsx
-    const workbook = XLSX.read(buffer, { type: "buffer" })
+    // Parse with xlsx, prevent auto date parsing and keep raw values
+    const workbook = XLSX.read(buffer, {
+      type: "buffer",
+      cellDates: false,   // keep dates as numbers, not Date objects
+      cellNF: false,      // do not generate cell number formats
+      cellText: false     // do not generate formatted text
+    })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
 
@@ -39,31 +44,18 @@ export async function POST(request: NextRequest) {
     const normalize = (val: string) => val.toLowerCase().replace(/[^a-z0-9]/g, "")
 
     // Read raw rows to capture header row exactly as-is
-    const rows2d = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 }) as string[][]
+    const rows2d = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1, raw: true, defval: "" }) as string[][]
     const headerRow = (rows2d[0] || []).map((h) => (h ?? "").toString().trim())
     const headerNorms = headerRow.map(normalize).filter(Boolean)
 
-    // Convert to JSON with default values so missing cells still appear as empty strings
-    const data = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[]
+    // Convert to JSON with raw values to avoid implicit parsing (e.g., date formatting)
+    const data = XLSX.utils.sheet_to_json(worksheet, { raw: true, defval: "", blankrows: false }) as any[]
 
     if (data.length === 0) {
       return NextResponse.json(
         { error: "No data found in file" },
         { status: 400 }
       )
-    }
-
-    // Helper to get value by flexible column matching (accepts 0 as valid)
-    const getFieldValue = (record: any, fieldNames: string[]): any => {
-      const recordKeys = Object.keys(record)
-      for (const fieldName of fieldNames) {
-        const target = normalize(fieldName)
-        const matchedKey = recordKeys.find((key) => normalize(key) === target)
-        if (matchedKey !== undefined && record[matchedKey] !== null && record[matchedKey] !== "") {
-          return record[matchedKey]
-        }
-      }
-      return null
     }
 
     // Validate required columns based on headers (not cell values)
@@ -88,30 +80,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Map to standard format with flexible column matching
-    const records: MedicineRecord[] = data.map((row: any) => ({
-      Batch_ID: String(getFieldValue(row, ["Batch_ID", "BatchID", "batch_id"]) || ""),
-      "Name of Medicine": String(getFieldValue(row, ["Name of Medicine", "Name", "Medicine Name", "medicine_name"]) || ""),
-      Category: getFieldValue(row, ["Category", "category"]),
-      "Medicine Forms": getFieldValue(row, ["Medicine Forms", "Medicine_Forms", "Form", "form"]),
-      Quantity_per_pack: getFieldValue(row, ["Quantity_per_pack", "Quantity per pack", "Qty/Pack", "qty_per_pack", "Pack Size"]),
-      "Cover Disease": getFieldValue(row, ["Cover Disease", "Cover_Disease", "Disease", "disease"]),
-      Symptoms: getFieldValue(row, ["Symptoms", "symptoms"]),
-      "Side Effects": getFieldValue(row, ["Side Effects", "Side_Effects", "SideEffects", "side_effects"]),
-      Instructions: getFieldValue(row, ["Instructions", "instructions"]),
-      "Description in Hinglish": getFieldValue(row, ["Description in Hinglish", "Description_in_Hinglish", "Hinglish", "hinglish", "Description"]),
-      Price_INR: Number(getFieldValue(row, ["Price (INR)", "Price_INR", "Price", "price_inr"]) || 0),
-      Total_Quantity: Number(getFieldValue(row, ["Total Quantity", "Total_Quantity", "Quantity", "quantity"]) || 0),
-    }))
-
-    // Filter out empty rows
-    const validRecords = records.filter((r) => r.Batch_ID && r["Name of Medicine"])
-
-    return NextResponse.json({
-      success: true,
-      count: validRecords.length,
-      records: validRecords,
-    })
+    // Return RAW records so client can handle flexible parsing (including dates)
+    return NextResponse.json({ success: true, count: data.length, records: data })
   } catch (error) {
     console.error("Excel/CSV parsing error:", error)
     return NextResponse.json(
