@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,8 @@ interface ExtractedItem {
   quantity: number
   price: number
   batch?: string
+  expiryDate?: string
+  isExisting?: boolean
 }
 
 export function ImportMedicinePage() {
@@ -41,6 +43,14 @@ export function ImportMedicinePage() {
   const [lastImportId, setLastImportId] = useState<string | null>(null)
   const [gridPreview, setGridPreview] = useState<string[][] | null>(null)
   const [gridPreviewMeta, setGridPreviewMeta] = useState<{ sheet?: string; rows?: number; cols?: number } | null>(null)
+  const [logs, setLogs] = useState<string[]>([])
+  const logsRef = useRef<HTMLDivElement | null>(null)
+  const [excludedItems, setExcludedItems] = useState<ExtractedItem[]>([])
+
+  const appendLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
+  }
 
   const stages: PipelineStage[] = [
     { id: "validate", name: "Validating image quality & structure", status: "pending" },
@@ -52,6 +62,7 @@ export function ImportMedicinePage() {
   ]
 
   const handleFileSelect = (uploadedFile: File) => {
+    appendLog(`[Pipeline] Selected file: ${uploadedFile.name}`)
     setFile(uploadedFile)
     setPreviewUrl(URL.createObjectURL(uploadedFile))
     setSuccess(false)
@@ -63,6 +74,7 @@ export function ImportMedicinePage() {
     setCurrentStage(0)
     setGridPreview(null)
     setGridPreviewMeta(null)
+    setExcludedItems([])
 
     const type = uploadedFile.type || ""
     const name = uploadedFile.name.toLowerCase()
@@ -80,6 +92,7 @@ export function ImportMedicinePage() {
           const XLSX = await import("xlsx")
 
           if (isCsv) {
+            appendLog(`[Pipeline] Rendering CSV preview...`)
             const text = typeof data === "string" ? data : new TextDecoder().decode(data as ArrayBuffer)
             const wb = XLSX.read(text, { type: "string" })
             const sheetName = wb.SheetNames[0]
@@ -88,7 +101,9 @@ export function ImportMedicinePage() {
             const rows = (json || []).slice(0, 10).map((r) => (Array.isArray(r) ? r.map(String) : [String(r)]))
             setGridPreview(rows as string[][])
             setGridPreviewMeta({ sheet: sheetName, rows: json.length, cols: (json[0] || []).length })
+            appendLog(`[Preview] Sheet: ${sheetName}, Rows: ${json.length}, Cols: ${(json[0] || []).length}`)
           } else {
+            appendLog(`[Pipeline] Rendering Excel preview...`)
             const wb = XLSX.read(data as ArrayBuffer, { type: "array" })
             const sheetName = wb.SheetNames[0]
             const ws = wb.Sheets[sheetName]
@@ -96,10 +111,12 @@ export function ImportMedicinePage() {
             const rows = (json || []).slice(0, 10).map((r) => (Array.isArray(r) ? r.map(String) : [String(r)]))
             setGridPreview(rows as string[][])
             setGridPreviewMeta({ sheet: sheetName, rows: json.length, cols: (json[0] || []).length })
+            appendLog(`[Preview] Sheet: ${sheetName}, Rows: ${json.length}, Cols: ${(json[0] || []).length}`)
           }
         } catch (err) {
           console.error("Failed to parse preview:", err)
           setError("Could not render preview for this file")
+          appendLog(`[Error] Could not render preview for this file`)
         }
       }
       // For Excel we need ArrayBuffer; CSV can be read as text, but we unify with ArrayBuffer
@@ -114,6 +131,30 @@ export function ImportMedicinePage() {
     }
   }, [previewUrl])
 
+  // Auto-scroll logs
+  useEffect(() => {
+    if (logsRef.current) {
+      logsRef.current.scrollTop = logsRef.current.scrollHeight
+    }
+  }, [logs])
+
+  // Convert Excel serial date to readable format
+  const convertExcelDate = (value: any): string => {
+    if (!value) return ""
+    const num = Number(value)
+    // Excel serial date: number > 1000 and < 100000 is likely a serial date
+    if (!isNaN(num) && num > 1000 && num < 100000) {
+      try {
+        // Excel epoch is 1900-01-01, but it has a bug with leap year
+        const date = new Date((num - 25569) * 86400 * 1000)
+        return date.toLocaleDateString("en-GB") // DD/MM/YYYY format
+      } catch {
+        return String(value)
+      }
+    }
+    return String(value)
+  }
+
   const startProcessing = async () => {
     if (!file) return
     setIsProcessing(true)
@@ -121,6 +162,8 @@ export function ImportMedicinePage() {
     setError(null)
     setResult(null)
     setCurrentStage(0)
+    appendLog(`[Pipeline] Received request - File: ${file.name}, Type: ${file.type.includes("image") ? "image" : "excel"}`)
+    appendLog(`[Pipeline] Layer 1: Validating input...`)
 
     try {
       const userEmail = localStorage.getItem("user_email") || ""
@@ -149,6 +192,7 @@ export function ImportMedicinePage() {
       }
 
       const data = await response.json()
+      appendLog(`[Pipeline] Extracted ${(data?.items || []).length} records`)
       // Parse summary with defensive access
       const summary = data.summary ? {
         total: Number(data.summary.total) || 0,
@@ -156,22 +200,40 @@ export function ImportMedicinePage() {
         new: Number(data.summary.new) || 0,
       } : null
 
-      const items: ExtractedItem[] = (data.items as ExtractedItem[] | undefined)?.map((item) => ({
+      const allItems: ExtractedItem[] = (data.items as ExtractedItem[] | undefined)?.map((item) => ({
         name: item?.name || "",
         quantity: Number(item?.quantity) || 0,
         price: Number(item?.price) || 0,
         batch: item?.batch || "",
+        expiryDate: item?.expiryDate || "",
+        isExisting: item?.isExisting || false,
       })) || []
+
+      // Separate existing and new medicines
+      const existingItems = allItems.filter(item => item.isExisting)
+      const newItems = allItems.filter(item => !item.isExisting)
+
+      // Limit new medicines to max 10
+      const allowedNewItems = newItems.slice(0, 10)
+      const excludedNewItems = newItems.slice(10)
+
+      // Combine: all existing + max 10 new
+      const items = [...existingItems, ...allowedNewItems]
+
+      appendLog(`[Review] Existing: ${existingItems.length}, New: ${allowedNewItems.length}, Excluded: ${excludedNewItems.length}`)
+      setExcludedItems(excludedNewItems)
 
       // If backend committed (no items but has summary), show success immediately
       // Otherwise, show review table
       if (!items.length && summary) {
+        appendLog(`[Sync] Import committed by backend. Total: ${summary.total}, Updated: ${summary.updated}, New: ${summary.new}`)
         // Auto-committed by backend—show success card
         setResult(summary)
         setSuccess(true)
         setIsReviewing(false)
         setLastImportId(data.importId || null)
       } else if (items.length > 0) {
+        appendLog(`[Review] Items ready for review before saving.`)
         // Items returned—show review table before final commit
         setExtractedItems(items)
         setResult(summary)
@@ -183,19 +245,20 @@ export function ImportMedicinePage() {
       setCurrentStage(stages.length)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed. Please try again.")
+      appendLog(`[Error] ${err instanceof Error ? err.message : "Import failed. Please try again."}`)
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const updateItem = (index: number, field: keyof ExtractedItem, value: string) => {
+  const updateItem = (index: number, field: keyof ExtractedItem, value: string | number) => {
     setExtractedItems((prev) => {
       const copy = [...prev]
       const item = { ...copy[index] }
       if (field === "quantity" || field === "price") {
-        item[field] = Number(value) || 0
+        (item[field] as number) = Number(value) || 0
       } else {
-        item[field] = value
+        (item[field] as string) = String(value)
       }
       copy[index] = item
       return copy
@@ -206,6 +269,7 @@ export function ImportMedicinePage() {
     if (!extractedItems.length || !file) return
     setIsProcessing(true)
     setError(null)
+    appendLog(`[Commit] Committing ${extractedItems.length} items to inventory...`)
 
     try {
       const userEmail = localStorage.getItem("user_email") || ""
@@ -231,8 +295,10 @@ export function ImportMedicinePage() {
       setSuccess(true)
       setIsReviewing(false)
       setLastImportId(data.importId || null)
+      appendLog(`[Commit] ✓ Saved. ImportId: ${data.importId || "unknown"}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save to inventory")
+      appendLog(`[Error] Could not save to inventory`)
     } finally {
       setIsProcessing(false)
     }
@@ -259,8 +325,10 @@ export function ImportMedicinePage() {
       setExtractedItems([])
       setIsReviewing(false)
       setLastImportId(null)
+      appendLog(`[Rollback] ✓ Last import undone`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not undo last import")
+      appendLog(`[Error] Could not undo last import`)
     } finally {
       setIsProcessing(false)
     }
@@ -387,11 +455,16 @@ export function ImportMedicinePage() {
                                 <tbody>
                                   {gridPreview.map((row, rIdx) => (
                                     <tr key={rIdx} className="border-t">
-                                      {row.map((cell, cIdx) => (
-                                        <td key={cIdx} className="px-2 py-1 whitespace-nowrap">
-                                          {cell}
-                                        </td>
-                                      ))}
+                                      {row.map((cell, cIdx) => {
+                                        const header = gridPreview[0]?.[cIdx]?.toString().toLowerCase() || ""
+                                        const isDateColumn = header.includes("expiry") || header.includes("exp") || (header.includes("date") && rIdx > 0)
+                                        const displayValue = isDateColumn ? convertExcelDate(cell) : cell
+                                        return (
+                                          <td key={cIdx} className="px-2 py-1 whitespace-nowrap">
+                                            {displayValue}
+                                          </td>
+                                        )
+                                      })}
                                     </tr>
                                   ))}
                                 </tbody>
@@ -460,18 +533,50 @@ export function ImportMedicinePage() {
                 </div>
               )}
 
+              {/* Live Logs Panel */}
+              {logs.length > 0 && (
+                <Card className="mt-6 p-4 text-left">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold">Import Logs</h4>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(logs.join("\n"))}>Copy</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setLogs([])}>Clear</Button>
+                    </div>
+                  </div>
+                  <div ref={logsRef} className="max-h-56 overflow-auto bg-muted/30 border rounded p-2 text-xs leading-5">
+                    {logs.map((line, idx) => (
+                      <div key={idx} className="font-mono whitespace-pre-wrap">{line}</div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
               {isReviewing && extractedItems.length > 0 && (
                 <div className="mt-6 space-y-3 text-left">
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold">Review & edit before saving</h4>
-                    <span className="text-xs text-muted-foreground">Editable — adjust quantities, price, or batch</span>
+                    <div className="flex gap-2">
+                      <Badge variant="outline">Existing: {extractedItems.filter(i => i.isExisting).length}</Badge>
+                      <Badge variant="default">New: {extractedItems.filter(i => !i.isExisting).length}</Badge>
+                      {excludedItems.length > 0 && <Badge variant="destructive">Excluded: {excludedItems.length}</Badge>}
+                    </div>
                   </div>
+                  {excludedItems.length > 0 && (
+                    <Alert className="bg-orange-50 border-orange-200">
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                      <AlertDescription className="text-orange-800">
+                        <strong>Limit reached:</strong> Only 10 new medicines can be added per import. {excludedItems.length} new medicine(s) excluded. Existing medicines have no limit.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="overflow-x-auto border rounded-lg">
                     <table className="min-w-full text-sm">
                       <thead className="bg-muted/50">
                         <tr>
+                          <th className="px-3 py-2 text-left">Status</th>
                           <th className="px-3 py-2 text-left">Name</th>
                           <th className="px-3 py-2 text-left">Batch</th>
+                          <th className="px-3 py-2 text-left">Expiry Date</th>
                           <th className="px-3 py-2 text-right">Qty</th>
                           <th className="px-3 py-2 text-right">Price</th>
                         </tr>
@@ -479,6 +584,11 @@ export function ImportMedicinePage() {
                       <tbody>
                         {extractedItems.map((item, idx) => (
                           <tr key={idx} className="border-t">
+                            <td className="px-3 py-2">
+                              <Badge variant={item.isExisting ? "outline" : "default"} className="text-xs">
+                                {item.isExisting ? "Update" : "New"}
+                              </Badge>
+                            </td>
                             <td className="px-3 py-2">
                               <input
                                 className="w-full rounded border px-2 py-1 text-sm"
@@ -491,6 +601,15 @@ export function ImportMedicinePage() {
                                 className="w-full rounded border px-2 py-1 text-sm"
                                 value={item.batch || ""}
                                 onChange={(e) => updateItem(idx, "batch", e.target.value)}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full rounded border px-2 py-1 text-sm"
+                                type="text"
+                                placeholder="DD-MM-YYYY"
+                                value={item.expiryDate || ""}
+                                onChange={(e) => updateItem(idx, "expiryDate", e.target.value)}
                               />
                             </td>
                             <td className="px-3 py-2 text-right">

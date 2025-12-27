@@ -39,6 +39,7 @@ interface Row {
   name: string
   price: string
   qty: string
+  expiryDate?: string
   category?: string
   form?: string
   qtyPerPack?: string
@@ -65,6 +66,8 @@ const emptyRow = (): Row => ({
 
 export function ManualImportTable() {
   const [rows, setRows] = useState<Row[]>([emptyRow()])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [history, setHistory] = useState<Row[][]>([])
@@ -149,7 +152,7 @@ export function ManualImportTable() {
       name: trimmed
     }
     setCustomColumns([...customColumns, newColumn])
-    
+
     // Initialize the new field in all existing rows
     const updatedRows = rows.map(row => ({
       ...row,
@@ -157,7 +160,7 @@ export function ManualImportTable() {
     }))
     setRows(updatedRows)
     saveToHistory(updatedRows)
-    
+
     setNewColumnName("")
     setShowAddColumnDialog(false)
     setSuccess(`Column "${trimmed}" added successfully!`)
@@ -166,7 +169,7 @@ export function ManualImportTable() {
 
   const removeCustomColumn = (columnId: string) => {
     setCustomColumns(customColumns.filter(col => col.id !== columnId))
-    
+
     // Remove the field from all rows
     const updatedRows = rows.map(row => {
       const newCustomFields = { ...row.customFields }
@@ -204,9 +207,13 @@ export function ManualImportTable() {
 
   const saveToHistory = (newRows: Row[]) => {
     const newHistory = history.slice(0, historyIndex + 1)
-    newHistory.push(JSON.parse(JSON.stringify(newRows)))
-    setHistory(newHistory)
-    setHistoryIndex(newHistory.length - 1)
+    // Cap history length to avoid heavy memory usage with large datasets
+    const snapshot = JSON.parse(JSON.stringify(newRows))
+    newHistory.push(snapshot)
+    const MAX_HISTORY = 10
+    const trimmed = newHistory.length > MAX_HISTORY ? newHistory.slice(newHistory.length - MAX_HISTORY) : newHistory
+    setHistory(trimmed)
+    setHistoryIndex(trimmed.length - 1)
   }
 
   const addRow = () => {
@@ -233,6 +240,7 @@ export function ManualImportTable() {
     | "name"
     | "price"
     | "qty"
+    | "expiryDate"
     | "category"
     | "form"
     | "qtyPerPack"
@@ -290,9 +298,9 @@ export function ManualImportTable() {
 
   const copyToClipboard = () => {
     const csv = [
-      ["Batch_ID", "Name", "Price", "Quantity", "Category", "Form", "Qty/Pack", "Disease", "Symptoms", "Side Effects", "Instructions", "Hinglish"],
+      ["Batch_ID", "Name", "Price", "Quantity", "Expiry Date", "Category", "Form", "Qty/Pack", "Disease", "Symptoms", "Side Effects", "Instructions", "Hinglish"],
       ...rows.map(r => [
-        r.Batch_ID, r.name, r.price, r.qty, r.category || "", r.form || "",
+        r.Batch_ID, r.name, r.price, r.qty, r.expiryDate || "", r.category || "", r.form || "",
         r.qtyPerPack || "", r.coverDisease || "", r.symptoms || "",
         r.sideEffects || "", r.instructions || "", r.hinglish || ""
       ])
@@ -352,19 +360,75 @@ export function ManualImportTable() {
 
       const parsed = (data.records || []).map((r: any) => ({
         id: crypto.randomUUID(),
-        Batch_ID: getFieldValue(r, ["Batch_ID", "BatchID", "batch_id"]) || "",
-        name: getFieldValue(r, ["Name of Medicine", "Name", "Medicine Name", "medicine_name"]) || "",
-        price: String(getFieldValue(r, ["Price (INR)", "Price_INR", "Price", "price_inr"]) ?? ""),
-        qty: String(getFieldValue(r, ["Total Quantity", "Total_Quantity", "Quantity", "quantity"]) ?? ""),
-        category: getFieldValue(r, ["Category", "category"]) || "",
-        form: getFieldValue(r, ["Medicine Forms", "Medicine_Forms", "Form", "form"]) || "",
-        qtyPerPack: getFieldValue(r, ["Quantity_per_pack", "Quantity per pack", "Qty/Pack", "qty_per_pack"]) || "",
-        coverDisease: getFieldValue(r, ["Cover Disease", "Cover_Disease", "Disease", "disease"]) || "",
-        symptoms: getFieldValue(r, ["Symptoms", "symptoms"]) || "",
-        sideEffects: getFieldValue(r, ["Side Effects", "Side_Effects", "SideEffects", "side_effects"]) || "",
-        instructions: getFieldValue(r, ["Instructions", "instructions"]) || "",
-        hinglish: getFieldValue(r, ["Description in Hinglish", "Description_in_Hinglish", "Hinglish", "hinglish"]) || "",
-      }))
+
+        Batch_ID: getFieldValue(r, [
+          "Batch_ID", "BatchID", "batch_id", "Batch No", "Batch_No", "Batch Number", "batch_number"
+        ]) || "",
+
+        name: getFieldValue(r, [
+          "Name of Medicine", "Medicine Name", "Name", "medicine_name",
+          "Drug Name", "drug_name", "Product Name", "product_name"
+        ]) || "",
+
+        price: String(getFieldValue(r, [
+          "Price (INR)", "Price_INR", "Price", "price_inr",
+          "MRP", "mrp", "Cost", "cost", "Unit Price", "unit_price"
+        ]) ?? ""),
+
+        qty: String(getFieldValue(r, [
+          "Total Quantity", "Total_Quantity", "Quantity", "quantity",
+          "Stock", "stock", "Available Quantity", "available_qty", "Balance"
+        ]) ?? ""),
+
+        expiryDate: getFieldValue(r, [
+          "Expiry_Date", "Expiry_date" , "Expiry Date", "ExpiryDate", "expiry_date",
+          "Exp Date", "Exp_Date", "Expiry", "exp"
+        ]) || "",
+
+        category: getFieldValue(r, [
+          "Category", "category",
+          "Medicine Category", "medicine_category",
+          "Drug Category", "drug_category", "Type"
+        ]) || "",
+
+        form: getFieldValue(r, [
+          "Medicine Forms", "Medicine_Forms", "Form", "form",
+          "Dosage Form", "dosage_form", "Drug Form", "drug_form"
+        ]) || "",
+
+        qtyPerPack: getFieldValue(r, [
+          "Quantity_per_pack", "Quantity per pack", "Qty/Pack", "qty_per_pack",
+          "Pack Size", "pack_size", "Packing", "pack"
+        ]) || "",
+
+        coverDisease: getFieldValue(r, [
+          "Cover Disease", "Cover_Disease", "Disease", "disease",
+          "Used For", "used_for", "Indication", "indications", "Treats"
+        ]) || "",
+
+        symptoms: getFieldValue(r, [
+          "Symptoms", "symptoms",
+          "Symptom Covered", "symptom", "Signs"
+        ]) || "",
+
+        sideEffects: getFieldValue(r, [
+          "Side Effects", "Side_Effects", "SideEffects", "side_effects",
+          "Adverse Effects", "adverse_effects", "Reactions"
+        ]) || "",
+
+        instructions: getFieldValue(r, [
+          "Instructions", "instructions",
+          "Dosage", "dosage", "How to Use", "how_to_use",
+          "Usage Instructions", "usage"
+        ]) || "",
+
+        hinglish: getFieldValue(r, [
+          "Description in Hinglish", "Description_in_Hinglish",
+          "Hinglish", "hinglish",
+          "Hindi Description", "Hindi+English", "Local Language Description"
+        ]) || "",
+      }
+      ))
       setPreviewData(parsed.length ? parsed : [emptyRow()])
       setShowPreview(true)
     } catch (e) {
@@ -404,6 +468,7 @@ export function ManualImportTable() {
       "Name of Medicine": r.name,
       Price_INR: Number(r.price),
       Total_Quantity: Number(r.qty),
+      Expiry_date: r.expiryDate,
       Category: r.category,
       "Medicine Forms": r.form,
       Quantity_per_pack: r.qtyPerPack,
@@ -443,6 +508,7 @@ export function ManualImportTable() {
             <th className="p-1.5 border-b whitespace-nowrap min-w-[180px]">Name of Medicine</th>
             <th className="p-1.5 border-b whitespace-nowrap min-w-[100px]">Price (INR)</th>
             <th className="p-1.5 border-b whitespace-nowrap min-w-[100px]">Total Quantity</th>
+            <th className="p-1.5 border-b whitespace-nowrap min-w-[120px]">Expiry Date</th>
             <th className="p-1.5 border-b whitespace-nowrap min-w-[150px]">Category</th>
             <th className="p-1.5 border-b whitespace-nowrap min-w-[120px]">Medicine Forms</th>
             <th className="p-1.5 border-b whitespace-nowrap min-w-[100px]">Qty/Pack</th>
@@ -471,7 +537,11 @@ export function ManualImportTable() {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
+          {rows
+            .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+            .map((r, idx) => {
+              const i = (currentPage - 1) * pageSize + idx
+              return (
             <tr
               key={r.id}
               className="border-b hover:bg-muted/50 transition-colors"
@@ -514,6 +584,15 @@ export function ManualImportTable() {
                   type="number"
                   value={r.qty}
                   onChange={(e) => update(i, "qty", e.target.value)}
+                  onBlur={handleBlur}
+                  className="h-8 text-xs"
+                />
+              </td>
+              <td className="p-1.5">
+                <Input
+                  type="text"
+                  value={r.expiryDate || ""}
+                  onChange={(e) => update(i, "expiryDate", e.target.value)}
                   onBlur={handleBlur}
                   className="h-8 text-xs"
                 />
@@ -653,7 +732,7 @@ export function ManualImportTable() {
                       <Copy className="h-4 w-4 mr-2" />
                       Copy Row
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => removeRow(i)}
                       className="text-destructive focus:text-destructive"
                     >
@@ -664,7 +743,7 @@ export function ManualImportTable() {
                 </DropdownMenu>
               </td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
     </div>
@@ -705,7 +784,7 @@ export function ManualImportTable() {
                       <Copy className="h-4 w-4 mr-2" />
                       Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => removeRow(i)}
                       className="text-destructive focus:text-destructive"
                     >
@@ -728,14 +807,14 @@ export function ManualImportTable() {
                 />
               </div>
               <div>
-                  <Label className="text-xs">Name of Medicine</Label>
-                  <Input
-                    value={r.name}
-                    onChange={(e) => update(i, "name", e.target.value)}
-                    onBlur={handleBlur}
-                    className="mt-1"
-                  />
-                </div>
+                <Label className="text-xs">Name of Medicine</Label>
+                <Input
+                  value={r.name}
+                  onChange={(e) => update(i, "name", e.target.value)}
+                  onBlur={handleBlur}
+                  className="mt-1"
+                />
+              </div>
               <div>
                 <Label className="text-xs">Price (₹)</Label>
                 <Input
@@ -752,6 +831,17 @@ export function ManualImportTable() {
                   type="number"
                   value={r.qty}
                   onChange={(e) => update(i, "qty", e.target.value)}
+                  onBlur={handleBlur}
+                  className="mt-1 h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Expiry Date</Label>
+                <Input
+                  type="text"
+                  placeholder="DD-MM-YYYY"
+                  value={r.expiryDate || ""}
+                  onChange={(e) => update(i, "expiryDate", e.target.value)}
                   onBlur={handleBlur}
                   className="mt-1 h-9"
                 />
@@ -924,6 +1014,18 @@ export function ManualImportTable() {
             <Button variant="outline" className="hover:text-primary" size="sm" onClick={() => setShowAddColumnDialog(true)}>
               <Columns className="h-4 w-4 mr-1" /> Add Column
             </Button>
+            <div className="flex items-center gap-2 ml-2">
+              <span className="text-xs text-muted-foreground">Rows per page</span>
+              <select
+                className="h-8 rounded border px-2 text-xs"
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -957,6 +1059,31 @@ export function ManualImportTable() {
         {isMobile ? renderMobileView() : renderDesktopTable()}
       </Card>
 
+      {!isMobile && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-xs text-muted-foreground">
+            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, rows.length)} of {rows.length}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="h-8 px-2 rounded border text-xs disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+            <span className="text-xs">Page {currentPage}</span>
+            <button
+              className="h-8 px-2 rounded border text-xs disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => (p * pageSize < rows.length ? p + 1 : p))}
+              disabled={currentPage * pageSize >= rows.length}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-[95vw] w-full max-h-[90vh] p-0 flex flex-col">
@@ -977,6 +1104,7 @@ export function ManualImportTable() {
                       <th className="p-3 font-medium min-w-[150px]">Name</th>
                       <th className="p-3 font-medium min-w-[100px]">Price</th>
                       <th className="p-3 font-medium min-w-[100px]">Quantity</th>
+                      <th className="p-3 font-medium min-w-[120px]">Expiry Date</th>
                       <th className="p-3 font-medium min-w-[120px]">Category</th>
                       <th className="p-3 font-medium min-w-[120px]">Form</th>
                       <th className="p-3 font-medium min-w-[100px]">Qty/Pack</th>
@@ -994,6 +1122,7 @@ export function ManualImportTable() {
                         <td className="p-3">{r.name}</td>
                         <td className="p-3">{r.price}</td>
                         <td className="p-3">{r.qty}</td>
+                        <td className="p-3">{r.expiryDate || "-"}</td>
                         <td className="p-3">{r.category || "-"}</td>
                         <td className="p-3">{r.form || "-"}</td>
                         <td className="p-3">{r.qtyPerPack || "-"}</td>
@@ -1022,7 +1151,7 @@ export function ManualImportTable() {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Add Column Dialog */}
       <Dialog open={showAddColumnDialog} onOpenChange={setShowAddColumnDialog}>
         <DialogContent className="sm:max-w-[425px]">
@@ -1057,7 +1186,7 @@ export function ManualImportTable() {
             }}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={addCustomColumn}
               disabled={!newColumnName.trim()}
             >
