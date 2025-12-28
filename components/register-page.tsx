@@ -84,145 +84,148 @@ export function RegisterPage() {
     )
   }
 
-return (
-  <div
-    className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
-    style={{ backgroundImage: "url('/login_bg_img.png')" }}
-  >
-    {/* Overlay */}
-    <div className="absolute inset-0 bg-black/50" />
+  return (
+    <div
+      className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/login_bg_img.png')" }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50" />
 
-    {/* Register Card */}
-    <Card
-      className="
+      {/* Register Card */}
+      <Card
+        className="
         relative z-10 w-full max-w-md
         p-6 sm:p-8 lg:p-10
         bg-card/80 backdrop-blur-xl
         shadow-2xl rounded-2xl
       "
-    >
-      {/* Header */}
-      <div className="mb-6 sm:mb-2 text-center">
-        <img
-          src="/logo2.png"
-          alt="Aushadhi 360 Logo"
-          className="h-14 sm:h-16 mx-auto mb-3 sm:mb-2 object-contain"
-        />
-        <h2 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
-          Request Access
-        </h2>
-        {/* <p className="text-sm sm:text-base text-muted-foreground">
+      >
+        {/* Header */}
+        <div className="mb-6 sm:mb-2 text-center">
+          <img
+            src="/logo2.png"
+            alt="Aushadhi 360 Logo"
+            className="h-14 sm:h-16 mx-auto mb-3 sm:mb-2 object-contain"
+          />
+          <h2 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
+            Request Access
+          </h2>
+          {/* <p className="text-sm sm:text-base text-muted-foreground">
           Register your medical store to get started
         </p> */}
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="name">
-            Your Name <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="name"
-            placeholder="John Doe"
-            value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
-            required
-          />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="storeName">
-            Medical Store Name <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="storeName"
-            placeholder="ABC Medical Store"
-            value={formData.storeName}
-            onChange={(e) =>
-              setFormData({ ...formData, storeName: e.target.value })
-            }
-            required
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">
-            Email Address <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="your@email.com"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            required
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Phone Number</Label>
-          <Input
-            id="phone"
-            placeholder="+91 9876543210"
-            value={formData.phone}
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="address">Store Address</Label>
-          <Input
-            id="address"
-            placeholder="123 Main Street, City"
-            value={formData.address}
-            onChange={(e) =>
-              setFormData({ ...formData, address: e.target.value })
-            }
-          />
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-            {error}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">
+              Your Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="name"
+              placeholder="John Doe"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              required
+            />
           </div>
-        )}
 
-        <Button
-          type="submit"
-          className="w-full h-11 sm:h-12 text-base"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Submitting Request...
-            </>
-          ) : (
-            <>
-              <UserPlus className="mr-2 h-5 w-5" />
-              Submit Request
-            </>
+          <div className="space-y-1.5">
+            <Label htmlFor="storeName">
+              Medical Store Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="storeName"
+              placeholder="ABC Medical Store"
+              value={formData.storeName}
+              onChange={(e) =>
+                setFormData({ ...formData, storeName: e.target.value })
+              }
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email">
+              Email Address <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              placeholder="+91 9876543210"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="address">Store Address</Label>
+            <Input
+              id="address"
+              placeholder="123 Main Street, City"
+              value={formData.address}
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              {error}
+            </div>
           )}
-        </Button>
 
-        <div className="pt-3 text-center text-xs sm:text-sm text-muted-foreground">
-          <p>
-            Already have an account?{" "}
-            <Link href="/" className="text-primary hover:underline">
-              Login here
-            </Link>
-          </p>
-        </div>
-      </form>
-    </Card>
-  </div>
-)
+          <Button
+            type="submit"
+            className="w-full h-11 sm:h-12 text-base"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Submitting Request...
+              </>
+            ) : (
+              <>
+                <UserPlus className="mr-2 h-5 w-5" />
+                Submit Request
+              </>
+            )}
+          </Button>
+
+          <div className="pt-3 text-center text-xs sm:text-sm text-muted-foreground">
+            <p>
+              Already have an account?{" "}
+              <Link href="/login" className="text-primary hover:underline">
+                Login
+              </Link>
+            </p>
+              <Link href="/" className="text-primary hover:underline">
+                Return To Home
+              </Link>
+          </div>
+        </form>
+      </Card>
+    </div>
+  )
 
 }

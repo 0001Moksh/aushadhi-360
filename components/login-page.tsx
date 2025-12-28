@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,7 +53,7 @@ export function LoginPage() {
             try {
               attempts++
               console.log(`Attempting to prepare embeddings... (Attempt ${attempts}/${maxAttempts})`)
-              
+
               const fastApiResponse = await fetch(
                 `${process.env.NEXT_PUBLIC_FASTAPI_URL}/login?mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
                 { method: "POST" }
@@ -119,7 +119,7 @@ export function LoginPage() {
             try {
               attempts++
               console.log(`Attempting to prepare embeddings... (Attempt ${attempts}/${maxAttempts})`)
-              
+
               const fastApiResponse = await fetch(
                 `${process.env.NEXT_PUBLIC_FASTAPI_URL}/login?mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
                 { method: "POST" }
@@ -164,112 +164,115 @@ export function LoginPage() {
     }
   }
 
-return (
-  <div
-    className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
-    style={{ backgroundImage: "url('/login_bg_img.png')" }}
-  >
-    {/* Overlay */}
-    <div className="absolute inset-0 bg-black/50" />
+  return (
+    <div
+      className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/login_bg_img.png')" }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50" />
 
-    {/* Login Card */}
-    <Card
-      className="
+      {/* Login Card */}
+      <Card
+        className="
         relative z-10 w-full max-w-sm sm:max-w-md
         p-6 sm:p-8 lg:p-10
         bg-card/80 backdrop-blur-xl
         shadow-2xl rounded-2xl
       "
-    >
-      {/* Logo + Heading */}
-      <div className="mb-6 sm:mb-8 text-center">
-        <img
-          src="/logo2.png"
-          alt="Aushadhi 360 Logo"
-          className="h-14 sm:h-16 mx-auto mb-3 sm:mb-4 object-contain"
-        />
-        <h2 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
-          Welcome Back
-        </h2>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Sign in to access your medical store dashboard
-        </p>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email Address</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="h-11 sm:h-12"
+      >
+        {/* Logo + Heading */}
+        <div className="mb-6 sm:mb-8 text-center">
+          <img
+            src="/logo2.png"
+            alt="Aushadhi 360 Logo"
+            className="h-14 sm:h-16 mx-auto mb-3 sm:mb-4 object-contain"
           />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="h-11 sm:h-12 pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-            {error}
-          </div>
-        )}
-
-        <Button
-          type="submit"
-          className="w-full h-11 sm:h-12 text-base"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Signing in...
-            </>
-          ) : (
-            "Sign In"
-          )}
-        </Button>
-
-        <div className="pt-3 text-center text-xs sm:text-sm text-muted-foreground">
-          <p>Demo: demo@aushadhi360.com / demo123</p>
-          <p className="mt-2">
-            Don’t have an account?{" "}
-            <a href="/register" className="text-primary hover:underline">
-              Request Access
-            </a>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
+            Welcome Back
+          </h2>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Sign in to access your medical store dashboard
           </p>
         </div>
-      </form>
-    </Card>
-  </div>
-)
+
+        {/* Form */}
+        <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-11 sm:h-12"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11 sm:h-12 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full h-11 sm:h-12 text-base"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign In"
+            )}
+          </Button>
+
+          <div className="pt-3 text-center text-xs sm:text-sm text-muted-foreground">
+            <p>Demo: demo@aushadhi360.com / demo123</p>
+            <p className="mt-2">
+              Don’t have an account?{" "}
+              <a href="/register" className="text-primary hover:underline">
+                Request Access
+              </a>
+            </p>
+            <Link href="/" className="text-primary hover:underline">
+              Return To Home
+            </Link>
+          </div>
+        </form>
+      </Card>
+    </div>
+  )
 
 }

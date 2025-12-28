@@ -27,7 +27,7 @@ export function LandingPage() {
     const features = [
         {
             icon: <BarChart3 className="w-6 h-6" />,
-            title: "Advanced Analytics & Reports",
+            title: "Advanced Analytics",
             description:
                 "Track sales, profit, medicine movement, and business performance with real-time analytics.",
         },
@@ -107,14 +107,14 @@ export function LandingPage() {
                     className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
                     aria-label="Primary Navigation"
                 >
-                    <div className="flex h-20 items-center justify-between">
+                    <div className="flex h-24 items-center justify-between">
 
                         {/* Logo */}
                         <Link href="/" className="flex items-center gap-2">
                             <img
                                 src="/logo2.png"
                                 alt="Aushadhi 360 – Medical Store Management Software"
-                                className="h-12 sm:h-14 w-auto object-contain"
+                                className="h-12 sm:h-18 w-auto object-contain"
                                 loading="eager"
                             />
                         </Link>
@@ -140,7 +140,7 @@ export function LandingPage() {
 
                                 <Link href="/login">
                                     <Button className="font-medium">
-                                        Use Demo Login
+                                        Login
                                     </Button>
                                 </Link>
                             </div>
@@ -168,7 +168,7 @@ export function LandingPage() {
                         <div className="flex flex-col sm:flex-row gap-4">
                             <Link href="/login">
                                 <Button size="lg" className="w-full sm:w-auto">
-                                    Use Demo Account
+                                    Use Demo Login
                                 </Button>
                             </Link>
                             <Link href="/register">
@@ -197,11 +197,11 @@ export function LandingPage() {
 
                     </div>
 
-                    <div className="relative">
+                    <div className="relative hidden md:block">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-2xl opacity-10"></div>
                         <div className="relative mx-auto max-w-3xl">
 
-                            <div className="relative rounded-[2rem] bg-gradient-to-t from-accent/90 to-primary/80 p-3 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+                            <div className="relative rounded-[2rem] bg-gradient-to-t from-accent/90 to-primary/80 p-1 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
 
                                 {/* Screen */}
                                 <div className="relative overflow-hidden rounded-[1.2rem] bg-card">
@@ -240,7 +240,7 @@ export function LandingPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                     {features.map((feature, index) => {
                         const featureImagesDark: Record<number, string> = {
                             0: "/analytics.png",
@@ -265,29 +265,49 @@ export function LandingPage() {
                         const imgSrcDark = featureImagesDark[index] ?? featureImagesDark[0]
                         const imgSrcLight = featureImagesLight[index] ?? featureImagesDark[index] ?? featureImagesDark[0]
                         return (
-                            <Card key={index} className="hover:shadow-lg transition-shadow duration-300 overflow-hidden flex flex-col">
-                                <div className="w-full h-32 bg-primary/10 dark:bg-primary/20 overflow-hidden">
+                            <Card
+                                key={index}
+                                className="group hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col rounded-2xl"
+                            >
+                                <CardHeader className="flex-1 pb-2">
+                                    <CardTitle className="text-lg text-center rounded-b-xl border-b-4 border- pb-2 font-semibold">
+                                        {feature.title}
+                                    </CardTitle>
+                                </CardHeader>
+
+                                {/* Image wrapper */}
+                                <div className="relative w-full h-80 bg-primary/10 dark:bg-primary/20 overflow-hidden">
+
+                                    {/* ICON overlay */}
+                                    <div className="absolute bottom-2 right-2 z-10 w-9 h-9 rounded-lg bg-primary/20 backdrop-blur-md flex items-center justify-center text-primary dark:text-foreground shadow-md group-hover:scale-110 transition-transform duration-300">
+                                        {feature.icon}
+                                    </div>
+
+                                    {/* Dark image */}
                                     <img
                                         src={imgSrcDark}
                                         alt={feature.title}
-                                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-300 hidden dark:block"
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 hidden dark:block"
                                     />
+
+                                    {/* Light image */}
                                     <img
                                         src={imgSrcLight}
                                         alt={feature.title}
-                                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-300 block dark:hidden"
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 block dark:hidden"
                                     />
+
+                                    {/* subtle overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
                                 </div>
-                                <CardHeader className="flex-1">
-                                    <div className="w-12 h-12 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary dark:text-foreground mb-4">
-                                        {feature.icon}
-                                    </div>
-                                    <CardTitle className="text-lg">{feature.title}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <CardDescription>{feature.description}</CardDescription>
+
+                                <CardContent className="pt-4">
+                                    <CardDescription className="text-center text-sm leading-relaxed">
+                                        {feature.description}
+                                    </CardDescription>
                                 </CardContent>
                             </Card>
+
                         )
                     })}
                 </div>
@@ -318,21 +338,21 @@ export function LandingPage() {
             </section>
 
             {/* Key Metrics */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
                     <div>
                         <img
-                            src="/dashboard.png"
+                            src="/logo2.png"
                             alt="Analytics Dashboard"
-                            className="rounded-2xl shadow-2xl w-full hidden dark:block"
+                            className="w-full hidden dark:block"
                         />
                         <img
-                            src="/dashboard2-light.png"
+                            src="/logo2.png"
                             alt="Analytics Dashboard"
-                            className="rounded-2xl shadow-2xl w-full block dark:hidden"
+                            className="w-full block dark:hidden"
                         />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-10">
                         <div>
                             <div className="text-4xl font-bold text-primary dark:text-foreground mb-2">500+</div>
                             <p className="text-muted-foreground dark:text-muted-foreground">Pharmacies Active</p>
@@ -364,7 +384,7 @@ export function LandingPage() {
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link href="/login">
                             <Button size="lg" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 w-full sm:w-auto">
-                                Use Demo Login
+                                Login with Demo Account
                             </Button>
                         </Link>
                         <Link href="/register">
@@ -377,40 +397,40 @@ export function LandingPage() {
             </section>
 
             {/* Footer */}
-            <footer className="bg-foreground dark:bg-foreground text-card py-12">
+            <footer className="justify-center bg-foreground dark:bg-background text-foreground py-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
                         <div>
                             <h3 className="text-lg font-semibold mb-4">Aushadhi 360</h3>
-                            <p className="text-card/70">Smart medical store management software for modern pharmacies</p>
+                            <p className="text-muted-foreground ">Smart medical store management software for modern pharmacies</p>
                         </div>
                         <div>
                             <h4 className="font-semibold mb-4">Product</h4>
-                            <ul className="space-y-2 text-card/70">
-                                <li><Link href="#" className="hover:text-card transition">Features</Link></li>
-                                <li><Link href="#" className="hover:text-card transition">Pricing</Link></li>
-                                <li><Link href="#" className="hover:text-card transition">Security</Link></li>
+                            <ul className="space-y-2 text-muted-foreground ">
+                                <li><Link href="#" className="hover:text-foreground transition">Features</Link></li>
+                                <li><Link href="#" className="hover:text-foreground transition">Pricing</Link></li>
+                                <li><Link href="#" className="hover:text-foreground transition">Security</Link></li>
                             </ul>
                         </div>
                         <div>
                             <h4 className="font-semibold mb-4">Company</h4>
-                            <ul className="space-y-2 text-card/70">
-                                <li><Link href="#" className="hover:text-card transition">About</Link></li>
-                                <li><Link href="#" className="hover:text-card transition">Blog</Link></li>
-                                <li><Link href="#" className="hover:text-card transition">Contact</Link></li>
+                            <ul className="space-y-2 text-muted-foreground ">
+                                <li><Link href="#" className="hover:text-foreground transition">About</Link></li>
+                                <li><Link href="#" className="hover:text-foreground transition">Blog</Link></li>
+                                <li><Link href="#" className="hover:text-foreground transition">Contact</Link></li>
                             </ul>
                         </div>
                         <div>
                             <h4 className="font-semibold mb-4">Legal</h4>
-                            <ul className="space-y-2 text-card/70">
-                                <li><Link href="#" className="hover:text-card transition">Privacy</Link></li>
-                                <li><Link href="#" className="hover:text-card transition">Terms</Link></li>
+                            <ul className="space-y-2 text-muted-foreground ">
+                                <li><Link href="#" className="hover:text-foreground transition">Privacy</Link></li>
+                                <li><Link href="#" className="hover:text-foreground transition">Terms</Link></li>
                             </ul>
                         </div>
                     </div>
-                    <div className="border-t border-card/20 pt-8 flex justify-between items-center text-card/70">
+                    <div className="border-t border-card/20 pt-8 flex justify-between items-center text-muted-foreground">
                         <p>&copy; 2025 Aushadhi 360. All rights reserved.</p>
-                        <p>Built by NexYug Tech</p>
+                        <p>Built by <a href="https://nexyugtech.com/">NexYug Tech</a></p>
                     </div>
                 </div>
             </footer>
