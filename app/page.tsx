@@ -1,5 +1,5 @@
-import { LoginPage } from "@/components/login-page"
+import { LandingPage } from "@/components/landing-page"
 
 export default function HomePage() {
-  return <LoginPage />
+  return <LandingPage />
 }
