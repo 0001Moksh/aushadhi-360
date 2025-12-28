@@ -11,7 +11,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell
 } from "recharts"
 import {
-  Loader2, AlertTriangle, TrendingUp, Package, AlertCircle, TrendingDown, 
+  Loader2, AlertTriangle, TrendingUp, Package, AlertCircle, TrendingDown,
   Calendar, Filter, Eye, EyeOff, Zap
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -184,7 +184,7 @@ export function AnalyticsPage() {
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b-3 border-l-2 border-r-2 border-primary rounded-lg p-2">
         <div className="flex flex-wrap gap-3 items-center">
           <Filter className="h-5 w-5 text-foreground" />
-          
+
           <Select value={filters.dateRange} onValueChange={(val) => setFilters(p => ({ ...p, dateRange: val as any }))}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -213,48 +213,49 @@ export function AnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-  <KPICard
-    title="Total Medicines"
-    value={analytics.kpis.totalMedicines}
-    icon={<Package className="h-5 w-5" color="blue" />}
-    color="indigo"
-    subtitle="In inventory"
-  />
+        <KPICard
+          title="Total Medicines"
+          value={analytics.kpis.totalMedicines}
+          icon={<Package className="h-5 w-5" />}
+          color="blue"
+          subtitle="In inventory"
+        />
 
-  <KPICard
-    title="Stock Quantity"
-    value={analytics.kpis.totalStockQuantity}
-    icon={<Package className="h-5 w-5" color="orange"/>}
-    color="teal"
-    subtitle="Total units"
-  />
+        <KPICard
+          title="Stock Quantity"
+          value={analytics.kpis.totalStockQuantity}
+          icon={<Package className="h-5 w-5"  />}
+          color="yellow"
+          subtitle="Total units"
+        />
 
-  <KPICard
-    title="Near Expiry"
-    value={analytics.kpis.expiryAlerts.days30}
-    icon={<AlertTriangle className="h-5 w-5" color="brown" />}
-    color={analytics.kpis.expiryAlerts.days7 > 0 ? "rose" : "amber"}
-    subtitle="Within 30 days"
-    critical={analytics.kpis.expiryAlerts.days7}
-  />
+        <KPICard
+          title="Near Expiry"
+          value={analytics.kpis.expiryAlerts.days30}
+          icon={<AlertTriangle className="h-5 w-5" color="brown" 
+          />}
+          color={analytics.kpis.expiryAlerts.days7 > 0 ? "red" : "yellow"}
+          subtitle="Within 30 days"
+          critical={analytics.kpis.expiryAlerts.days7}
+        />
 
-  <KPICard
-    title="Expired Loss"
-    value={`₹${analytics.kpis.expiredStockValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-    icon={<TrendingDown className="h-5 w-5" color="red" />}
-    color="rose"
-    subtitle="Stock value"
-  />
+        <KPICard
+          title="Expired Loss"
+          value={`₹${analytics.kpis.expiredStockValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          icon={<TrendingDown className="h-5 w-5" color="red" />}
+          color="red"
+          subtitle="Stock value"
+        />
 
-  <KPICard
-    title="Today Sales"
-    value={`₹${analytics.kpis.todaySales.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-    icon={<TrendingUp className="h-5 w-5 " color="green" />}
-    
-    color="emerald"
-    subtitle={`Monthly: ₹${analytics.kpis.monthlySales.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-  />
-</div>
+        <KPICard
+          title="Today Sales"
+          value={`₹${analytics.kpis.todaySales.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          icon={<TrendingUp className="h-5 w-5 " color="green" />}
+
+          color="green"
+          subtitle={`Monthly: ₹${analytics.kpis.monthlySales.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+        />
+      </div>
 
 
       {/* AI Insights Panel */}
@@ -277,75 +278,75 @@ export function AnalyticsPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Sales Trend */}
           <Card className="p-6 rounded-2xl shadow-sm hover:shadow-md transition">
-  {/* Header */}
-  <div className="flex items-center justify-between mb-4">
-    <div>
-      <h2 className="text-lg font-semibold">Sales Trend</h2>
-      <p className="text-sm text-muted-foreground">
-        Last 30 days performance
-      </p>
-    </div>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Sales Trend</h2>
+                <p className="text-sm text-muted-foreground">
+                  Last 30 days performance
+                </p>
+              </div>
 
-    {/* Growth Indicator */}
-    <div className="flex items-center gap-1 text-sm font-medium text-green-600">
-      ▲ 12.4%
-      <span className="text-muted-foreground font-normal">vs last month</span>
-    </div>
-  </div>
+              {/* Growth Indicator */}
+              <div className="flex items-center gap-1 text-sm font-medium text-green-600">
+                ▲ 12.4%
+                <span className="text-muted-foreground font-normal">vs last month</span>
+              </div>
+            </div>
 
-  {/* Chart */}
-  <ResponsiveContainer width="100%" height={260}>
-    <AreaChart data={analytics.salesTrend}>
-      <defs>
-        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-  <stop offset="0%" stopColor="#25d4ebff" stopOpacity={0.35} />
-  <stop offset="100%" stopColor="#2563EB" stopOpacity={0.05} />
-</linearGradient>
+            {/* Chart */}
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={analytics.salesTrend}>
+                <defs>
+                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#25d4ebff" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#2563EB" stopOpacity={0.05} />
+                  </linearGradient>
 
-      </defs>
+                </defs>
 
-      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.4} />
-      <XAxis
-        dataKey="date"
-        tick={{ fontSize: 12 }}
-        axisLine={false}
-        tickLine={false}
-      />
-      <YAxis
-        tick={{ fontSize: 12 }}
-        axisLine={false}
-        tickLine={false}
-      />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.4} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
 
-      <Tooltip
-        contentStyle={{
-          borderRadius: "10px",
-          backgroundColor: "rgba(0, 238, 255, 0.1)",
-          border: "none",
-          boxShadow: "0 10px 30px rgba(0, 0, 0, 1)",
-        }}
-        formatter={(value: number) => [
-          `₹${value.toLocaleString("en-IN")}`,
-          "Sales",
-        ]}
-      />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "10px",
+                    backgroundColor: "rgba(0, 238, 255, 0.1)",
+                    border: "none",
+                    boxShadow: "0 10px 30px rgba(0, 0, 0, 1)",
+                  }}
+                  formatter={(value: number) => [
+                    `₹${value.toLocaleString("en-IN")}`,
+                    "Sales",
+                  ]}
+                />
 
-      <Area
-        type="monotone"
-        dataKey="sales"
-        stroke="hsl(var(--primary))"
-        strokeWidth={2.5}
-        fill="url(#colorSales)"
-        activeDot={{ r: 6 }}
-      />
-    </AreaChart>
-  </ResponsiveContainer>
+                <Area
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2.5}
+                  fill="url(#colorSales)"
+                  activeDot={{ r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
 
-  {/* Insight */}
-  <div className="mt-4 text-sm text-muted-foreground">
-   Highest sales observed on <b>weekends</b>. Consider stocking fast-moving medicines.
-  </div>
-</Card>
+            {/* Insight */}
+            <div className="mt-4 text-sm text-muted-foreground">
+              Highest sales observed on <b>weekends</b>. Consider stocking fast-moving medicines.
+            </div>
+          </Card>
 
 
           {/* Expiry Analytics */}
@@ -387,7 +388,7 @@ export function AnalyticsPage() {
                           <Badge
                             variant={
                               item.severity === 'critical' ? 'destructive' :
-                              item.severity === 'warning' ? 'secondary' : 'outline'
+                                item.severity === 'warning' ? 'secondary' : 'outline'
                             }
                           >
                             {item.daysUntilExpiry}d
@@ -575,18 +576,18 @@ function processAnalytics(medicines: Medicine[], salesData: SalesData[]): Analyt
   const stockMovement: StockMovement[] = medicines.map(m => {
     // Calculate realistic outbound based on price point and category
     let outboundRate = 0.15 // Default 15% turnover
-    
+
     // High-demand categories
     if (['Antibiotic', 'Pain Relief', 'Fever', 'Cold & Cough'].includes(m.category)) {
       outboundRate = 0.35
     } else if (['Vitamin', 'Supplement', 'Digestive'].includes(m.category)) {
       outboundRate = 0.25
     }
-    
+
     // Price-based adjustment (lower prices = higher volume)
     if (m.price < 50) outboundRate *= 1.3
     else if (m.price > 500) outboundRate *= 0.6
-    
+
     const outbound = Math.max(1, Math.floor(m.quantity * outboundRate))
     const inbound = Math.floor(outbound * 0.7) // Restock at 70% of outbound
     const turnover = outbound / Math.max(m.quantity, 1)
@@ -637,10 +638,10 @@ function generateSalesTrend(): SalesData[] {
     const date = new Date(now)
     date.setDate(date.getDate() - i)
     const dayOfWeek = date.getDay() // 0 = Sunday, 6 = Saturday
-    
+
     // Base amount varies by day of week
     let baseAmount = 45000
-    
+
     // Weekend boost (Saturday & Sunday)
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       baseAmount = 75000
@@ -657,14 +658,14 @@ function generateSalesTrend(): SalesData[] {
     else {
       baseAmount = 48000
     }
-    
+
     // Add gradual growth trend (2% per week)
     const weekProgress = (29 - i) / 7
     const growthFactor = 1 + (weekProgress * 0.02)
-    
+
     // Add seasonal variation (±10%)
     const seasonalVariation = 0.9 + (Math.sin(i / 7) * 0.1)
-    
+
     const sales = Math.floor(baseAmount * growthFactor * seasonalVariation)
     const avgOrderValue = 3500 // Average order value ₹3,500
 
