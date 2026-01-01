@@ -404,12 +404,24 @@ export function ProductsPage() {
           <p className="text-muted-foreground text-sm md:text-base text-pretty">Complete list of medicines with expiry-aware status colors.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Input
-            placeholder="Search..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full md:w-[260px]"
-          />
+          <div className="relative w-full md:w-[260px]">
+            <Input
+              placeholder="Search..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full pr-10"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="shrink-0">

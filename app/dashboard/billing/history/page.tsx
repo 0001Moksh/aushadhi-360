@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Eye, History, Search } from "lucide-react"
+import { Eye, History, Search, X } from "lucide-react"
 import { useEffect, useState, useMemo } from "react"
 import { format, subDays, startOfMonth } from "date-fns"
 
@@ -405,10 +405,20 @@ export default function BillingHistoryPage() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search bill, customer or medicine…"
-              className="pl-9"
+              className="pl-9 pr-10"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Quick Filters */}

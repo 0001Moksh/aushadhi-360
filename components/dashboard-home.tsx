@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { Receipt, Sparkles, Upload, AlertTriangle, TrendingUp, Package, Clock, DollarSign, Loader2, Eye } from "lucide-react"
+import { Receipt, Sparkles, Upload, AlertTriangle, TrendingUp, Package, Clock, DollarSign, Loader2, Eye, BarChart3 } from "lucide-react"
 
 interface UserProfile {
   email: string
@@ -105,17 +105,17 @@ export function DashboardHome() {
       if (billsRes.ok) {
         const data = await billsRes.json()
         const allBills = data.bills || []
-        
+
         // Filter for today's bills only
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        
+
         const todayBills = allBills.filter((bill: BillHistory) => {
           const billDate = new Date(bill.date)
           billDate.setHours(0, 0, 0, 0)
           return billDate.getTime() === today.getTime()
         })
-        
+
         // Get last 5 bills from today
         setRecentBills(todayBills.slice(0, 5))
       }
@@ -456,7 +456,7 @@ export function DashboardHome() {
           </div>
         </Card>
 
-        <Card
+        {/* <Card
           className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
           onClick={() => router.push("/dashboard/ai-assist")}
         >
@@ -467,6 +467,24 @@ export function DashboardHome() {
             <div>
               <h3 className="font-semibold text-base md:text-base mb-1">Ask AI</h3>
               <p className="text-xs text-muted-foreground text-pretty">Get symptom-based recommendations</p>
+            </div>
+          </div>
+        </Card> */}
+        <Card
+          className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push("/dashboard/analytics")}
+        >
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <BarChart3 className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base md:text-base mb-1">
+                Analytics
+              </h3>
+              <p className="text-xs text-muted-foreground text-pretty">
+                View insights, trends & performance metrics
+              </p>
             </div>
           </div>
         </Card>

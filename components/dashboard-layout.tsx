@@ -34,7 +34,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   // { icon: Package, label: "Products", href: "/dashboard/products" },
   { icon: Receipt, label: "Billing", href: "/dashboard/billing" },
-  { icon: Sparkles, label: "AI Assist", href: "/dashboard/ai-assist" },
+  // { icon: Sparkles, label: "AI Assist", href: "/dashboard/ai-assist" },
   { icon: Upload, label: "Import Medicine", href: "/dashboard/import" },
   // { icon: Upload, label: "Manual Import", href: "/dashboard/manual-import" },
   { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
@@ -291,7 +291,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   href="https://mokshbhardwaj.netlify.app"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium hover:text-primary transition-colors"
+                  className="font-medium text-primary hover:underline transition-colors"
                 >
                   Moksh Bhardwaj
                 </a>

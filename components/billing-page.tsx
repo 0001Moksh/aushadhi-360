@@ -8,11 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw, Stethoscope, Activity, Sparkles, Pill, Clock, X, Lightbulb } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
+import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 
 interface Medicine {
   id: string
@@ -59,6 +64,30 @@ interface BillHistory {
   storeName?: string
 }
 
+interface AIResponse {
+  "AI Response": string
+  Medicines: AIMedicine[]
+  Score: string
+  "overall instructions": string
+}
+
+interface AIMedicine {
+  S?: number
+  "S.no"?: number
+  "Name of Medicine": string
+  "Batch_ID": string
+  Description?: string
+  Quantity?: string
+  Instructions?: string
+  "Cover Disease"?: string
+  Symptoms?: string
+  Price_INR?: number
+  Category?: string
+  "Medicine Forms"?: string
+  Quantity_per_pack?: string
+  "Side Effects"?: string
+}
+
 export function BillingPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [medicines, setMedicines] = useState<Medicine[]>([])
@@ -81,10 +110,28 @@ export function BillingPage() {
   const [isOnline, setIsOnline] = useState(true)
   const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
   const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
   const [activeTab, setActiveTab] = useState("search")
   const [viewMedicineId, setViewMedicineId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const draggingFavorite = useRef<string | null>(null)
+
+  // AI Assist Mode States
+  const [isAIMode, setIsAIMode] = useState(false)
+  const [symptoms, setSymptoms] = useState("")
+  const [aiResponse, setAiResponse] = useState<AIResponse | null>(null)
+  const [isAILoading, setIsAILoading] = useState(false)
+  const [showAIWarning, setShowAIWarning] = useState(true)
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([])
+  const [embeddingStatus, setEmbeddingStatus] = useState<{
+    ready: boolean
+    attempts: number
+    checking: boolean
+  }>({
+    ready: false,
+    attempts: 0,
+    checking: true,
+  })
 
   const loadMedicines = useCallback(async () => {
     setIsSearching(true)
@@ -215,6 +262,12 @@ export function BillingPage() {
     draggingFavorite.current = null
   }
 
+  const dismissAlert = (key: string) => {
+    setDismissedAlerts((prev) => (prev.includes(key) ? prev : [...prev, key]))
+  }
+
+  const isAlertDismissed = (key: string) => dismissedAlerts.includes(key)
+
   const saveDraft = () => {
     if (cart.length === 0) {
       setError("Add items to cart before saving a draft")
@@ -319,6 +372,14 @@ export function BillingPage() {
       window.removeEventListener("online", handleOnline)
       window.removeEventListener("offline", updateOnline)
     }
+  }, [])
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)")
+    const handleMq = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches)
+    handleMq(mq)
+    mq.addEventListener("change", handleMq)
+    return () => mq.removeEventListener("change", handleMq)
   }, [])
 
   const getOfflineQueue = () => {
@@ -532,6 +593,117 @@ export function BillingPage() {
     }
   }
 
+  // AI Assist Mode Functions
+  useEffect(() => {
+    const embeddingReady = localStorage.getItem("embedding_ready") === "true"
+    const embeddingAttempts = parseInt(localStorage.getItem("embedding_attempts") || "0")
+
+    if (embeddingReady) {
+      setEmbeddingStatus({
+        ready: true,
+        attempts: embeddingAttempts,
+        checking: false,
+      })
+    } else {
+      const failed = localStorage.getItem("embedding_ready") === "false"
+      if (failed) {
+        setEmbeddingStatus({
+          ready: false,
+          attempts: embeddingAttempts,
+          checking: false,
+        })
+      } else {
+        const interval = setInterval(() => {
+          const isReady = localStorage.getItem("embedding_ready") === "true"
+          const isFailed = localStorage.getItem("embedding_ready") === "false"
+          const attempts = parseInt(localStorage.getItem("embedding_attempts") || "0")
+
+          if (isReady) {
+            setEmbeddingStatus({
+              ready: true,
+              attempts,
+              checking: false,
+            })
+            clearInterval(interval)
+          } else if (isFailed) {
+            setEmbeddingStatus({
+              ready: false,
+              attempts,
+              checking: false,
+            })
+            clearInterval(interval)
+          }
+        }, 5000)
+
+        return () => clearInterval(interval)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    setDismissedAlerts((prev) => prev.filter((key) => !key.startsWith("embedding-")))
+  }, [embeddingStatus.checking, embeddingStatus.ready])
+
+  const handleAIAssist = async () => {
+    if (!embeddingStatus.ready) {
+      setError("AI embeddings are still being prepared. Please wait...")
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    setIsAILoading(true)
+    setError(null)
+    setAiResponse(null)
+
+    try {
+      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/get_medicines?query=` + encodeURIComponent(symptoms), {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      if (!apiResponse.ok) {
+        throw new Error("Failed to get AI suggestions")
+      }
+
+      const data = await apiResponse.json()
+      setAiResponse(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred while fetching suggestions")
+      console.error("AI Assistant Error:", err)
+      setTimeout(() => setError(null), 5000)
+    } finally {
+      setIsAILoading(false)
+    }
+  }
+
+  const addAIMedicineToCart = (medicine: AIMedicine) => {
+    const cartItem: CartItem = {
+      id: medicine["Batch_ID"],
+      name: medicine["Name of Medicine"],
+      batch: medicine["Batch_ID"],
+      price: medicine.Price_INR || 0,
+      quantity: 1,
+      availableQty: Number.parseInt(medicine.Quantity || "999"),
+      description: medicine.Description,
+    }
+
+    const existing = cart.find((item) => item.batch === cartItem.batch)
+
+    if (existing) {
+      setCart(
+        cart.map((item) =>
+          item.batch === cartItem.batch
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      )
+    } else {
+      setCart([...cart, cartItem])
+    }
+    setSuccess(`Added ${medicine["Name of Medicine"]} to cart`)
+    setTimeout(() => setSuccess(null), 2000)
+  }
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const gst = subtotal * 0.18
   const total = subtotal + gst
@@ -541,6 +713,20 @@ export function BillingPage() {
     .filter(Boolean) as Medicine[]
   const otherMedicines = medicines.filter((m) => !favorites.includes(m.id))
   const orderedMedicines = [...favoriteMedicines, ...otherMedicines]
+
+  const truncateName = (name: string, maxLength = 22) => {
+    if (name.length <= maxLength) return name
+    return name.slice(0, maxLength) + "…"
+  }
+
+  const getCartQuantity = (id: string, batch?: string) => {
+    return cart.reduce((sum, item) => {
+      if (item.id === id && (!batch || item.batch === batch)) {
+        return sum + item.quantity
+      }
+      return sum
+    }, 0)
+  }
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -986,9 +1172,11 @@ export function BillingPage() {
 
   return (
     <div className="space-y-4 md:space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+      <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 pr-24 sm:pr-0">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">Manual Billing</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">
+            {isAIMode ? "AI-Assisted Billing" : "Manual Billing"}
+          </h1>
           <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
             {isOnline ? "Online" : "Offline"}
             {offlineQueueCount > 0 && <span className="text-xs">• {offlineQueueCount} queued</span>}
@@ -1005,9 +1193,21 @@ export function BillingPage() {
               Sync queued
             </Button>
           )}
-          {/* <p className="text-sm text-muted-foreground text-pretty">Search medicines and generate bills with real-time inventory updates</p> */}
         </div>
         <div className="flex flex-wrap gap-2 justify-end">
+
+          {/* AI Mode Toggle */}
+          <div className="flex items-center gap-3 px-4 py-2 border rounded-lg bg-card absolute right-0 top-0 sm:relative sm:right-auto sm:top-auto">
+            <Label htmlFor="ai-mode" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+              {isAIMode ? <Stethoscope className="h-4 w-4 text-primary" /> : <Package className="h-4 w-4" />}
+              {isAIMode ? "AI Mode" : "Static Mode"}
+            </Label>
+            <Switch
+              id="ai-mode"
+              checked={isAIMode}
+              onCheckedChange={setIsAIMode}
+            />
+          </div>
 
           {/* Quick Mode Button */}
           <Button
@@ -1063,16 +1263,30 @@ export function BillingPage() {
       {(error || success) && (
         <div className="fixed top-4 right-4 z-50 space-y-3 w-[min(420px,calc(100%-1.5rem))] pointer-events-none">
           {error && (
-            <Alert variant="destructive" className="pointer-events-auto shadow-lg">
+            <Alert variant="destructive" className="relative pointer-events-auto shadow-lg pr-10">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
+              <button
+                aria-label="Dismiss error"
+                onClick={() => setError(null)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </Alert>
           )}
 
           {success && (
-            <Alert className="border-green-500 text-green-700 dark:text-green-400 pointer-events-auto shadow-lg">
+            <Alert className="relative border-green-500 text-green-700 dark:text-green-400 pointer-events-auto shadow-lg pr-10">
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>{success}</AlertDescription>
+              <button
+                aria-label="Dismiss success"
+                onClick={() => setSuccess(null)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </Alert>
           )}
         </div>
@@ -1128,54 +1342,559 @@ export function BillingPage() {
         </DialogContent>
       </Dialog>
 
-      <div className={`grid gap-4 md:gap-6 ${isQuickMode ? "lg:grid-cols-[1.4fr,1fr]" : "lg:grid-cols-2"}`}>
-        {/* Search & Add */}
-        <Card className="p-1 md:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="search" className="gap-2" title="Search (Alt+1)">
-                <Search className="h-4 w-4" />
-                Search
-              </TabsTrigger>
-              <TabsTrigger value="drafts" className="gap-1" title="Drafts (Alt+2)">
-                <FileText className="h-4 w-4" />
-                Drafts
-                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                  {drafts.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1" title="History (Alt+3)">
-                <History className="h-4 w-4" />
-                Recent Bills
-                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                  {recentBills.length}
-                </span>
-              </TabsTrigger>
-            </TabsList>
+      {/* AI Mode Content */}
+      {isAIMode ? (
+        <div className={`grid gap-4 md:gap-6 lg:grid-cols-2`}>
+          {/* AI Symptom Input & Recommendations with tabs */}
+          <Card className="p-4 md:p-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="search" className="gap-2">
+                  <Search className="h-4 w-4" />
+                  Search
+                </TabsTrigger>
+                <TabsTrigger value="drafts" className="gap-1">
+                  <FileText className="h-4 w-4" />
+                  Drafts
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                    {drafts.length}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-1">
+                  <History className="h-4 w-4" />
+                  Recent Bills
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                    {recentBills.length}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="search" className="mt-0">
+              <TabsContent value="search" className="mt-0">
+                <div className="space-y-4">
+                  {/* Symptom Input Section */}
+                  <div>
+                    {/* Embedding Status */}
+                    {embeddingStatus.checking && !isAlertDismissed("embedding-checking") && (
+                      <Alert className="relative border-blue-200 bg-blue-50 dark:bg-blue-950/20 mb-3 pr-9">
+                        <Clock className="h-4 w-4 text-blue-600 animate-spin" />
+                        <AlertDescription className="text-xs">
+                          AI embeddings are being prepared...
+                        </AlertDescription>
+                        <button
+                          aria-label="Dismiss embedding preparation"
+                          onClick={() => dismissAlert("embedding-checking")}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Alert>
+                    )}
 
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    {embeddingStatus.ready && !isAlertDismissed("embedding-ready") && (
+                      <Alert className="relative border-green-200 bg-green-50 dark:bg-green-950/20 mb-3 pr-9">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-xs">
+                          AI assistant is ready
+                        </AlertDescription>
+                        <button
+                          aria-label="Dismiss AI ready status"
+                          onClick={() => dismissAlert("embedding-ready")}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Alert>
+                    )}
 
-                <Input
-                  ref={searchInputRef}
-                  placeholder="Search by name, batch, or category... (Ctrl+K)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
-                  className="pl-10 pr-10"
-                />
+                    {!embeddingStatus.checking && !embeddingStatus.ready && !isAlertDismissed("embedding-unavailable") && (
+                      <Alert className="relative border-red-200 bg-red-50 dark:bg-red-950/20 mb-3 pr-9">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <AlertDescription className="text-xs">
+                          AI unavailable. Please check server status.
+                        </AlertDescription>
+                        <button
+                          aria-label="Dismiss AI unavailable status"
+                          onClick={() => dismissAlert("embedding-unavailable")}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Alert>
+                    )}
 
+                    {/* Safety Warning */}
+                    {showAIWarning && (
+                      <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 relative mb-3">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <AlertDescription className="text-xs">
+                          AI suggests OTC medicines only. Always verify with a pharmacist.
+                        </AlertDescription>
+                        <button
+                          onClick={() => setShowAIWarning(false)}
+                          className="absolute top-3 right-3 text-amber-600 hover:text-amber-800"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Alert>
+                    )}
 
-                {isSearching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
-                )}
+                    <Textarea
+                      placeholder="E.g., Patient has severe headache, nasal congestion, and mild fever for 2 days..."
+                      value={symptoms}
+                      onChange={(e) => setSymptoms(e.target.value)}
+                      rows={6}
+                      className="resize-none mb-3"
+                      disabled={!embeddingStatus.ready}
+                    />
+
+                    <Button
+                      size="lg"
+                      className="w-full"
+                      onClick={handleAIAssist}
+                      disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready}
+                    >
+                      {isAILoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : !embeddingStatus.ready ? (
+                        <>Preparing AI...</>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-5 w-5" />
+                          Get Recommendations
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* AI Recommendations List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      {aiResponse?.Medicines && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Package className="h-3 w-3 mr-1" />
+                          {aiResponse.Medicines.length} found
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* AI Summary */}
+                    {aiResponse?.["AI Response"] && (
+                      <Card className="border-primary/20 bg-primary/5">
+                        <CardContent>
+                          <div className="flex items-start gap-2">
+                            <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium mb-1">AI Analysis</p>
+                              <p className="text-xs">{aiResponse["AI Response"]}</p>
+                              {aiResponse.Score && (
+                                <Badge variant="outline" className="mt-2 text-xs">
+                                  Confidence: {aiResponse.Score}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+                      {isAILoading ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                          Analyzing symptoms...
+                        </div>
+                      ) : !aiResponse ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>No recommendations yet</p>
+                          <p className="text-xs mt-1">Enter symptoms and click Get Recommendations</p>
+                        </div>
+                      ) : aiResponse.Medicines?.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>No suitable medicines found</p>
+                          <p className="text-xs mt-1">Try describing different symptoms</p>
+                        </div>
+                      ) : (
+                        aiResponse.Medicines?.map((medicine, idx) => (
+                          <Card key={idx} className="p-3 hover:border-accent transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm truncate">{medicine["Name of Medicine"]}</p>
+                                <p className="text-xs text-muted-foreground">Batch: {medicine["Batch_ID"]}</p>
+
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {medicine.Category && (
+                                    <Badge variant="outline" className="text-xs">{medicine.Category}</Badge>
+                                  )}
+                                  {medicine["Medicine Forms"] && (
+                                    <Badge variant="outline" className="text-xs">{medicine["Medicine Forms"]}</Badge>
+                                  )}
+                                </div>
+
+                                {medicine["Cover Disease"] && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    <strong>Treats:</strong> {medicine["Cover Disease"]}
+                                  </p>
+                                )}
+
+                                {medicine.Instructions && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    <strong>Usage:</strong> {medicine.Instructions}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                <Badge variant="secondary" className="font-bold">
+                                  ₹{medicine.Price_INR?.toFixed(2) || "0.00"}
+                                </Badge>
+                                {getCartQuantity(medicine["Batch_ID"]) > 0 ? (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => addAIMedicineToCart(medicine)}
+                                    className="h-8 px-3 bg-card"
+                                  >
+                                    {getCartQuantity(medicine["Batch_ID"])}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => addAIMedicineToCart(medicine)}
+                                    className="h-8 px-3"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            {medicine["Side Effects"] && (
+                              <p className="text-xs text-amber-600 mt-2 pt-2 border-t">
+                                <strong>Side Effects:</strong> {medicine["Side Effects"]}
+                              </p>
+                            )}
+                          </Card>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Overall Instructions */}
+                    {aiResponse?.["overall instructions"] && (
+                      <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 mt-3">
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-2">
+                            <Lightbulb className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium mb-1">Lifestyle Advice</p>
+                              <p className="text-xs">{aiResponse["overall instructions"]}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="drafts" className="mt-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold">Draft Bills</h2>
+                  <Badge variant="secondary" className="text-xs">{drafts.length}</Badge>
+                </div>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
+                  {drafts.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No drafts saved</p>
+                      <p className="text-xs mt-1">Save a bill to see it here</p>
+                    </div>
+                  ) : (
+                    drafts.map((draft) => {
+                      const date = new Date(draft.createdAt)
+                      return (
+                        <Card key={draft.id} className="p-3 hover:border-accent transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-semibold text-sm">Draft: {draft.id.replace("draft-", "")}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {date.toLocaleDateString("en-IN")} • {draft.items.length} items
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2 text-sm">
+                            <span className="text-muted-foreground">Total:</span>
+                            <span className="font-semibold text-primary">₹{draft.total.toFixed(2)}</span>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 hover:text-primary"
+                              onClick={() => restoreDraft(draft.id)}
+                              disabled={isCheckingOut}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Restore
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteDraft(draft.id)}
+                              disabled={isCheckingOut}
+                              aria-label="Delete draft"
+                            >
+                              <Trash className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </Card>
+                      )
+                    })
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold">Recent Bills</h2>
+                  <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline">View all Bills</Link>
+                </div>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
+                  {recentBills.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No recent bills</p>
+                      <p className="text-xs mt-1">Your billing history will appear here</p>
+                    </div>
+                  ) : (
+                    recentBills.map((bill) => (
+                      <Card key={bill.id} className="p-3 hover:border-accent transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-semibold text-sm">{bill.billId}</p>
+                            <p className="text-sm text-foreground">
+                              {new Date(bill.date).toLocaleDateString("en-IN", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="text-muted-foreground">Total: </span>
+                          <span className="font-semibold ml-2 text-primary"> ₹{bill.total.toFixed(2)}</span>
+                          <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
+                        </div>
+                        {bill.customerEmail && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            Customer: {bill.customerEmail}
+                          </p>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full hover:text-primary"
+                          onClick={() => previewInvoice(bill)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Invoice
+                        </Button>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </Card>
+
+          {/* Cart (Same as Static Mode) */}
+          <Card className="p-4 md:p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
+            </div>
+
+            {cart.length === 0 ? (
+              <div className="text-center text-muted-foreground py-12">
+                <ShoppingCart className="h-16 w-16 mx-auto mb-3 opacity-30" />
+                <p>Cart is empty</p>
+                <p className="text-xs mt-1">Add medicines to get started</p>
               </div>
-              {isQuickMode && (
-                <p className="text-xs text-muted-foreground mb-2">Keyboard: ↑/↓ to highlight, Enter to add, Ctrl+Enter to checkout.</p>
-              )}
-              {/* <div className="flex items-center justify-end mb-2">
+            ) : (
+              <>
+                <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+                  {cart.map((item) => (
+                    <div key={`${item.id}-${item.batch}`} className="flex items-start gap-2 p-2 rounded-lg border bg-card">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-sm">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          ₹{item.price.toFixed(2)} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {item.availableQty} <br />
+                          instock
+                        </Badge>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableQty}
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.id, item.batch, Number.parseInt(e.target.value) || 0)}
+                          className="w-16 h-9 text-center"
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeFromCart(item.id, item.batch)}
+                          className="h-9 w-9"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-t pt-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal:</span>
+                    <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>GST (18%):</span>
+                    <span className="font-medium">₹{gst.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
+                    <span>Total:</span>
+                    <span className="text-primary">₹{total.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <div>
+                    <Label htmlFor="customer-email" className="text-sm">
+                      Customer Email (Optional)
+                    </Label>
+                    <Input
+                      id="customer-email"
+                      type="email"
+                      placeholder="customer@example.com"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      className="mt-1.5"
+                      disabled={isCheckingOut}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Invoice will be emailed if provided
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="hover:text-primary"
+                      size="lg"
+                      onClick={saveDraft}
+                      disabled={isCheckingOut || cart.length === 0}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save to Draft
+                    </Button>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleCheckout}
+                      disabled={isCheckingOut || cart.length === 0}
+                    >
+                      {isCheckingOut ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Payment Done
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </Card>
+        </div>
+      ) : (
+        // Static Mode Content
+        <div className={`grid gap-4 md:gap-6 ${isQuickMode ? "lg:grid-cols-[1.4fr,1fr]" : "lg:grid-cols-2"}`}>
+          {/* Search & Add */}
+          <Card className="p-1 md:p-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="search" className="gap-2" title="Search (Alt+1)">
+                  <Search className="h-4 w-4" />
+                  Search
+                </TabsTrigger>
+                <TabsTrigger value="drafts" className="gap-1" title="Drafts (Alt+2)">
+                  <FileText className="h-4 w-4" />
+                  Drafts
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                    {drafts.length}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-1" title="History (Alt+3)">
+                  <History className="h-4 w-4" />
+                  Recent Bills
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                    {recentBills.length}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="search" className="mt-0">
+
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+
+                  <Input
+                    ref={searchInputRef}
+                    placeholder="Search by name, batch, or category... (Ctrl+K)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
+                    className="pl-10 pr-16"
+                  />
+
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      aria-label="Clear search"
+                      onClick={() => {
+                        setSearchQuery("")
+                        searchInputRef.current?.focus()
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+
+                  {isSearching && (
+                    <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
+                  )}
+                </div>
+                {isQuickMode && (
+                  <p className="text-xs text-muted-foreground mb-2">Keyboard: ↑/↓ to highlight, Enter to add, Ctrl+Enter to checkout.</p>
+                )}
+                {/* <div className="flex items-center justify-end mb-2">
                 {!isSearching && orderedMedicines.length > 0 && (
                   <Badge variant="secondary" className="text-xs">
                     <Package className="h-5 w-5" />
@@ -1183,87 +1902,89 @@ export function BillingPage() {
                   </Badge>
                 )}
               </div> */}
-              {favoriteMedicines.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex gap-2 flex-wrap">
-                    {favoriteMedicines.map((fav) => (
-                      <div
-                        key={fav.id}
-                        draggable
-                        onDragStart={() => handleFavoriteDragStart(fav.id)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleFavoriteDrop(fav.id)}
-                        className="px-3 py-2 rounded-full border bg-card shadow-sm flex items-center gap-2 cursor-move"
-                        title={fav.name}
-                      >
-                        <Star className="h-3 w-3 text-yellow-400" />
-                        <span className="text-sm truncate max-w-[160px]">{fav.name}</span>
-                        <Badge variant="outline" className="text-[11px]">₹{fav.price.toFixed(2)}</Badge>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => addToCart(fav)}>
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+                {favoriteMedicines.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex gap-2 flex-wrap">
+                      {favoriteMedicines.map((fav) => (
+                        <div
+                          key={fav.id}
+                          draggable
+                          onDragStart={() => handleFavoriteDragStart(fav.id)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => handleFavoriteDrop(fav.id)}
+                          className="px-3 py-2 rounded-full border bg-card shadow-sm flex items-center gap-2 cursor-move"
+                          title={fav.name}
+                        >
+                          <span className="text-sm truncate max-w-[160px]">{fav.name}</span>
+                          <Badge variant="outline" className="text-[11px]">₹{fav.price.toFixed(2)}</Badge>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => addToCart(fav)}>
+                            <Plus className="h-3 w-3" />
+                            {getCartQuantity(fav.id, fav.batch) > 0 && (
+                              <span className="text-[10px] font-bold text-primary ml-0.5">{getCartQuantity(fav.id, fav.batch)}</span>
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-end">
+                      {!isSearching && orderedMedicines.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Package className="h-5 w-5" />
+                          {orderedMedicines.length} found
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-end">
-                    {!isSearching && orderedMedicines.length > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        <Package className="h-5 w-5" />
-                        {orderedMedicines.length} found
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              )}
+                )}
 
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-                {isSearching && orderedMedicines.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                    Loading medicines...
-                  </div>
-                ) : orderedMedicines.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No medicines found</p>
-                    <p className="text-xs mt-1">Try a different search term</p>
-                  </div>
-                ) : (
-                  orderedMedicines.map((medicine, idx) => {
-                    const cardId = `${medicine.id}-${medicine.batch}`
-                    const isViewing = viewMedicineId === cardId
-                    const descriptionText = medicine.description?.trim() || [medicine.category, medicine.form].filter(Boolean).join(" • ") || "No description available"
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
+                  {isSearching && orderedMedicines.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-2">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                      Loading medicines...
+                    </div>
+                  ) : orderedMedicines.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-2">
+                      <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No medicines found</p>
+                      <p className="text-xs mt-1">Try a different search term</p>
+                    </div>
+                  ) : (
+                    orderedMedicines.map((medicine, idx) => {
+                      const cardId = `${medicine.id}-${medicine.batch}`
+                      const isViewing = viewMedicineId === cardId
+                      const descriptionText = medicine.description?.trim() || [medicine.category, medicine.form].filter(Boolean).join(" • ") || "No description available"
 
-                    return (
-                      <div
-                        key={cardId}
-                        className={`p-3 rounded-xl border transition-all hover:shadow-sm group ${idx === highlightedIndex ? "border-primary bg-primary/5" : "hover:border-accent"}`}>
-                        <div className="flex items-center justify-between">
-                          {/* Left Content */}
-                          <div className="flex gap-3 flex-1 min-w-0">
-                            {/* Favorite */}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition"
-                              onClick={() => toggleFavorite(medicine.id)}
-                            >
-                              <Star
-                                className={`h-4 w-4 ${favorites.includes(medicine.id)
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-muted-foreground"
-                                  }`}
-                              />
-                            </Button>
+                      return (
+                        <div
+                          key={cardId}
+                          className={`p-2 rounded-xl border transition-all hover:shadow-sm group ${idx === highlightedIndex ? "border-primary bg-primary/5" : "hover:border-accent"}`}>
+                          <div className="flex items-center justify-between">
+                            {/* Left Content */}
+                            <div className="flex gap-3 flex-1 min-w-0">
+                              {/* Favorite */}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-50 group-hover:opacity-100 transition"
+                                onClick={() => toggleFavorite(medicine.id)}
+                              >
+                                <Star
+                                  className={`h-4 w-4 ${favorites.includes(medicine.id)
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-muted-foreground"
+                                    }`}
+                                />
+                              </Button>
 
-                            {/* Medicine Info */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                              {/* Name */}
-                              <p className="flex font-semibold text-sm truncate" title={medicine.name}>
-                                {medicine.name}
-                              </p>
-                              {/* Meta info */}
-                              {/* <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {/* Medicine Info */}
+                              <div className="flex-1 min-w-0 space-y-1">
+                                {/* Name */}
+                                <p className="flex font-semibold text-sm truncate" title={medicine.name}>
+                                  {isMobile ? truncateName(medicine.name) : medicine.name}
+                                </p>
+                                {/* Meta info */}
+                                {/* <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px]">
                                   {medicine.category}
                                 </Badge>
@@ -1272,351 +1993,364 @@ export function BillingPage() {
                                 </Badge>
                               </div> */}
 
-                              {/* Price + Stock */}
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="font-medium text-foreground">
-                                  ₹{medicine.price.toFixed(2)}
-                                </span>
-                                <Badge
-                                  variant={medicine.quantity > 10 ? "secondary" : "destructive"}
-                                  className="text-[10px]"
-                                >
-                                  {medicine.quantity} left
-                                </Badge>
-                              </div>
-
-                              {/* Description with hover */}
-
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <Tooltip delayDuration={150}>
-                            <TooltipTrigger asChild>
-
-                              <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => toggleViewDetails(cardId)}
-                                  className="gap-1"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  <span className="md:visible hidden">
-                                  {isViewing ? "Hide" : "View"}
+                                {/* Price + Stock */}
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="font-medium text-foreground">
+                                    ₹{medicine.price.toFixed(2)}
                                   </span>
-                                </Button>
+                                  <Badge
+                                    variant={medicine.quantity > 10 ? "secondary" : "destructive"}
+                                    className="text-[10px]"
+                                  >
+                                    {medicine.quantity} left
+                                  </Badge>
+                                </div>
 
-                                <Button
-                                  size="sm"
-                                  onClick={() => addToCart(medicine)}
-                                  disabled={medicine.quantity === 0}
-                                  className="flex-shrink-0"
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Add
-                                </Button>
+                                {/* Description with hover */}
+
                               </div>
+                            </div>
 
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-sm whitespace-pre-line">
-                              {descriptionText}
-                            </TooltipContent>
-                          </Tooltip>
+                            {/* Action Buttons */}
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+
+                                <div className="flex items-center gap-2 ml-1 flex-shrink-0">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => toggleViewDetails(cardId)}
+                                    className="gap-1"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    <span className="md:visible hidden">
+                                      {isViewing ? "Hide" : "View"}
+                                    </span>
+                                  </Button>
+
+                                  {getCartQuantity(medicine.id, medicine.batch) > 0 ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => addToCart(medicine)}
+                                      disabled={medicine.quantity === 0}
+                                      className="flex-shrink-0 bg-card text-foreground border"
+                                    >
+                                      {getCartQuantity(medicine.id, medicine.batch)} 
+                                      <div>Add</div>
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => addToCart(medicine)}
+                                      disabled={medicine.quantity === 0}
+                                      className="flex-shrink-0"
+                                    >
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Add
+                                    </Button>
+                                  )}
+                                </div>
+
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-sm whitespace-pre-line">
+                                {descriptionText}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+
+                          {isViewing && (
+                            <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Name</span>
+                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.name}>{isMobile ? truncateName(medicine.name) : medicine.name}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Price</span>
+                                <span className="ml-2 font-semibold text-foreground">₹{medicine.price.toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Available</span>
+                                <span className="ml-2 font-medium text-foreground">{medicine.quantity}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Batch</span>
+                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.batch}>{medicine.batch}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Category</span>
+                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.category}>{medicine.category}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Form</span>
+                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.form}>{medicine.form}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
-                        {isViewing && (
-                          <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Name</span>
-                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.name}>{medicine.name}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Price</span>
-                              <span className="ml-2 font-semibold text-foreground">₹{medicine.price.toFixed(2)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Available</span>
-                              <span className="ml-2 font-medium text-foreground">{medicine.quantity}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Batch</span>
-                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.batch}>{medicine.batch}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Category</span>
-                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.category}>{medicine.category}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-muted-foreground">Form</span>
-                              <span className="ml-2 font-medium text-foreground truncate" title={medicine.form}>{medicine.form}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                    )
-                  })
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="drafts" className="mt-0">
-              <div className="space-y-3 max-h-[580px] overflow-y-auto pr-2 scrollbar-thin">
-                {drafts.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-12">
-                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No draft bills</p>
-                    <p className="text-xs mt-1">Saved drafts will appear here</p>
-                  </div>
-                ) : (
-                  drafts.map((draft) => {
-                    const names = draft.items
-                      .map(i => i.name)
-                      .join(", ")
-                      .split(" ")
-                      .slice(0, 3)
-                      .join(" ") + "..."
-                    const createdStr = new Date(draft.createdAt).toLocaleString("en-IN", {
-                      day: "2-digit", month: "short", year: "numeric",
-                      hour: "2-digit", minute: "2-digit"
+                      )
                     })
-                    return (
-                      <Card key={draft.id} className="p-3 hover:border-accent transition-colors">
-                        <div className="mb-2">
-                          <p className="font-semibold text-sm truncate" title={names}>{names}</p>
-                          <p className="text-xs text-muted-foreground">{createdStr}</p>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-sm mb-3">
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="drafts" className="mt-0">
+                <div className="space-y-3 max-h-[580px] overflow-y-auto pr-2 scrollbar-thin">
+                  {drafts.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No draft bills</p>
+                      <p className="text-xs mt-1">Saved drafts will appear here</p>
+                    </div>
+                  ) : (
+                    drafts.map((draft) => {
+                      const names = draft.items
+                        .map(i => i.name)
+                        .join(", ")
+                        .split(" ")
+                        .slice(0, 3)
+                        .join(" ") + "..."
+                      const createdStr = new Date(draft.createdAt).toLocaleString("en-IN", {
+                        day: "2-digit", month: "short", year: "numeric",
+                        hour: "2-digit", minute: "2-digit"
+                      })
+                      return (
+                        <Card key={draft.id} className="p-3 hover:border-accent transition-colors">
+                          <div className="mb-2">
+                            <p className="font-semibold text-sm truncate" title={names}>{names}</p>
+                            <p className="text-xs text-muted-foreground">{createdStr}</p>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-sm mb-3">
+                            <div>
+                              <span className="text-muted-foreground">Items:</span>
+                              <span className="ml-1 font-medium">{draft.items.length}</span>
+                            </div>
+                            <div className="col-span-2 flex justify-end">
+                              <span className="text-muted-foreground mr-1">Total:</span>
+                              <span className="font-semibold text-primary">₹{draft.total.toFixed(2)}</span>
+                            </div>
+                          </div>
+                          {draft.customerEmail && (
+                            <p className="text-xs text-muted-foreground mb-3 truncate" title={draft.customerEmail}>
+                              {draft.customerEmail}
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 hover:text-primary"
+                              onClick={() => restoreDraft(draft.id)}
+                              disabled={isCheckingOut}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Restore
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteDraft(draft.id)}
+                              disabled={isCheckingOut}
+                              aria-label="Delete draft"
+                              title="Delete draft"
+                            >
+                              <Trash className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </Card>
+                      )
+                    })
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold">Recent Bills</h2>
+                  <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline">View all Bills</Link>
+                </div>
+                <div className="space-y-3 max-h-[550px] overflow-y-auto pr-2 scrollbar-thin">
+                  {recentBills.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No recent bills</p>
+                      <p className="text-xs mt-1">Your billing history will appear here</p>
+                    </div>
+                  ) : (
+                    recentBills.map((bill) => (
+                      <Card key={bill.id} className="p-3 hover:border-accent transition-colors">
+                        <div className="flex items-start justify-between">
                           <div>
-                            <span className="text-muted-foreground">Items:</span>
-                            <span className="ml-1 font-medium">{draft.items.length}</span>
-                          </div>
-                          <div className="col-span-2 flex justify-end">
-                            <span className="text-muted-foreground mr-1">Total:</span>
-                            <span className="font-semibold text-primary">₹{draft.total.toFixed(2)}</span>
+                            <p className="font-semibold text-sm">{bill.billId}</p>
+                            <p className="text-sm text-foreground">
+                              {new Date(bill.date).toLocaleDateString("en-IN", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
                           </div>
                         </div>
-                        {draft.customerEmail && (
-                          <p className="text-xs text-muted-foreground mb-3 truncate" title={draft.customerEmail}>
-                            {draft.customerEmail}
+                        <div className="flex items-center text-sm">
+                          <span className="text-muted-foreground">Total: </span>
+                          <span className="font-semibold ml-2 text-primary"> ₹{bill.total.toFixed(2)}</span>
+                          <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
+                        </div>
+                        {bill.customerEmail && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            Customer: {bill.customerEmail}
                           </p>
                         )}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 hover:text-primary"
-                            onClick={() => restoreDraft(draft.id)}
-                            disabled={isCheckingOut}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Restore
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteDraft(draft.id)}
-                            disabled={isCheckingOut}
-                            aria-label="Delete draft"
-                            title="Delete draft"
-                          >
-                            <Trash className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </Card>
-                    )
-                  })
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="history" className="mt-0">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-semibold">Recent Bills</h2>
-                <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline">View all Bills</Link>
-              </div>
-              <div className="space-y-3 max-h-[550px] overflow-y-auto pr-2 scrollbar-thin">
-                {recentBills.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-12">
-                    <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No recent bills</p>
-                    <p className="text-xs mt-1">Your billing history will appear here</p>
-                  </div>
-                ) : (
-                  recentBills.map((bill) => (
-                    <Card key={bill.id} className="p-3 hover:border-accent transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold text-sm">{bill.billId}</p>
-                          <p className="text-sm text-foreground">
-                            {new Date(bill.date).toLocaleDateString("en-IN", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center text-sm">
-                        <span className="text-muted-foreground">Total: </span>
-                        <span className="font-semibold ml-2 text-primary"> ₹{bill.total.toFixed(2)}</span>
-                        <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
-                      </div>
-                      {bill.customerEmail && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          Customer: {bill.customerEmail}
-                        </p>
-                      )}
-                      {/* {bill.storeName && (
+                        {/* {bill.storeName && (
                         <p className="text-xs text-muted-foreground truncate">
                           Store: {bill.storeName}
                         </p>
                       )} */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full hover:text-primary"
-                        onClick={() => previewInvoice(bill)}
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View Invoice
-                      </Button>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </Card>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full hover:text-primary"
+                          onClick={() => previewInvoice(bill)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Invoice
+                        </Button>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </Card>
 
-        {/* Cart */}
-        <Card className="p-4 md:p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <ShoppingCart className="h-5 w-5" />
-            <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
-          </div>
-
-          {cart.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">
-              <ShoppingCart className="h-16 w-16 mx-auto mb-3 opacity-30" />
-              <p>Cart is empty</p>
-              <p className="text-xs mt-1">Add medicines to get started</p>
+          {/* Cart */}
+          <Card className="p-4 md:p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
             </div>
-          ) : (
-            <>
-              <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-                {cart.map((item) => (
-                  <div key={`${item.id}-${item.batch}`} className="flex items-start gap-2 p-2 rounded-lg border bg-card">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-sm">{item.name}</p>
-                      {/* <p className="text-xs text-muted-foreground">
+
+            {cart.length === 0 ? (
+              <div className="text-center text-muted-foreground py-12">
+                <ShoppingCart className="h-16 w-16 mx-auto mb-3 opacity-30" />
+                <p>Cart is empty</p>
+                <p className="text-xs mt-1">Add medicines to get started</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+                  {cart.map((item) => (
+                    <div key={`${item.id}-${item.batch}`} className="flex items-start gap-2 p-2 rounded-lg border bg-card">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-sm">{item.name}</p>
+                        {/* <p className="text-xs text-muted-foreground">
                         Batch: {item.batch}
                       </p> */}
-                      <p className="text-xs text-muted-foreground">
-                        ₹{item.price.toFixed(2)} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <p className="text-xs text-muted-foreground">
+                          ₹{item.price.toFixed(2)} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
 
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {item.availableQty} <br />
-                        instock
-                      </Badge>
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {item.availableQty} <br />
+                          instock
+                        </Badge>
 
-                      <Input
-                        type="number"
-                        min="1"
-                        max={item.availableQty}
-                        value={item.quantity}
-                        onChange={(e) => updateQuantity(item.id, item.batch, Number.parseInt(e.target.value) || 0)}
-                        className="w-16 h-9 text-center"
-                      />
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => removeFromCart(item.id, item.batch)}
-                        className="h-9 w-9"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={item.availableQty}
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.id, item.batch, Number.parseInt(e.target.value) || 0)}
+                          className="w-16 h-9 text-center"
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeFromCart(item.id, item.batch)}
+                          className="h-9 w-9"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-t pt-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal:</span>
+                    <span className="font-medium">₹{subtotal.toFixed(2)}</span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex justify-between text-sm">
+                    <span>GST (18%):</span>
+                    <span className="font-medium">₹{gst.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
+                    <span>Total:</span>
+                    <span className="text-primary">₹{total.toFixed(2)}</span>
+                  </div>
+                </div>
 
-              <div className="space-y-2 border-t pt-4">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal:</span>
-                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                <div className="mt-6 space-y-3">
+                  <div>
+                    <Label htmlFor="customer-email" className="text-sm">
+                      Customer Email (Optional)
+                    </Label>
+                    <Input
+                      id="customer-email"
+                      type="email"
+                      placeholder="customer@example.com"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      className="mt-1.5"
+                      disabled={isCheckingOut}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Invoice will be emailed if provided
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="hover:text-primary"
+                      size="lg"
+                      onClick={saveDraft}
+                      title="Save Draft (Ctrl+S)"
+                      disabled={isCheckingOut || cart.length === 0}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save to Draft
+                    </Button>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleCheckout}
+                      title="Generate Bill (Ctrl+Enter)"
+                      disabled={isCheckingOut || cart.length === 0}
+                    >
+                      {isCheckingOut ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Payment Done
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>GST (18%):</span>
-                  <span className="font-medium">₹{gst.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                  <span>Total:</span>
-                  <span className="text-primary">₹{total.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-3">
-                <div>
-                  <Label htmlFor="customer-email" className="text-sm">
-                    Customer Email (Optional)
-                  </Label>
-                  <Input
-                    id="customer-email"
-                    type="email"
-                    placeholder="customer@example.com"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    className="mt-1.5"
-                    disabled={isCheckingOut}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Invoice will be emailed if provided
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className="hover:text-primary"
-                    size="lg"
-                    onClick={saveDraft}
-                    title="Save Draft (Ctrl+S)"
-                    disabled={isCheckingOut || cart.length === 0}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save to Draft
-                  </Button>
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleCheckout}
-                    title="Generate Bill (Ctrl+Enter)"
-                    disabled={isCheckingOut || cart.length === 0}
-                  >
-                    {isCheckingOut ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Payment Done
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </Card>
-      </div>
+              </>
+            )}
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

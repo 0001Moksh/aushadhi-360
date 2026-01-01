@@ -63,10 +63,19 @@ export async function GET(req: NextRequest) {
         const name = (med?.["Name of Medicine"] || med?.name || "").toLowerCase()
         const batch = (med?.Batch_ID || "").toLowerCase()
         const category = (med?.Category || "").toLowerCase()
+        const form = (med?.["Medicine Forms"] || med?.form || "").toLowerCase()
+        const disease = (med?.["Cover Disease"] || med?.Disease || "").toLowerCase()
+        const symptoms = (med?.Symptoms || "").toLowerCase()
+        const description = (med?.Description || med?.description || med?.["Description in Hinglish"] || med?.Notes || "").toLowerCase()
+
         return (
           name.includes(searchLower) ||
           batch.includes(searchLower) ||
-          category.includes(searchLower)
+          category.includes(searchLower) ||
+          form.includes(searchLower) ||
+          disease.includes(searchLower) ||
+          symptoms.includes(searchLower) ||
+          description.includes(searchLower)
         )
       })
       .map((med: any) => ({

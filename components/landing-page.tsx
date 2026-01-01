@@ -1,7 +1,8 @@
 "use client"
-
+import Image from "next/image";
+import Link from "next/link";
 import React from "react"
-import Link from "next/link"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -198,16 +199,16 @@ export function LandingPage() {
                     </div>
 
                     <div className="relative hidden md:block">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-2xl opacity-10"></div>
+                        <div className="dark:block hidden absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-2xl opacity-20"></div>
                         <div className="relative mx-auto max-w-3xl">
 
-                            <div className="relative rounded-[2rem] bg-gradient-to-t from-accent/90 to-primary/80 p-1 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+                            <div className="relative rounded-[2rem] bg-gradient-to-t from-accent/90 to-primary/80 p-1 shadow-[0_30px_80px_rgba(0,0,0,0.06)]">
 
                                 {/* Screen */}
-                                <div className="relative overflow-hidden rounded-[1.2rem] bg-card">
+                                <div className="relative overflow-hidden rounded-[1.5rem] bg-card">
 
                                     {/* Glow */}
-                                    <div className="pointer-events-none absolute inset-0 rounded-[1.2rem] ring-1 ring-white/10 shadow-[inset_0_0_40px_rgba(255,255,255,0.05)]" />
+                                    <div className="pointer-events-none absolute inset-0 rounded-[1.2rem] ring-1 ring-white/10 shadow-[outset_0_0_40px_rgba(255,255,255,0.5)]" />
 
                                     {/* Dark Mode */}
                                     <img
@@ -222,6 +223,7 @@ export function LandingPage() {
                                         alt="Aushadhi 360 Dashboard"
                                         className="block h-64 w-full object-cover dark:hidden"
                                     />
+                                    <div className="dark:block hidden absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
                                 </div>
                             </div>
                             <div className="mx-auto h-8 w-32 border-r-2 border-l-10 border-accent bg-gradient-to-b from-white/100 to-white/8" />
@@ -396,44 +398,108 @@ export function LandingPage() {
                 </div>
             </section>
 
-            {/* Footer */}
-            <footer className="justify-center bg-foreground dark:bg-background text-foreground py-12">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Aushadhi 360</h3>
-                            <p className="text-muted-foreground ">Smart medical store management software for modern pharmacies</p>
+
+
+            <footer className="relative overflow-hidden bg-background text-foreground py-14">
+
+                {/* Animated gradient */}
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,#22d3ee,#6366f1,#a855f7)] 
+                  bg-[length:300%_300%] animate-gradient opacity-10" />
+
+                {/* Noise texture */}
+                <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
+
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+
+                        {/* Logo + description */}
+                        <div className="col-span-2 md:col-span-1">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Image
+                                    src="/logo2.png"
+                                    alt="Aushadhi 360 Logo"
+                                    width={400}
+                                    height={400}
+                                    className="rounded-md"
+                                />
+                            </div>
+                            <p className="text-muted-foreground text-sm leading-relaxed">
+                                Smart medical store management software for modern pharmacies
+                            </p>
                         </div>
+
+                        {/* Product */}
                         <div>
                             <h4 className="font-semibold mb-4">Product</h4>
-                            <ul className="space-y-2 text-muted-foreground ">
-                                <li><Link href="#" className="hover:text-foreground transition">Features</Link></li>
-                                <li><Link href="#" className="hover:text-foreground transition">Pricing</Link></li>
-                                <li><Link href="#" className="hover:text-foreground transition">Security</Link></li>
+                            <ul className="space-y-2 text-muted-foreground text-sm">
+                                {["Features", "Pricing", "Security"].map(item => (
+                                    <li key={item}>
+                                        <Link href="#" className="hover:text-background transition-colors">
+                                            {item}
+                                        </Link>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
+
+                        {/* Company */}
                         <div>
                             <h4 className="font-semibold mb-4">Company</h4>
-                            <ul className="space-y-2 text-muted-foreground ">
-                                <li><Link href="#" className="hover:text-foreground transition">About</Link></li>
-                                <li><Link href="#" className="hover:text-foreground transition">Blog</Link></li>
-                                <li><Link href="#" className="hover:text-foreground transition">Contact</Link></li>
+                            <ul className="space-y-2 text-muted-foreground text-sm">
+                                {["About", "Blog", "Contact"].map(item => (
+                                    <li key={item}>
+                                        <Link href="#" className="hover:text-background transition-colors">
+                                            {item}
+                                        </Link>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
+
+                        {/* Legal */}
                         <div>
                             <h4 className="font-semibold mb-4">Legal</h4>
-                            <ul className="space-y-2 text-muted-foreground ">
-                                <li><Link href="#" className="hover:text-foreground transition">Privacy</Link></li>
-                                <li><Link href="#" className="hover:text-foreground transition">Terms</Link></li>
+                            <ul className="space-y-2 text-muted-foreground text-sm">
+                                {["Privacy", "Terms"].map(item => (
+                                    <li key={item}>
+                                        <Link href="#" className="hover:text-background transition-colors">
+                                            {item}
+                                        </Link>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
                     </div>
-                    <div className="border-t border-card/20 pt-8 flex justify-between items-center text-muted-foreground">
+
+                    {/* Bottom bar */}
+                    <div className="border-t border-card/20 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-muted-foreground text-sm">
+
                         <p>&copy; 2025 Aushadhi 360. All rights reserved.</p>
-                        <p>Built by <a href="https://nexyugtech.com/">NexYug Tech</a></p>
+
+                        <div className="flex items-center gap-2">
+                            <a
+                                href="https://nexyugtech.com/"
+                                target="_blank"
+                                className="flex items-center gap-2 hover:opacity-80 transition"
+                            >
+                                <Image
+                                    src="/nyt_logo.png"
+                                    alt="NexYug Tech Logo"
+                                    width={150}
+                                    height={84}
+                                    className="object-contain"
+                                />NEXYUG TECH <br />
+                                &lt;Let's code the task/&gt;
+
+                            </a>
+                        </div>
+
                     </div>
                 </div>
             </footer>
+
+
         </div>
     )
 }
