@@ -53,6 +53,10 @@ interface UserStats {
   totalMedicines: number
   totalCustomers: number
   revenue: number
+  expired?: number
+  expiring?: number
+  fresh?: number
+  statusImportNew?: number
 }
 
 export function AdminDashboard() {
@@ -403,6 +407,10 @@ export function AdminDashboard() {
           totalMedicines: 0,
           totalCustomers: 0,
           revenue: 0,
+          expired: 0,
+          expiring: 0,
+          fresh: 0,
+          statusImportNew: 0,
         })
       }
 
@@ -581,11 +589,11 @@ export function AdminDashboard() {
 
           {/* User Lookup Tab */}
           <TabsContent value="lookup" className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-2 md:p-6">
               <h2 className="text-xl font-semibold mb-4">User Lookup & Information</h2>
 
               {/* User Search */}
-              <div className="mb-6">
+              <div className="mb-2">
                 <Label htmlFor="search-user">Search User by Name or Email</Label>
                 <Input
                   id="search-user"
@@ -597,7 +605,7 @@ export function AdminDashboard() {
               </div>
 
               {/* Users List */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {users
                   .filter(
                     (u) =>
@@ -607,20 +615,21 @@ export function AdminDashboard() {
                   .map((user) => (
                     <Card
                       key={user.id}
-                      className={`p-4 cursor-pointer transition-all border-2 ${
-                        selectedUser?.id === user.id ? "border-primary bg-primary/5" : "border-border hover:border-primary"
+                      className={`p-2 cursor-pointer transition-all border-2 ${
+                        selectedUser?.id === user.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                       }`}
                       onClick={() => handleLookupUser(user)}
                     >
                       <h3 className="font-semibold">{user.storeName || user.name}</h3>
                       <p className="text-xs text-muted-foreground">{user.email}</p>
                       <p className="text-xs text-muted-foreground">{user.ownerName}</p>
-                      <Badge variant="outline" className="mt-2 text-xs">
+                      <Badge variant="outline" className="text-xs">
                         {user.approved ? "Active" : "Pending"}
                       </Badge>
                     </Card>
                   ))}
               </div>
+              <hr className="border-primary/20 border-2 rounded-full" />
 
               {/* Selected User Details */}
               {selectedUser && (
@@ -666,7 +675,7 @@ export function AdminDashboard() {
                   </Card>
 
                   {/* User Statistics */}
-                  <Card className="p-6 lg:col-span-2">
+                  <Card className="p-6 bg-background lg:col-span-2">
                     <h3 className="text-lg font-semibold mb-4">Business Statistics</h3>
                     {isLoadingStats ? (
                       <div className="flex items-center justify-center py-8">
@@ -674,22 +683,42 @@ export function AdminDashboard() {
                         <p className="ml-3 text-muted-foreground">Loading statistics...</p>
                       </div>
                     ) : userStats ? (
-                      <div className="grid grid-cols-3 gap-4 mb-6">
-                        <Card className="p-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                          <p className="text-xs text-muted-foreground font-medium">Total Medicines</p>
-                          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">{userStats.totalMedicines}</p>
-                          <p className="text-xs text-muted-foreground mt-2">in inventory</p>
-                        </Card>
-                        <Card className="p-4 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
-                          <p className="text-xs text-muted-foreground font-medium">Total Customers</p>
-                          <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{userStats.totalCustomers}</p>
-                          <p className="text-xs text-muted-foreground mt-2">registered</p>
-                        </Card>
-                        <Card className="p-4 bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800">
-                          <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>
-                          <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">₹{userStats.revenue.toLocaleString("en-IN")}</p>
-                          <p className="text-xs text-muted-foreground mt-2">estimated</p>
-                        </Card>
+                      <div className="space-y-4">
+                        {/* Top Row: Main Stats */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Card className="p-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                            <p className="text-xs text-muted-foreground font-medium">Total Medicines</p>
+                            <p className="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{userStats.totalMedicines}</p>
+                          </Card>
+                          <Card className="p-4 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                            <p className="text-xs text-muted-foreground font-medium">Total Customers</p>
+                            <p className="text-2xl md:text-3xl font-bold text-green-600 dark:text-green-400 mt-1">{userStats.totalCustomers}</p>
+                          </Card>
+                          <Card className="p-4 bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800">
+                            <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>
+                            <p className="text-2xl md:text-3xl font-bold text-purple-600 dark:text-purple-400 mt-1">₹{userStats.revenue.toLocaleString("en-IN")}</p>
+                          </Card>
+                          <Card className="p-4 bg-orange-50 border-orange-200 dark:bg-orange-950 dark:border-orange-800">
+                            <p className="text-xs text-muted-foreground font-medium">New Imports</p>
+                            <p className="text-2xl md:text-3xl font-bold text-orange-600 dark:text-orange-400 mt-1">{userStats.statusImportNew || 0}</p>
+                          </Card>
+                        </div>
+
+                        {/* Expiry Status Breakdown */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <Card className="p-3 bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800">
+                            <p className="text-xs text-muted-foreground font-medium">Fresh Stock</p>
+                            <p className="text-xl md:text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{userStats.fresh || 0}</p>
+                          </Card>
+                          <Card className="p-3 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
+                            <p className="text-xs text-muted-foreground font-medium">Expiring Soon</p>
+                            <p className="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{userStats.expiring || 0}</p>
+                          </Card>
+                          <Card className="p-3 bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+                            <p className="text-xs text-muted-foreground font-medium">Expired</p>
+                            <p className="text-xl md:text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{userStats.expired || 0}</p>
+                          </Card>
+                        </div>
                       </div>
                     ) : (
                       <p className="text-muted-foreground text-center py-4">No statistics available</p>
@@ -704,7 +733,7 @@ export function AdminDashboard() {
 
                       {/* Add Document Form */}
                       <div className="bg-muted/50 p-4 rounded-lg mb-4 space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid md:grid-cols-3 gap-3">
                           <div>
                             <Label htmlFor="doc-name" className="text-xs font-medium">
                               Document Name *
@@ -758,11 +787,11 @@ export function AdminDashboard() {
 
                       {/* Documents List */}
                       {userDocuments.length > 0 ? (
-                        <div className="space-y-1 space-x-4 grid grid-cols-3 max-h-100 overflow-y-auto">
+                        <div className="md:space-y-1 md:space-x-4 grid md:grid-cols-3 max-h-100 overflow-y-auto">
                           {userDocuments.map((doc) => (
                             <Card key={doc._id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <FileText className="h-10 w-10 text-primary/50 flex-shrink-0" />
+                                <FileText className="h-20 w-20 md:h-10 md:w-10 text-primary/50 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{doc.documentName}</p>
                                   <p className="text-xs text-muted-foreground">{doc.documentType}</p>
@@ -807,6 +836,7 @@ export function AdminDashboard() {
                   </Card>
                 </div>
               )}
+
 
               {!selectedUser && (
                 <div className="text-center py-8 text-muted-foreground">
