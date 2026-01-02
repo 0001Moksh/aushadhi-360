@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Mail, Trash2, Shield, CheckCircle, XCircle, AlertCircle, UserCheck, Bell } from "lucide-react"
+import { UserPlus, Mail, Trash2, Shield, CheckCircle, XCircle, AlertCircle, UserCheck, Bell, FileText, Link as LinkIcon, Plus, Download } from "lucide-react"
 
 interface User {
   id: string | number
@@ -24,6 +24,9 @@ interface User {
   lastLogin?: string | null
   groqKeyImport?: string
   groqKeyAssist?: string
+  totalMedicines?: number
+  totalCustomers?: number
+  revenue?: number
 }
 
 interface RegistrationRequest {
@@ -37,12 +40,40 @@ interface RegistrationRequest {
   createdAt: string
 }
 
+interface UserDocument {
+  _id?: string
+  userId: string | number
+  documentName: string
+  documentType: string
+  driveUrl: string
+  uploadedAt?: string
+}
+
+interface UserStats {
+  totalMedicines: number
+  totalCustomers: number
+  revenue: number
+}
+
 export function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([])
   const [requests, setRequests] = useState<RegistrationRequest[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
   const [keyDrafts, setKeyDrafts] = useState<Record<string | number, { importKey: string; assistKey: string }>>({})
+
+  // User Lookup & Documents States
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [userDocuments, setUserDocuments] = useState<UserDocument[]>([])
+  const [isLoadingStats, setIsLoadingStats] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Document form states
+  const [newDocumentName, setNewDocumentName] = useState("")
+  const [newDocumentType, setNewDocumentType] = useState("")
+  const [newDocumentUrl, setNewDocumentUrl] = useState("")
+  const [isAddingDocument, setIsAddingDocument] = useState(false)
 
   const [newEmail, setNewEmail] = useState("")
   const [newName, setNewName] = useState("")
@@ -350,6 +381,127 @@ export function AdminDashboard() {
     }
   }
 
+  // User Lookup Functions
+  const handleLookupUser = async (user: User) => {
+    setSelectedUser(user)
+    setIsLoadingStats(true)
+    setUserDocuments([])
+    setUserStats(null)
+
+    console.log(`Admin: Looking up user ${user.id} (${user.email})`)
+
+    try {
+      // Load user statistics from actual medicines data
+      const statsResponse = await fetch(`/api/admin/users/${user.id}/stats`)
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setUserStats(statsData.stats)
+      } else {
+        console.error(`Failed to load stats for user ${user.id}`)
+        // Fallback if endpoint fails
+        setUserStats({
+          totalMedicines: 0,
+          totalCustomers: 0,
+          revenue: 0,
+        })
+      }
+
+      // Load user documents
+      const docResponse = await fetch(`/api/admin/users/${user.id}/documents`)
+      if (docResponse.ok) {
+        const docData = await docResponse.json()
+        console.log(`Admin: Loaded ${docData.documents?.length || 0} documents for user ${user.id}`)
+        setUserDocuments(docData.documents || [])
+      } else {
+        console.error(`Failed to load documents for user ${user.id}`)
+        setUserDocuments([])
+      }
+    } catch (err) {
+      console.error("Failed to load user information:", err)
+      setMessage({ type: "error", text: "Failed to load user information" })
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
+
+  const handleAddDocument = async () => {
+    if (!selectedUser || !newDocumentName || !newDocumentType || !newDocumentUrl) {
+      setMessage({ type: "error", text: "Please fill all document fields" })
+      return
+    }
+
+    setIsAddingDocument(true)
+
+    console.log(`Admin: Adding document for user ${selectedUser.id}`)
+
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentName: newDocumentName,
+          documentType: newDocumentType,
+          driveUrl: newDocumentUrl,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("Failed to add document:", errorData)
+        setMessage({ type: "error", text: "Failed to add document" })
+        setIsAddingDocument(false)
+        return
+      }
+
+      const data = await response.json()
+      const newDoc: UserDocument = {
+        _id: data.document?._id,
+        userId: selectedUser.id,
+        documentName: newDocumentName,
+        documentType: newDocumentType,
+        driveUrl: newDocumentUrl,
+        uploadedAt: new Date().toISOString(),
+      }
+
+      console.log(`Admin: Document added successfully for user ${selectedUser.id}`)
+      setUserDocuments([...userDocuments, newDoc])
+      setMessage({ type: "success", text: "Document added successfully!" })
+
+      // Reset form
+      setNewDocumentName("")
+      setNewDocumentType("")
+      setNewDocumentUrl("")
+
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err) {
+      console.error("Error adding document:", err)
+      setMessage({ type: "error", text: "Failed to add document" })
+    } finally {
+      setIsAddingDocument(false)
+    }
+  }
+
+  const handleDeleteDocument = async (docId: string | undefined) => {
+    if (!selectedUser || !docId) return
+
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/documents/${docId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        setMessage({ type: "error", text: "Failed to delete document" })
+        return
+      }
+
+      setUserDocuments(userDocuments.filter((d) => d._id !== docId))
+      setMessage({ type: "success", text: "Document deleted successfully!" })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err) {
+      setMessage({ type: "error", text: "Failed to delete document" })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background p-3 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -387,10 +539,8 @@ export function AdminDashboard() {
           </Card>
           <Card className="p-6">
             <p className="text-sm text-muted-foreground">Pending Requests</p>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-lg px-3 py-1">
+            <div className="text-3xl font-bold flex items-center gap-2 mt-2">
                 {requests.length}
-              </Badge>
               {requests.length > 0 && <Bell className="h-5 w-5 text-warning animate-pulse" />}
             </div>
           </Card>
@@ -410,6 +560,10 @@ export function AdminDashboard() {
               <UserCheck className="mr-2 h-4 w-4" />
               Manage Users
             </TabsTrigger>
+            <TabsTrigger value="lookup">
+              <UserCheck className="mr-2 h-4 w-4" />
+              User Lookup
+            </TabsTrigger>
             <TabsTrigger value="requests">
               <Bell className="mr-2 h-4 w-4" />
               Registration Requests
@@ -425,7 +579,242 @@ export function AdminDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Registration Requests Tab */}
+          {/* User Lookup Tab */}
+          <TabsContent value="lookup" className="space-y-4">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">User Lookup & Information</h2>
+
+              {/* User Search */}
+              <div className="mb-6">
+                <Label htmlFor="search-user">Search User by Name or Email</Label>
+                <Input
+                  id="search-user"
+                  placeholder="Enter store name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mt-2"
+                />
+              </div>
+
+              {/* Users List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {users
+                  .filter(
+                    (u) =>
+                      u.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((user) => (
+                    <Card
+                      key={user.id}
+                      className={`p-4 cursor-pointer transition-all border-2 ${
+                        selectedUser?.id === user.id ? "border-primary bg-primary/5" : "border-border hover:border-primary"
+                      }`}
+                      onClick={() => handleLookupUser(user)}
+                    >
+                      <h3 className="font-semibold">{user.storeName || user.name}</h3>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">{user.ownerName}</p>
+                      <Badge variant="outline" className="mt-2 text-xs">
+                        {user.approved ? "Active" : "Pending"}
+                      </Badge>
+                    </Card>
+                  ))}
+              </div>
+
+              {/* Selected User Details */}
+              {selectedUser && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* User Information */}
+                  <Card className="p-6 lg:col-span-1">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <UserCheck className="h-5 w-5" />
+                      User Info
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Store Name</p>
+                        <p className="font-medium">{selectedUser.storeName || selectedUser.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Owner Name</p>
+                        <p className="font-medium">{selectedUser.ownerName || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Email</p>
+                        <p className="font-medium">{selectedUser.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Phone</p>
+                        <p className="font-medium">{selectedUser.phone || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Address</p>
+                        <p className="font-medium">{selectedUser.address || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge variant="outline" className="mt-1">
+                          {selectedUser.approved ? (
+                            <span className="text-success">Active</span>
+                          ) : (
+                            <span className="text-warning">Pending</span>
+                          )}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* User Statistics */}
+                  <Card className="p-6 lg:col-span-2">
+                    <h3 className="text-lg font-semibold mb-4">Business Statistics</h3>
+                    {isLoadingStats ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                        <p className="ml-3 text-muted-foreground">Loading statistics...</p>
+                      </div>
+                    ) : userStats ? (
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <Card className="p-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                          <p className="text-xs text-muted-foreground font-medium">Total Medicines</p>
+                          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">{userStats.totalMedicines}</p>
+                          <p className="text-xs text-muted-foreground mt-2">in inventory</p>
+                        </Card>
+                        <Card className="p-4 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                          <p className="text-xs text-muted-foreground font-medium">Total Customers</p>
+                          <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{userStats.totalCustomers}</p>
+                          <p className="text-xs text-muted-foreground mt-2">registered</p>
+                        </Card>
+                        <Card className="p-4 bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800">
+                          <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>
+                          <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">₹{userStats.revenue.toLocaleString("en-IN")}</p>
+                          <p className="text-xs text-muted-foreground mt-2">estimated</p>
+                        </Card>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-center py-4">No statistics available</p>
+                    )}
+
+                    {/* Documents Section */}
+                    <div className="pt-6 border-t">
+                      <h4 className="font-semibold mb-4 flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        User Documents
+                      </h4>
+
+                      {/* Add Document Form */}
+                      <div className="bg-muted/50 p-4 rounded-lg mb-4 space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label htmlFor="doc-name" className="text-xs font-medium">
+                              Document Name *
+                            </Label>
+                            <Input
+                              id="doc-name"
+                              placeholder="e.g., Aadhaar Card"
+                              value={newDocumentName}
+                              onChange={(e) => setNewDocumentName(e.target.value)}
+                              disabled={isAddingDocument}
+                              className="text-xs mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="doc-type" className="text-xs font-medium">
+                              Document Type *
+                            </Label>
+                            <Input
+                              id="doc-type"
+                              placeholder="e.g., ID, License"
+                              value={newDocumentType}
+                              onChange={(e) => setNewDocumentType(e.target.value)}
+                              disabled={isAddingDocument}
+                              className="text-xs mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="doc-url" className="text-xs font-medium">
+                              Google Drive URL *
+                            </Label>
+                            <Input
+                              id="doc-url"
+                              placeholder="https://drive.google.com/..."
+                              value={newDocumentUrl}
+                              onChange={(e) => setNewDocumentUrl(e.target.value)}
+                              disabled={isAddingDocument}
+                              className="text-xs mt-1"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleAddDocument}
+                          disabled={isAddingDocument}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {isAddingDocument ? "Adding..." : "Add Document"}
+                        </Button>
+                      </div>
+
+                      {/* Documents List */}
+                      {userDocuments.length > 0 ? (
+                        <div className="space-y-1 space-x-4 grid grid-cols-3 max-h-100 overflow-y-auto">
+                          {userDocuments.map((doc) => (
+                            <Card key={doc._id} className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <FileText className="h-10 w-10 text-primary/50 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{doc.documentName}</p>
+                                  <p className="text-xs text-muted-foreground">{doc.documentType}</p>
+                                  {doc.uploadedAt && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {new Date(doc.uploadedAt).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2 flex-shrink-0 ml-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(doc.driveUrl, "_blank")}
+                                  title="Open Document"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <LinkIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                                  onClick={() => handleDeleteDocument(doc._id)}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 border border-dashed rounded-lg bg-muted/20">
+                          <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                          <p className="text-xs text-muted-foreground">No documents added yet</p>
+                          <p className="text-xs text-muted-foreground mt-1">Add documents using the form above</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {!selectedUser && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Select a user from the list above to view details and manage documents</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
           <TabsContent value="requests" className="space-y-4">
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Pending Registration Requests</h2>
@@ -653,12 +1042,12 @@ export function AdminDashboard() {
                           <TableHead>Store Name</TableHead>
                           <TableHead>Owner</TableHead>
                           <TableHead>Email</TableHead>
-                          <TableHead>Role</TableHead>
+                          {/* <TableHead>Role</TableHead> */}
                           <TableHead>Created</TableHead>
                           <TableHead>Last Login</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Groq Keys (Import / Assist)</TableHead>
+                          <TableHead>LLM API (Import/Assist)</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -668,7 +1057,7 @@ export function AdminDashboard() {
                             <TableCell className="font-medium">{user.storeName || user.name}</TableCell>
                             <TableCell>{user.ownerName || "-"}</TableCell>
                             <TableCell className="text-sm">{user.email}</TableCell>
-                            <TableCell className="text-sm capitalize">{user.role || "user"}</TableCell>
+                            {/* <TableCell className="text-sm capitalize">{user.role || "user"}</TableCell> */}
                             <TableCell className="text-xs text-muted-foreground">
                               {user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}
                             </TableCell>
@@ -690,24 +1079,25 @@ export function AdminDashboard() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="space-y-2">
+                              <div className="w-15 space-x-3">
                                 <Input
                                   placeholder="Import API Key"
                                   value={keyDrafts[user.id]?.importKey ?? ""}
                                   onChange={(e) => handleGroqKeyChange(user.id, "importKey", e.target.value)}
                                 />
                                 <Input
+                                  className="mr-6"
                                   placeholder="Assist API Key"
                                   value={keyDrafts[user.id]?.assistKey ?? ""}
                                   onChange={(e) => handleGroqKeyChange(user.id, "assistKey", e.target.value)}
                                 />
-                                <Button size="sm" variant="outline" onClick={() => handleSaveGroqKeys(user)}>
+                                <Button size="sm" onClick={() => handleSaveGroqKeys(user)}>
                                   Save Keys
                                 </Button>
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex gap-2">
+                              <div className="flex ml-15 px-10 gap-2">
                                 {/* No manual approve; user confirms via email */}
                                 <Button
                                   size="sm"
