@@ -22,6 +22,8 @@ interface User {
   role?: string
   createdAt?: string
   lastLogin?: string | null
+  groqKeyImport?: string
+  groqKeyAssist?: string
 }
 
 interface RegistrationRequest {
@@ -40,6 +42,7 @@ export function AdminDashboard() {
   const [requests, setRequests] = useState<RegistrationRequest[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
+  const [keyDrafts, setKeyDrafts] = useState<Record<string | number, { importKey: string; assistKey: string }>>({})
 
   const [newEmail, setNewEmail] = useState("")
   const [newName, setNewName] = useState("")
@@ -74,7 +77,18 @@ export function AdminDashboard() {
             role: u.role,
             createdAt: u.createdAt,
             lastLogin: u.lastLogin,
+            groqKeyImport: u.groqKeyImport || "",
+            groqKeyAssist: u.groqKeyAssist || "",
           }))
+        )
+        setKeyDrafts(
+          data.users.reduce((acc: any, u: any) => {
+            acc[u._id] = {
+              importKey: u.groqKeyImport || "",
+              assistKey: u.groqKeyAssist || "",
+            }
+            return acc
+          }, {})
         )
       }
     } catch (err) {
@@ -222,9 +236,12 @@ export function AdminDashboard() {
         phone: newPhone,
         address: newAddress,
         approved: false,
+        groqKeyImport: "",
+        groqKeyAssist: "",
       }
 
       setUsers([...users, newUser])
+      setKeyDrafts((prev) => ({ ...prev, [newUser.id]: { importKey: "", assistKey: "" } }))
       setMessage({ type: "success", text: `User "${newName}" created successfully! Pending admin approval.` })
 
       // Reset form
@@ -283,6 +300,53 @@ export function AdminDashboard() {
       setTimeout(() => setMessage(null), 3000)
     } catch (err) {
       setMessage({ type: "error", text: "Failed to approve user" })
+    }
+  }
+
+  const handleGroqKeyChange = (
+    userId: string | number,
+    field: "importKey" | "assistKey",
+    value: string
+  ) => {
+    setKeyDrafts((prev) => ({
+      ...prev,
+      [userId]: { ...prev[userId], [field]: value },
+    }))
+  }
+
+  const handleSaveGroqKeys = async (user: User) => {
+    const draft = keyDrafts[user.id] || { importKey: "", assistKey: "" }
+
+    try {
+      const response = await fetch("/api/admin/users/keys", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          groqKeyImport: draft.importKey.trim(),
+          groqKeyAssist: draft.assistKey.trim(),
+        }),
+      })
+
+      if (!response.ok) {
+        setMessage({ type: "error", text: "Failed to save Groq keys" })
+        setTimeout(() => setMessage(null), 3000)
+        return
+      }
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? { ...u, groqKeyImport: draft.importKey.trim(), groqKeyAssist: draft.assistKey.trim() }
+            : u
+        )
+      )
+
+      setMessage({ type: "success", text: "Groq keys updated" })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err) {
+      setMessage({ type: "error", text: "Failed to save Groq keys" })
+      setTimeout(() => setMessage(null), 3000)
     }
   }
 
@@ -594,6 +658,7 @@ export function AdminDashboard() {
                           <TableHead>Last Login</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Groq Keys (Import / Assist)</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -623,6 +688,23 @@ export function AdminDashboard() {
                                   Pending Confirmation
                                 </Badge>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <Input
+                                  placeholder="Import API Key"
+                                  value={keyDrafts[user.id]?.importKey ?? ""}
+                                  onChange={(e) => handleGroqKeyChange(user.id, "importKey", e.target.value)}
+                                />
+                                <Input
+                                  placeholder="Assist API Key"
+                                  value={keyDrafts[user.id]?.assistKey ?? ""}
+                                  onChange={(e) => handleGroqKeyChange(user.id, "assistKey", e.target.value)}
+                                />
+                                <Button size="sm" variant="outline" onClick={() => handleSaveGroqKeys(user)}>
+                                  Save Keys
+                                </Button>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">

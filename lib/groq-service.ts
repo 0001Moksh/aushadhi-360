@@ -27,7 +27,8 @@ export async function callGroqAPI(
   prompt: string,
   imageBase64?: string,
   mimeType: string = "image/jpeg",
-  model: string = "meta-llama/llama-4-scout-17b-16e-instruct"
+  model: string = "meta-llama/llama-4-scout-17b-16e-instruct",
+  apiKeyOverride?: string
 ): Promise<string> {
   try {
     const content: GroqContentBlock[] = [
@@ -47,7 +48,11 @@ export async function callGroqAPI(
       })
     }
 
-    const message = await groqClient.chat.completions.create({
+    const client = apiKeyOverride
+      ? new Groq({ apiKey: apiKeyOverride })
+      : groqClient
+
+    const message = await client.chat.completions.create({
       model,
       max_tokens: 2048,
       temperature: 0.2,
@@ -95,7 +100,8 @@ export async function callGroqAPI(
  */
 export async function extractMedicineDataFromImage(
   imageBase64: string,
-  mimeType: string = "image/jpeg"
+  mimeType: string = "image/jpeg",
+  apiKeyOverride?: string
 ): Promise<any[]> {
   const prompt = `You are a vision OCR agent. Inspect the image carefully.
 
@@ -123,7 +129,7 @@ Rules:
 - If any required columns are missing or unreadable, return the INVALID_IMAGE JSON above.`
 
   try {
-    const response = await callGroqAPI(prompt, imageBase64, mimeType)
+    const response = await callGroqAPI(prompt, imageBase64, mimeType, "meta-llama/llama-4-scout-17b-16e-instruct", apiKeyOverride)
 
     // Check if Groq marked this as invalid
     if (response.includes('"error"') && response.includes("INVALID_IMAGE")) {

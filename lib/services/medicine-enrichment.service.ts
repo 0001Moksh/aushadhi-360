@@ -188,7 +188,7 @@ export class MedicineEnrichmentService {
   /**
    * LAYER 1: Collect raw data about medicine using Groq
    */
-  private async collectRawData(medicineName: string): Promise<string> {
+  private async collectRawData(medicineName: string, apiKeyOverride?: string): Promise<string> {
     const prompt = `Medicine Name: ${medicineName}
 
 Please provide comprehensive information about this medicine:
@@ -208,7 +208,7 @@ Details to collect:
 Please provide detailed information for all these fields.`
 
     try {
-      const text = await callGroqAPI(prompt)
+      const text = await callGroqAPI(prompt, undefined, undefined, undefined, apiKeyOverride)
       return text
     } catch (error) {
       console.error("[Layer1] Raw data collection failed:", error)
@@ -222,7 +222,8 @@ Please provide detailed information for all these fields.`
   private async extractStructuredData(
     batchNo: string,
     medicineName: string,
-    rawData: string
+    rawData: string,
+    apiKeyOverride?: string
   ): Promise<EnrichedMedicineData> {
     const prompt = `You are a data extraction assistant. Provide ONLY valid JSON output, no Markdown, no extra text, no explanations.
 
@@ -271,7 +272,7 @@ Rules:
 - Output ONLY the JSON, no markdown code blocks, no extra text.`
 
     try {
-      let text = await callGroqAPI(prompt)
+      let text = await callGroqAPI(prompt, undefined, undefined, undefined, apiKeyOverride)
 
       // Clean up response - remove markdown code blocks if present
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
@@ -318,19 +319,20 @@ Rules:
    */
   async enrichMedicine(
     batchNo: string,
-    medicineName: string
+    medicineName: string,
+    apiKeyOverride?: string
   ): Promise<EnrichedMedicineData> {
     console.log(`[Enrichment] Starting enrichment for: ${medicineName} (Batch: ${batchNo})`)
 
     try {
       // LAYER 1: Collect raw data
       console.log(`[Layer1] Collecting raw data for ${medicineName}...`)
-      const rawData = await this.collectRawData(medicineName)
+      const rawData = await this.collectRawData(medicineName, apiKeyOverride)
       console.log(`[Layer1] Raw data collected successfully`)
 
       // LAYER 2: Extract structured data
       console.log(`[Layer2] Extracting structured data for ${medicineName}...`)
-      const enrichedData = await this.extractStructuredData(batchNo, medicineName, rawData)
+      const enrichedData = await this.extractStructuredData(batchNo, medicineName, rawData, apiKeyOverride)
       console.log(`[Layer2] Structured data extracted successfully`)
 
       return enrichedData
@@ -344,14 +346,15 @@ Rules:
    * Batch enrichment for multiple medicines
    */
   async enrichMedicinesBatch(
-    medicines: Array<{ batchNo: string; name: string }>
+    medicines: Array<{ batchNo: string; name: string }>,
+    apiKeyOverride?: string
   ): Promise<EnrichedMedicineData[]> {
     const results: EnrichedMedicineData[] = []
     const errors: Array<{ medicine: string; error: string }> = []
 
     for (const medicine of medicines) {
       try {
-        const enrichedData = await this.enrichMedicine(medicine.batchNo, medicine.name)
+        const enrichedData = await this.enrichMedicine(medicine.batchNo, medicine.name, apiKeyOverride)
         results.push(enrichedData)
 
         // Add delay to avoid rate limiting

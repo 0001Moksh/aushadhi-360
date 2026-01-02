@@ -534,7 +534,7 @@ export function ImportMedicinePage() {
               )}
 
               {/* Live Logs Panel */}
-              {logs.length > 0 && (
+              {/* {logs.length > 0 && (
                 <Card className="mt-6 p-4 text-left">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold">Import Logs</h4>
@@ -549,7 +549,7 @@ export function ImportMedicinePage() {
                     ))}
                   </div>
                 </Card>
-              )}
+              )} */}
 
               {isReviewing && extractedItems.length > 0 && (
                 <div className="mt-6 space-y-3 text-left">

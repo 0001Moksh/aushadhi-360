@@ -11,7 +11,7 @@ async function getDatabase() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, name, ownerName, phone, address, password } = await request.json()
+    const { email, name, ownerName, phone, address, password, groqKeyImport, groqKeyAssist } = await request.json()
 
     // Validation
     if (!email || !name || !ownerName || !phone || !password) {
@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
       password, // In production, hash this!
       role: "user",
       approved: false,
+      groqKeyImport: groqKeyImport || "",
+      groqKeyAssist: groqKeyAssist || "",
       confirmationToken,
       confirmationTokenExpires: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24h
       createdAt: new Date(),
@@ -125,6 +127,8 @@ export async function GET(request: NextRequest) {
       role: u.role || "user",
       createdAt: u.createdAt,
       lastLogin: u.lastLogin,
+      groqKeyImport: u.groqKeyImport || "",
+      groqKeyAssist: u.groqKeyAssist || "",
     }))
 
     return NextResponse.json({ users: formattedUsers }, { status: 200 })

@@ -39,6 +39,13 @@ async function getDatabase() {
   return { client, db: client.db("aushadhi360") }
 }
 
+async function getUserByEmail(email: string) {
+  const { client, db } = await getDatabase()
+  const user = await db.collection("users").findOne({ email })
+  await client.close()
+  return user
+}
+
 // LAYER 1: File & Content Validation (Basic - strict checks skipped for now)
 async function validateInput(file: File, inputType: string): Promise<ValidationResult> {
   try {
@@ -93,7 +100,7 @@ async function validateInput(file: File, inputType: string): Promise<ValidationR
 }
 
 // LAYER 2: Document Extraction (Image/PDF → JSON or Excel/CSV → JSON)
-async function extractDocument(file: File, inputType: string): Promise<MedicineRecord[]> {
+async function extractDocument(file: File, inputType: string, groqApiKey?: string): Promise<MedicineRecord[]> {
   // For Excel/CSV files, use direct parsing
   if (inputType === "excel" || file.name.endsWith(".xlsx") || file.name.endsWith(".csv")) {
     try {
@@ -126,7 +133,7 @@ async function extractDocument(file: File, inputType: string): Promise<MedicineR
     console.log(`[OCR] Using Groq API...`)
 
     // Extract using Groq Vision
-    const text = await extractMedicineDataFromImage(base64, file.type)
+    const text = await extractMedicineDataFromImage(base64, file.type, groqApiKey)
 
     console.log(`[OCR] Raw response:`, typeof text)
 
@@ -198,7 +205,7 @@ async function matchAndUpdateRecords(
 }
 
 // LAYER 5 & 6: Medicine Enrichment (fail-fast via shared 2-layer service)
-async function enrichMedicineData(records: MedicineRecord[]): Promise<MedicineRecord[]> {
+async function enrichMedicineData(records: MedicineRecord[], groqKeyAssist?: string): Promise<MedicineRecord[]> {
   console.log(`[Enrichment] Starting enrichment for ${records.length} new records...`)
 
   let service: any
@@ -218,7 +225,8 @@ async function enrichMedicineData(records: MedicineRecord[]): Promise<MedicineRe
 
       const data: EnrichedMedicineData = await service.enrichMedicine(
         record.Batch_ID,
-        record["Name of Medicine"]
+        record["Name of Medicine"],
+        groqKeyAssist
       )
 
       console.log(`[Enrichment] ✓ Successfully enriched: ${record["Name of Medicine"]}`)
@@ -312,6 +320,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File and email required" }, { status: 400 })
     }
 
+    // Fetch user to retrieve per-user Groq keys
+    const userDoc = await getUserByEmail(userEmail)
+    if (!userDoc) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    const groqKeyImport = userDoc.groqKeyImport || process.env.GROQ_API_KEY
+    const groqKeyAssist = userDoc.groqKeyAssist || process.env.GROQ_API_KEY
+
     // LAYER 1: Validation
     console.log("[Pipeline] Layer 1: Validating input...")
     const validation = await validateInput(file, inputType)
@@ -335,7 +352,7 @@ export async function POST(request: NextRequest) {
     
     let extractedRecords
     try {
-      extractedRecords = await extractDocument(file, inputType)
+      extractedRecords = await extractDocument(file, inputType, groqKeyImport)
     } catch (error) {
       // If extraction throws INVALID_IMAGE error, stop immediately and return detailed error
       if (error instanceof Error && error.message.includes("INVALID_IMAGE")) {
@@ -394,7 +411,7 @@ export async function POST(request: NextRequest) {
     // LAYER 5 & 6: Enrich new records (fail-fast)
     let enrichedNewRecords: MedicineRecord[] = []
     try {
-      enrichedNewRecords = await enrichMedicineData(newRecords)
+      enrichedNewRecords = await enrichMedicineData(newRecords, groqKeyAssist)
     } catch (enrichError) {
       const message = enrichError instanceof Error ? enrichError.message : String(enrichError)
       console.error(`[Pipeline] Enrichment aborted:`, message)
