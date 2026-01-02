@@ -12,6 +12,8 @@ interface MedicineRecord {
   "Side Effects"?: string
   Instructions?: string
   "Description in Hinglish"?: string
+  Manufacturer?: string
+  Expiry?: string
   Price_INR: number
   Total_Quantity: number
 }

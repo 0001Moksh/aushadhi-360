@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { AlertTriangle, Clock, TrendingUp, Download, Loader2, Settings } from "lucide-react"
+import { AlertTriangle, Clock, TrendingUp, Download, Loader2, Settings, Calendar } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { normalizeExpiryDate } from "@/lib/date-parser"
 
@@ -59,13 +59,14 @@ export function AlertsPage() {
             lowStockMin: parsed.lowStockMin ?? 50,
             expiryValue: parsed.expiryValue ?? (parsed.expiryDays ?? 365),
             expiryUnit: parsed.expiryUnit ?? 'days',
+            expiringDays: parsed.expiringDays ?? 90,
           }
         } catch {
-          return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days' }
+          return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days', expiringDays: 90 }
         }
       }
     }
-    return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days' }
+    return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days', expiringDays: 90 }
   })
   const [topCount, setTopCount] = useState<number>(20) // Default to top 20
   const [filteredData, setFilteredData] = useState({
@@ -222,17 +223,18 @@ export function AlertsPage() {
     // Low Stock
     const lowStock = data.medicines.filter((m) => m.quantity < thresholds.lowStockMin)
 
-    const expiryThresholdDays = toDays(thresholds.expiryValue, thresholds.expiryUnit)
-    const expiringSoon = data.medicines
-      .map((m) => {
-        if (!m.expiryDate) return null
-        const diff = daysUntil(m.expiryDate)
-        if (diff === null) return null
-        return { medicine: m, diff }
-      })
-      .filter((entry): entry is { medicine: Medicine; diff: number } => !!entry && entry.diff <= expiryThresholdDays)
-      .sort((a, b) => a.diff - b.diff)
-      .map((entry) => entry.medicine)
+    // Expiring Soon
+    const expiringSoon = data.medicines.filter((m) => {
+      if (!m.expiryDate) return false
+      const diff = daysUntil(m.expiryDate)
+      return diff !== null && diff >= 0 && diff <= thresholds.expiringDays
+    }).sort((a, b) => {
+      const daysA = daysUntil(a.expiryDate || "")
+      const daysB = daysUntil(b.expiryDate || "")
+      if (daysA === null) return 1
+      if (daysB === null) return -1
+      return daysA - daysB
+    })
 
     // Top Selling: Sort by units sold desc, then revenue desc, then limit to top N
     const topSelling = [...data.topSelling]
@@ -295,18 +297,6 @@ export function AlertsPage() {
       const headers = ["Name", "Batch", "Units Sold", "Revenue", "Current Stock", "Price", "Category"]
       const rows = filteredData.topSelling.map(m => [m.name, m.batch, m.totalUnitsSold, m.totalRevenue.toFixed(2), m.currentStock, m.price, m.category || ""])
       downloadCSV(headers, rows, `top_selling_report_${dateStr}.csv`)
-    } else if (activeTab === "expiring-soon") {
-      const headers = ["Name", "Batch", "Quantity", "Expiry Date", "Days Remaining", "Category", "Form"]
-      const rows = filteredData.expiringSoon.map(m => [
-        m.name,
-        m.batch,
-        m.quantity,
-        m.expiryDate ? formatDate(m.expiryDate) : "",
-        m.expiryDate ? getDaysRemaining(m.expiryDate) : "",
-        m.category || "",
-        m.form || "",
-      ])
-      downloadCSV(headers, rows, `expiring_soon_report_${dateStr}.csv`)
     }
   }
 
@@ -338,8 +328,8 @@ export function AlertsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="low-stock">Low Stock ({filteredData.lowStock.length})</TabsTrigger>
-          <TabsTrigger value="top-selling">Top Selling ({filteredData.topSelling.length})</TabsTrigger>
           <TabsTrigger value="expiring-soon">Expiring Soon ({filteredData.expiringSoon.length})</TabsTrigger>
+          <TabsTrigger value="top-selling">Top Selling ({filteredData.topSelling.length})</TabsTrigger>
         </TabsList>
 
         {/* Low Stock Tab */}
@@ -391,7 +381,81 @@ export function AlertsPage() {
           )}
         </TabsContent>
 
-        {/* Top Selling Tab - Fully Enhanced */}
+        {/* Expiring Soon Tab */}
+        <TabsContent value="expiring-soon" className="space-y-4">
+          <Card className="p-4 bg-muted/50">
+            <div className="flex items-center gap-4">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1">
+                <Label htmlFor="expiringDays" className="text-sm font-medium">
+                  Expiring Soon Threshold
+                </Label>
+                <p className="text-xs text-muted-foreground mb-2">Show medicines expiring within this many days</p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="expiringDays"
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={thresholds.expiringDays}
+                    onChange={(e) => setThresholds((prev) => ({ ...prev, expiringDays: parseInt(e.target.value) || 90 }))}
+                    className="w-32"
+                  />
+                  <span className="text-sm text-muted-foreground">days</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {filteredData.expiringSoon.length > 0 ? (
+            filteredData.expiringSoon.map((medicine) => {
+              const daysLeft = daysUntil(medicine.expiryDate || "")
+              const isExpired = daysLeft !== null && daysLeft < 0
+              const isUrgent = daysLeft !== null && daysLeft <= 7
+              const isWarning = daysLeft !== null && daysLeft <= 30
+
+              return (
+                <Card key={medicine.id} className={`p-4 ${
+                  isExpired ? 'border-destructive/50 bg-destructive/5' :
+                  isUrgent ? 'border-warning/50 bg-warning/5' :
+                  isWarning ? 'border-yellow-500/30 bg-yellow-500/5' : ''
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <Clock className={`h-5 w-5 flex-shrink-0 ${
+                      isExpired ? 'text-destructive' :
+                      isUrgent ? 'text-warning' :
+                      isWarning ? 'text-yellow-500' : 'text-muted-foreground'
+                    }`} />
+                    <div className="flex-1">
+                      <p className="font-medium">{medicine.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Batch: {medicine.batch} | Quantity: {medicine.quantity}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={`${
+                        isExpired ? 'bg-destructive/20 text-destructive border-destructive' :
+                        isUrgent ? 'bg-warning/20 text-warning border-warning' :
+                        isWarning ? 'bg-yellow-500/20 text-yellow-600 border-yellow-500' :
+                        'bg-green-500/20 text-green-600 border-green-500'
+                      } border`}>
+                        {isExpired ? 'Expired' :
+                         daysLeft === 0 ? 'Today' :
+                         daysLeft === 1 ? 'Tomorrow' :
+                         `${daysLeft} days`}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">{formatDate(medicine.expiryDate || "")}</p>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No medicines expiring within {thresholds.expiringDays} days
+            </div>
+          )}
+        </TabsContent>
         <TabsContent value="top-selling" className="space-y-4">
           <Card className="p-4 bg-muted/50">
             <div className="flex items-center gap-4">
@@ -452,75 +516,6 @@ export function AlertsPage() {
           )}
         </TabsContent>
 
-        {/* Expiring Soon Tab */}
-        <TabsContent value="expiring-soon" className="space-y-4">
-          <Card className="p-4 bg-muted/50">
-            <div className="flex items-center gap-4">
-              <Settings className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="expiryValue" className="text-sm font-medium">Expiry Window</Label>
-                    <p className="text-xs text-muted-foreground mb-2">Show medicines expiring within this window</p>
-                    <Input
-                      id="expiryValue"
-                      type="number"
-                      min="1"
-                      value={thresholds.expiryValue}
-                      onChange={(e) => setThresholds((prev: typeof thresholds) => ({ ...prev, expiryValue: parseInt(e.target.value) || 1 }))}
-                      className="w-32"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Time Unit</Label>
-                    <p className="text-xs text-muted-foreground mb-2">Choose the unit for the expiry window</p>
-                    <Select value={thresholds.expiryUnit} onValueChange={(val) => setThresholds((prev: typeof thresholds) => ({ ...prev, expiryUnit: val as 'days' | 'months' | 'years' }))}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="days">Days</SelectItem>
-                        <SelectItem value="months">Months</SelectItem>
-                        <SelectItem value="years">Years</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {filteredData.expiringSoon.length > 0 ? (
-            filteredData.expiringSoon.map((medicine) => {
-              const daysRemaining = medicine.expiryDate ? getDaysRemaining(medicine.expiryDate) : null
-              const isExpired = daysRemaining !== null && daysRemaining < 0
-
-              return (
-                <Card key={`${medicine.id}-expiry`} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Clock className={`h-5 w-5 flex-shrink-0 mt-1 ${isExpired ? 'text-destructive' : 'text-orange-500'}`} />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-semibold">{medicine.name}</p>
-                        <Badge variant={isExpired ? "destructive" : "secondary"}>
-                          {medicine.expiryDate ? (isExpired ? "Expired" : `${daysRemaining} days left`) : "No date"}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Batch: {medicine.batch} • Quantity: {medicine.quantity} • Expiry: {medicine.expiryDate ? formatDate(medicine.expiryDate) : "N/A"}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              )
-            })
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <Clock className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              No medicines are nearing expiry
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   )

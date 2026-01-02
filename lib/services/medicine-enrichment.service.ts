@@ -1,11 +1,11 @@
 /**
  * Medicine Enrichment Service - 2 Layer AI Enrichment System
- * 
- * Layer 1: Raw Data Collection using Gemini
- * Layer 2: Structured JSON Extraction from Raw Data
+ *
+ * Layer 1: Generate contextual details using Groq
+ * Layer 2: Extract structured JSON from AI response
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { callGroqAPI } from "@/lib/groq-service"
 
 export interface EnrichedMedicineData {
   Batch_ID: string
@@ -18,6 +18,8 @@ export interface EnrichedMedicineData {
   "Side Effects": string
   Instructions: string
   "Description in Hinglish": string
+  Manufacturer?: string
+  Expiry?: string
 }
 
 // Master category list
@@ -182,16 +184,9 @@ export const MEDICINE_FORMS_LIST = [
 ]
 
 export class MedicineEnrichmentService {
-  private genAI: GoogleGenerativeAI
-  private model: any
-
-  constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey)
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
-  }
 
   /**
-   * LAYER 1: Collect raw data about medicine using Gemini
+   * LAYER 1: Collect raw data about medicine using Groq
    */
   private async collectRawData(medicineName: string): Promise<string> {
     const prompt = `Medicine Name: ${medicineName}
@@ -213,10 +208,7 @@ Details to collect:
 Please provide detailed information for all these fields.`
 
     try {
-      const result = await this.model.generateContent(prompt)
-      const response = await result.response
-      const text = response.text()
-
+      const text = await callGroqAPI(prompt)
       return text
     } catch (error) {
       console.error("[Layer1] Raw data collection failed:", error)
@@ -279,9 +271,7 @@ Rules:
 - Output ONLY the JSON, no markdown code blocks, no extra text.`
 
     try {
-      const result = await this.model.generateContent(prompt)
-      const response = await result.response
-      let text = response.text()
+      let text = await callGroqAPI(prompt)
 
       // Clean up response - remove markdown code blocks if present
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
@@ -387,11 +377,11 @@ let enrichmentService: MedicineEnrichmentService | null = null
 
 export function getEnrichmentService(): MedicineEnrichmentService {
   if (!enrichmentService) {
-    const apiKey = process.env.GEMINI_API_KEY
+    const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY not found in environment variables")
+      throw new Error("GROQ_API_KEY not found in environment variables")
     }
-    enrichmentService = new MedicineEnrichmentService(apiKey)
+    enrichmentService = new MedicineEnrichmentService()
   }
   return enrichmentService
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { callGroqAPI } from "@/lib/groq-service"
 
-// Simple test endpoint to debug Gemini API calls
+// Simple test endpoint to debug Groq API calls
 export async function POST(request: NextRequest) {
   try {
     const { imageBase64, prompt } = await request.json()
@@ -12,60 +13,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const apiKey = process.env.GEMINI_DOCUMENT_EXTRACTION_API_KEY
-
-    console.log("[Test] Calling Gemini API...")
+    console.log("[Test] Calling Groq API...")
     console.log("[Test] Base64 length:", imageBase64.length)
     console.log("[Test] Prompt:", prompt.substring(0, 100))
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-                {
-                  inline_data: {
-                    mime_type: "image/jpeg",
-                    data: imageBase64,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    )
+    try {
+      const response = await callGroqAPI(prompt, imageBase64, "image/jpeg")
 
-    const data = await response.json()
+      console.log("[Test] API Response:", response.substring(0, 500))
 
-    console.log("[Test] API Response status:", response.status)
-    console.log("[Test] API Response:", JSON.stringify(data).substring(0, 500))
-
-    if (!response.ok) {
+      return NextResponse.json({
+        success: true,
+        rawResponse: response,
+        parsed: tryParseJson(response),
+      })
+    } catch (apiError) {
       return NextResponse.json(
         {
-          error: "Gemini API error",
-          status: response.status,
-          details: data,
+          error: "Groq API error",
+          details: apiError instanceof Error ? apiError.message : String(apiError),
         },
         { status: 500 }
       )
     }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
-
-    return NextResponse.json({
-      success: true,
-      rawResponse: text,
-      parsed: tryParseJson(text),
-    })
   } catch (error) {
     console.error("[Test] Error:", error)
     return NextResponse.json(

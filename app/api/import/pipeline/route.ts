@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { MongoClient } from "mongodb"
 import { getEnrichmentService } from "@/lib/services/medicine-enrichment.service"
 import type { EnrichedMedicineData } from "@/lib/services/medicine-enrichment.service"
+import { extractMedicineDataFromImage } from "@/lib/groq-service"
 
 const MONGODB_URI = process.env.DATABASE_URL || ""
 
@@ -25,6 +26,8 @@ interface MedicineRecord {
   "Side Effects"?: string
   Instructions?: string
   "Description in Hinglish"?: string
+  Manufacturer?: string
+  Expiry?: string
   Price_INR: number
   Total_Quantity: number
   status_import?: string
@@ -114,109 +117,30 @@ async function extractDocument(file: File, inputType: string): Promise<MedicineR
     }
   }
 
-  // For images/PDFs, use Gemini OCR
-  const apiKey = process.env.GEMINI_DOCUMENT_EXTRACTION_API_KEY
-
+// For images/PDFs, use Groq Vision
   try {
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString("base64")
 
     console.log(`[OCR] Extracting from ${file.name} (${file.size} bytes)...`)
-    console.log(`[OCR] API Key available: ${apiKey ? "YES" : "NO"}`)
+    console.log(`[OCR] Using Groq API...`)
 
-    // First attempt: Try to extract structured data
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Look at this image carefully.
+    // Extract using Groq Vision
+    const text = await extractMedicineDataFromImage(base64, file.type)
 
-First, determine if this image contains a valid table, bill, or receipt with products/items and prices.
+    console.log(`[OCR] Raw response:`, typeof text)
 
-If YES - Extract data and return JSON array:
-[{"Batch_ID":"X","Name of Medicine":"Y","Price_INR":Z,"Total_Quantity":W}]
+    // Groq service already parsed and validated the response
+    // Convert to array if single record
+    let parsed: MedicineRecord[] = Array.isArray(text) ? text : [text]
 
-If NO (not a valid document) - Return exactly:
-{"error": "INVALID_IMAGE", "reason": "about the image in short and issue brief explanation"}
-
-Be strict - only accept images with clear items, prices, and quantities.`,
-                },
-                {
-                  inline_data: {
-                    mime_type: file.type,
-                    data: base64,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    )
-
-    const data = await response.json()
-    
-    console.log(`[OCR] Response status: ${response.status}`)
-    
-    if (!response.ok) {
-      console.error("[OCR] API Error response:", JSON.stringify(data).substring(0, 500))
-      throw new Error(`Gemini API error: ${data.error?.message || response.statusText}`)
+    if (parsed.length > 0) {
+      console.log(`[OCR] Successfully extracted ${parsed.length} records`)
+      return parsed
+    } else {
+      console.error("[OCR] No items found in image")
+      throw new Error("INVALID_IMAGE: No items with prices and quantities found in this image")
     }
-
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.error("[OCR] No content in Gemini response")
-      throw new Error("INVALID_IMAGE: Gemini could not process this image")
-    }
-
-    const text = data.candidates[0].content.parts[0].text
-    
-    console.log(`[OCR] Raw response:`, text)
-    
-    // Check if Gemini explicitly marked this as invalid
-    if (text.includes('"error"') && text.includes('INVALID_IMAGE')) {
-      const errorMatch = text.match(/\{[\s\S]*"error"[\s\S]*\}/)
-      if (errorMatch) {
-        try {
-          const errorObj = JSON.parse(errorMatch[0])
-          console.error(`[OCR] Image rejected by AI: ${errorObj.reason}`)
-          throw new Error(`INVALID_IMAGE: ${errorObj.reason || "Image is not a valid table/receipt"}`)
-        } catch {
-          throw new Error("INVALID_IMAGE: This image does not contain a valid table, bill, or receipt")
-        }
-      }
-    }
-    
-    // Try to extract JSON array from response
-    let jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0])
-        console.log(`[OCR] Successfully extracted ${parsed.length} records`)
-        
-        // If extracted but empty, it's an invalid image
-        if (parsed.length === 0) {
-          console.error("[OCR] No items found in image")
-          throw new Error("INVALID_IMAGE: No items with prices and quantities found in this image")
-        }
-        
-        return parsed
-      } catch (parseError) {
-        if (parseError instanceof Error && parseError.message.includes("INVALID_IMAGE")) {
-          throw parseError
-        }
-        console.error("[OCR] JSON parse error:", parseError)
-      }
-    }
-    
-    // If no valid data found after all attempts, reject immediately
-    console.error("[OCR] No valid data structure found")
-    throw new Error("INVALID_IMAGE: This image does not contain extractable table data")
     
   } catch (error) {
     console.error("[OCR] Extraction error:", error instanceof Error ? error.message : error)
@@ -228,109 +152,7 @@ Be strict - only accept images with clear items, prices, and quantities.`,
   }
 }
 
-// Fallback extraction with different prompt
-async function extractTableWithSecondPass(file: File, base64: string): Promise<MedicineRecord[]> {
-  const apiKey = process.env.GEMINI_DOCUMENT_EXTRACTION_API_KEY
-
-  try {
-    console.log("[OCR-2ndPass] Attempting alternative extraction...")
-    
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Read this table or image and extract EVERY single row.
-
-Return EXACTLY like this format (JSON array):
-[
-{"Batch_ID":"VALUE","Name of Medicine":"VALUE","Price_INR":NUMBER,"Total_Quantity":NUMBER},
-{"Batch_ID":"VALUE","Name of Medicine":"VALUE","Price_INR":NUMBER,"Total_Quantity":NUMBER}
-]
-
-If 2 rows exist, return 2 objects. If 5 rows, return 5 objects.
-MUST be valid JSON.`,
-                },
-                {
-                  inline_data: {
-                    mime_type: file.type,
-                    data: base64,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    )
-
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]"
-    
-    console.log("[OCR-2ndPass] Response:", text.substring(0, 300))
-    
-    const jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      console.log(`[OCR-2ndPass] Extracted ${parsed.length} records on second attempt`)
-      return parsed
-    }
-    
-    return []
-  } catch (error) {
-    console.error("[OCR-2ndPass] Error:", error)
-    return []
-  }
-}
-
-// Helper: Try to extract text first, then show it to user
-async function extractTextOnly(file: File, base64: string): Promise<string> {
-  const apiKey = process.env.GEMINI_DOCUMENT_EXTRACTION_API_KEY
-
-  try {
-    console.log("[OCR-TextExtract] Extracting all text from image...")
-    
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Extract ALL text from this image. Return exactly what you see, line by line.`,
-                },
-                {
-                  inline_data: {
-                    mime_type: file.type,
-                    data: base64,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    )
-
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
-    console.log("[OCR-TextExtract] Extracted text:", text.substring(0, 200))
-    return text
-  } catch (error) {
-    console.error("[OCR-TextExtract] Error:", error)
-    return ""
-  }
-}
-
-// LAYER 3 & 4: Record Matching & Update Logic
+// LAYER 3 & 4: Match and categorize records
 async function matchAndUpdateRecords(
   records: MedicineRecord[],
   userEmail: string
@@ -357,6 +179,8 @@ async function matchAndUpdateRecords(
         // Update existing
         existing.Price_INR = record.Price_INR || existing.Price_INR
         existing.Total_Quantity = (existing.Total_Quantity || 0) + (record.Total_Quantity || 0)
+        existing.Manufacturer = record.Manufacturer || existing.Manufacturer
+        existing.Expiry = record.Expiry || existing.Expiry
         existing.status_import = "updated price & quantity"
         updated.push(existing)
       } else {
@@ -410,6 +234,8 @@ async function enrichMedicineData(records: MedicineRecord[]): Promise<MedicineRe
         "Side Effects": data["Side Effects"],
         Instructions: data.Instructions,
         "Description in Hinglish": data["Description in Hinglish"],
+        Manufacturer: record.Manufacturer || data.Manufacturer,
+        Expiry: record.Expiry || data.Expiry,
         Price_INR: record.Price_INR,
         Total_Quantity: record.Total_Quantity,
         status_import: "new item added",

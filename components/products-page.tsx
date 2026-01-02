@@ -36,6 +36,7 @@ interface NormalizedMedicine {
   sideEffects?: string
   instructions?: string
   hinglish?: string
+  manufacturer?: string
 }
 
 const toneStyles = {
@@ -62,6 +63,8 @@ function getStatus(days: number | null) {
   if (days < 0) return { status: "expired" as const, label: "Expired", tone: "destructive" as const }
   if (days <= 7) return { status: "expiring" as const, label: "Expiring in ≤7 days", tone: "warning" as const }
   if (days <= 30) return { status: "expiring" as const, label: "Expiring in ≤30 days", tone: "warning" as const }
+  if (days <= 60) return { status: "expiring" as const, label: "Expiring in ≤60 days", tone: "warning" as const }
+  // if (days <= 900) return { status: "expiring" as const, label: "Expiring in ≤900 days", tone: "warning" as const }
   return { status: "fresh" as const, label: "Fresh stock", tone: "success" as const }
 }
 
@@ -85,11 +88,54 @@ function normalizeMedicine(raw: any, index: number): NormalizedMedicine {
     raw?.expiryDate ||
     raw?.expiry_date ||
     raw?.expiry ||
+    raw?.Expiry ||
     raw?.expiryDateString ||
     raw?.Expiry_Date ||
     raw?.Expiry_date ||
     raw?.["Expiry Date"]
-  const expiryDate = expiryRaw ? new Date(expiryRaw) : null
+  
+  // Parse expiry date - handle formats like "Sep-2026", "Mar-2027", or standard dates
+  let expiryDate: Date | null = null
+  let expiryLabel = "—"
+  
+  if (expiryRaw) {
+    const expiryStr = String(expiryRaw).trim()
+    
+    // Debug logging
+    console.log('[Expiry Parse]', { expiryStr, rawValue: expiryRaw })
+    
+    // Try parsing "MMM-YYYY" format FIRST (e.g., "Sep-2026")
+    const monthYearMatch = expiryStr.match(/^([A-Za-z]{3})-(\d{4})$/)
+    if (monthYearMatch) {
+      const [, month, year] = monthYearMatch
+      // Use last day of the month for expiry calculation
+      const monthNum = new Date(`${month} 1, ${year}`).getMonth()
+      const lastDay = new Date(Number(year), monthNum + 1, 0).getDate()
+      const monthDate = new Date(`${month} ${lastDay}, ${year}`)
+      
+      console.log('[Expiry Parse] Month-Year format detected', { month, year, monthDate, daysToExpiry: Math.floor((monthDate.getTime() - Date.now()) / 86400000) })
+      
+      if (!isNaN(monthDate.getTime())) {
+        expiryDate = monthDate
+        expiryLabel = `${month}-${year}`
+      }
+    } else {
+      // Try parsing as standard date
+      const parsedDate = new Date(expiryStr)
+      
+      if (!isNaN(parsedDate.getTime())) {
+        // Valid date object
+        expiryDate = parsedDate
+        expiryLabel = expiryDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+        console.log('[Expiry Parse] Standard date format', { parsedDate, expiryLabel })
+      } else {
+        // Keep original string if we can't parse it
+        expiryLabel = expiryStr
+        console.log('[Expiry Parse] Could not parse, using raw string', { expiryStr })
+      }
+    }
+  }
+  
   const daysToExpiry = expiryDate ? Math.floor((expiryDate.getTime() - Date.now()) / 86400000) : null
 
   const { status, label, tone } = getStatus(daysToExpiry)
@@ -101,7 +147,7 @@ function normalizeMedicine(raw: any, index: number): NormalizedMedicine {
     quantity,
     price,
     expiryDate,
-    expiryLabel: expiryDate ? expiryDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+    expiryLabel,
     daysToExpiry,
     status,
     statusLabel: label,
@@ -115,6 +161,7 @@ function normalizeMedicine(raw: any, index: number): NormalizedMedicine {
     sideEffects: raw?.["Side Effects"] || raw?.sideEffects || raw?.side_effects,
     instructions: raw?.Instructions || raw?.instructions,
     hinglish: raw?.["Description in Hinglish"] || raw?.hinglish || raw?.description,
+    manufacturer: raw?.Manufacturer || raw?.manufacturer,
   }
 }
 
@@ -905,6 +952,10 @@ export function ProductsPage() {
                 <div>
                   <Label className="text-xs text-muted-foreground">Quantity per Pack</Label>
                   <p className="text-sm font-medium mt-1">{detailView.qtyPerPack || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Manufacturer</Label>
+                  <p className="text-sm font-medium mt-1">{detailView.manufacturer || "—"}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Expiry Date</Label>

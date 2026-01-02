@@ -33,8 +33,8 @@ export async function GET(request: NextRequest, { params }: { params: { service:
 async function checkProviderHealth(service: string, provider: string): Promise<boolean> {
   switch (service) {
     case "ai":
-      if (provider === "Gemini") {
-        return checkGeminiHealth()
+      if (provider === "Groq") {
+        return checkGroqHealth()
       }
       return true // LocalFallback always healthy
 
@@ -58,14 +58,14 @@ async function checkProviderHealth(service: string, provider: string): Promise<b
   }
 }
 
-async function checkGeminiHealth(): Promise<boolean> {
+async function checkGroqHealth(): Promise<boolean> {
   try {
-    // Simple ping to Gemini API
-    const response = await fetch(process.env.GEMINI_API_ENDPOINT || "", {
-      method: "GET",
-      signal: AbortSignal.timeout(3000),
-    })
-    return response.ok
+    // Check if Groq API key is configured
+    if (!process.env.GROQ_API_KEY) {
+      return false
+    }
+    // Simple check to verify the API key exists
+    return true
   } catch {
     return false
   }
