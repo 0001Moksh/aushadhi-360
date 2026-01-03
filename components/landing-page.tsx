@@ -1,7 +1,7 @@
 "use client"
 import Image from "next/image";
 import Link from "next/link";
-import React from "react"
+import React, { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,9 +22,11 @@ import {
     Upload,
     LayoutDashboard,
     Settings,
+    ChevronDown,
 } from "lucide-react"
 
 export function LandingPage() {
+    const [expandedFeature, setExpandedFeature] = useState<number | null>(0)
     const features = [
         {
             icon: <BarChart3 className="w-6 h-6" />,
@@ -124,7 +126,7 @@ export function LandingPage() {
                         <div className="flex items-center gap-4">
 
                             {/* Theme Toggle */}
-                            <div className="hidden sm:flex items-center gap-2 px-3 py-1">
+                            <div className="sm:flex items-center gap-2 px-1 py-1">
                                 <ThemeToggle />
                             </div>
 
@@ -233,85 +235,240 @@ export function LandingPage() {
                 </div>
             </section>
 
-            {/* Features Grid */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-                <div className="text-center mb-16">
-                    <h2 className="text-4xl font-bold text-foreground dark:text-foreground mb-4">Powerful Features</h2>
-                    <p className="text-lg text-muted-foreground dark:text-muted-foreground max-w-2xl mx-auto">
-                        Everything you need to run your pharmacy efficiently and profitably
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                    {features.map((feature, index) => {
-                        const featureImagesDark: Record<number, string> = {
-                            0: "/analytics.png",
-                            1: "/billing.png",
-                            2: "/import.png",
-                            3: "/alert.png",
-                            4: "/dashboard.png",
-                            5: "/setting.png",
-                            6: "/manual-import.png",
-                            7: "/all-products.png",
-                        }
-                        const featureImagesLight: Record<number, string> = {
-                            0: "/analytics-light.png",
-                            1: "/billing-light.png",
-                            2: "/import-light.png",
-                            3: "/alert-light.png",
-                            4: "/dashboard2-light.png",
-                            5: "/setting-light.png",
-                            6: "/manual-import-light.png",
-                            7: "/all-products-light.png",
-                        }
-                        const imgSrcDark = featureImagesDark[index] ?? featureImagesDark[0]
-                        const imgSrcLight = featureImagesLight[index] ?? featureImagesDark[index] ?? featureImagesDark[0]
-                        return (
-                            <Card
-                                key={index}
-                                className="group hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col rounded-2xl"
+            {/* Animated Features Marquee */}
+            <section className="py-1 overflow-hidden">
+                <div className="relative">
+                    {/* Gradient Overlays for fade effect */}
+                    <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent dark:from-background z-10 pointer-events-none" />
+                    <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent dark:from-background z-10 pointer-events-none" />
+                    
+                    {/* Scrolling Container */}
+                    <div className="flex gap-2 animate-infinite-scroll hover:[animation-play-state:paused]">
+                        {/* First Set */}
+                        {features.map((feature, index) => (
+                            <div
+                                key={`first-${index}`}
+                                className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-card/50 dark:bg-background/50 border-r-6 border-t-2 border-primary/50 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 transition-all duration-300 hover:scale-105 min-w-fit whitespace-nowrap group"
                             >
-                                <CardHeader className="flex-1 pb-2">
-                                    <CardTitle className="text-lg text-center rounded-b-xl border-b-4 border- pb-2 font-semibold">
-                                        {feature.title}
-                                    </CardTitle>
-                                </CardHeader>
-
-                                {/* Image wrapper */}
-                                <div className="relative w-full h-80 bg-primary/10 dark:bg-primary/20 overflow-hidden">
-
-                                    {/* ICON overlay */}
-                                    <div className="absolute bottom-2 right-2 z-10 w-9 h-9 rounded-lg bg-primary/20 backdrop-blur-md flex items-center justify-center text-primary dark:text-foreground shadow-md group-hover:scale-110 transition-transform duration-300">
-                                        {feature.icon}
-                                    </div>
-
-                                    {/* Dark image */}
-                                    <img
-                                        src={imgSrcDark}
-                                        alt={feature.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 hidden dark:block"
-                                    />
-
-                                    {/* Light image */}
-                                    <img
-                                        src={imgSrcLight}
-                                        alt={feature.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 block dark:hidden"
-                                    />
-
-                                    {/* subtle overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
+                                    {feature.icon}
                                 </div>
+                                <span className="font-semibold text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
+                                    {feature.title}
+                                </span>
+                            </div>
+                        ))}
+                        
+                        {/* Second Set (Duplicate for seamless loop) */}
+                        {features.map((feature, index) => (
+                            <div
+                                key={`second-${index}`}
+                                className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-card/50 dark:bg-background/50 border border-primary/10 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 transition-all duration-300 hover:scale-105 min-w-fit whitespace-nowrap group"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
+                                    {feature.icon}
+                                </div>
+                                <span className="font-semibold text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
+                                    {feature.title}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
+                <style jsx>{`
+                    @keyframes infinite-scroll {
+                        from {
+                            transform: translateX(0);
+                        }
+                        to {
+                            transform: translateX(-50%);
+                        }
+                    }
+                    
+                    .animate-infinite-scroll {
+                        animation: infinite-scroll 8s linear infinite;
+                    }
+                `}</style>
+            </section>
 
-                                <CardContent className="pt-4">
-                                    <CardDescription className="text-center text-sm leading-relaxed">
-                                        {feature.description}
-                                    </CardDescription>
-                                </CardContent>
-                            </Card>
+            {/* Features Grid - Premium Accordion Design */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative">
+                {/* Background Elements */}
+                <div className="absolute -top-40 right-0 w-96 h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-30 pointer-events-none" />
+                <div className="absolute -bottom-40 left-0 w-96 h-96 bg-gradient-to-tr from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-30 pointer-events-none" />
 
-                        )
-                    })}
+                <div className="relative z-10">
+                    {/* Section Header */}
+                    <div className="text-center mb-20">
+                        <h2 className="text-3xl lg:text-6xl font-bold text-foreground dark:text-foreground mb-6 leading-tight">
+                            Powerful Features for Modern Pharmacies
+                        </h2>
+                        <p className="text-lg text-muted-foreground dark:text-muted-foreground max-w-3xl mx-auto">
+                            Experience enterprise-grade tools designed specifically for pharmacy operations. Click to explore each feature in detail.
+                        </p>
+                    </div>
+
+                    {/* Features Accordion */}
+                    <div className="grid grid-cols-1 lg:grid-cols-8 gap-8 items-stretch">
+                        {/* Left Side - Accordion */}
+                        <div className="lg:col-span-2 space-y-1">
+                            {features.map((feature, index) => {
+                                const isExpanded = expandedFeature === index;
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => setExpandedFeature(isExpanded ? null : index)}
+                                        className={`w-full text-left transition-all duration-500 overflow-hidden rounded-2xl border-2 ${isExpanded
+                                                ? "border-primary/50 dark:border-secondary/50 bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20"
+                                                : "border-primary/10 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 bg-card/50 dark:bg-background/50 hover:bg-card/70 dark:hover:bg-background/70"
+                                            }`}
+                                    >
+                                        <div className="p-6 flex items-start justify-between">
+                                            <div className="flex-1 flex items-start gap-4">
+                                                {/* Icon */}
+                                                <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500 ${isExpanded
+                                                        ? "bg-gradient-to-br from-primary/40 to-secondary/30 text-primary dark:text-secondary scale-110"
+                                                        : "bg-primary/10 dark:bg-primary/20 text-primary/70 dark:text-secondary/70 group-hover:scale-105"
+                                                    }`}>
+                                                    {feature.icon}
+                                                </div>
+
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className={`font-bold transition-colors duration-300 ${isExpanded
+                                                            ? "text-primary dark:text-secondary text-lg"
+                                                            : "text-foreground text-base group-hover:text-primary dark:group-hover:text-secondary"
+                                                        }`}>
+                                                        {feature.title}
+                                                    </h3>
+                                                    {!isExpanded && (
+                                                        <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                                                            {feature.description}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Chevron */}
+                                            <div className={`flex-shrink-0 ml-4 transition-all duration-500 ${isExpanded ? "rotate-180" : ""}`}>
+                                                <ChevronDown className="w-5 h-5 text-primary dark:text-secondary" />
+                                            </div>
+                                        </div>
+
+                                        {/* Expanded Content */}
+                                        {isExpanded && (
+                                            <div className="px-6 pb-6 border-t border-primary/20 dark:border-primary/30 pt-4 animate-in fade-in duration-300">
+                                                <p className="text-sm text-foreground/80 dark:text-foreground/70 leading-relaxed">
+                                                    {feature.description}
+                                                </p>
+
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Right Side - Feature Image */}
+                        <div className="lg:col-span-6 relative z-10 sticky top-30 h-fit">
+                            {expandedFeature !== null && (() => {
+                                const featureImagesDark: Record<number, string> = {
+                                    0: "/analytics.png",
+                                    1: "/billing1.png",
+                                    2: "/import.png",
+                                    3: "/alert.png",
+                                    4: "/dashboard2.png",
+                                    5: "/setting.png",
+                                    6: "/manual-import.png",
+                                    7: "/all-products.png",
+                                }
+                                const featureImagesLight: Record<number, string> = {
+                                    0: "/analytics-light.png",
+                                    1: "/billing-light.png",
+                                    2: "/import-light.png",
+                                    3: "/alert-light.png",
+                                    4: "/dashboard2-light.png",
+                                    5: "/setting-light.png",
+                                    6: "/manual-import-light.png",
+                                    7: "/all-products-light.png",
+                                }
+                                const featureImagesMobileDark: Record<number, string> = {
+                                    0: "/analytics-mb.jpg",
+                                    1: "/billing1-mb.jpg",
+                                    2: "/import-mb.jpg",
+                                    3: "/alert-mb.jpg",
+                                    4: "/dashbord1-mb.jpg",
+                                    5: "/setting-mb.jpg",
+                                    6: "/manual-import-mb.jpg",
+                                    7: "/all-products-mb.jpg",
+                                }
+                                const featureImagesMobileLight: Record<number, string> = {
+                                    0: "/analytics-light-mb.jpg",
+                                    1: "/billing-light-mb.jpg",
+                                    2: "/import-light-mb.jpg",
+                                    3: "/alert-light-mb.jpg",
+                                    4: "/dashboard2-light-mb.jpg",
+                                    5: "/setting-light-mb.jpg",
+                                    6: "/manual-import-light-mb.jpg",
+                                    7: "/all-products-light-mb.jpg",
+                                }
+                                const imgSrcDark = featureImagesDark[expandedFeature] ?? featureImagesDark[0]
+                                const imgSrcLight = featureImagesLight[expandedFeature] ?? featureImagesDark[expandedFeature] ?? featureImagesDark[0]
+                                const imgSrcMobileDark = featureImagesMobileDark[expandedFeature] ?? featureImagesDark[expandedFeature] ?? featureImagesDark[0]
+                                const imgSrcMobileLight = featureImagesMobileLight[expandedFeature] ?? featureImagesLight[expandedFeature] ?? featureImagesDark[expandedFeature] ?? featureImagesDark[0]
+
+                                return (
+                                    <div className="relative rounded-xl overflow-hidden border border-primary/20 dark:border-primary/30 shadow-2xl animate-in fade-in duration-500">
+                                        {/* Desktop Dark image - shows on lg+ in dark mode */}
+                                        <img
+                                            src={imgSrcDark}
+                                            alt={features[expandedFeature]?.title}
+                                            className="w-full h-full object-cover hidden dark:hidden lg:dark:block aspect-video"
+                                        />
+
+                                        {/* Desktop Light image - shows on lg+ in light mode */}
+                                        <img
+                                            src={imgSrcLight}
+                                            alt={features[expandedFeature]?.title}
+                                            className="w-full h-full object-cover hidden dark:hidden lg:block aspect-video"
+                                        />
+
+                                        {/* Mobile Dark image - shows below lg in dark mode */}
+                                        {/* <img
+                                            src={imgSrcMobileDark}
+                                            alt={features[expandedFeature]?.title}
+                                            className="w-full h-full object-cover block dark:block lg:hidden aspect-video"
+                                        /> */}
+
+                                        {/* Mobile Light image - shows below lg in light mode */}
+                                        {/* <img
+                                            src={imgSrcMobileLight}
+                                            alt={features[expandedFeature]?.title}
+                                            className="w-full h-full object-cover block dark:hidden lg:hidden aspect-video"
+                                        /> */}
+
+                                        {/* Overlay gradient */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-background/0 to-transparent" />
+                                    </div>
+                                );
+                            })()}
+
+                            {expandedFeature === null && (
+                                <div className="relative rounded-3xl overflow-hidden border-2 border-dashed border-primary/20 dark:border-primary/30 shadow-lg bg-gradient-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 flex items-center justify-center aspect-video">
+                                    <div className="text-center">
+                                        <div className="w-16 h-16 rounded-full bg-primary/20 dark:bg-primary/30 flex items-center justify-center mx-auto mb-4">
+                                            <svg className="w-8 h-8 text-primary/60 dark:text-secondary/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2 1m2-1l-2-1m2 1v2.5" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-muted-foreground font-medium">Select a feature to explore</p>
+                                        <p className="text-xs text-muted-foreground/70 mt-2">Click any feature on the left to view details</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </section>
 
