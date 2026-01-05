@@ -123,6 +123,7 @@ export function BillingPage() {
   const [isAILoading, setIsAILoading] = useState(false)
   const [showAIWarning, setShowAIWarning] = useState(true)
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([])
+  const [hasGroqKeyAssist, setHasGroqKeyAssist] = useState<boolean | null>(null)
   const [embeddingStatus, setEmbeddingStatus] = useState<{
     ready: boolean
     attempts: number
@@ -197,6 +198,29 @@ export function BillingPage() {
         console.error("Failed to parse drafts")
       }
     }
+  }, [])
+
+  // Check if user has GROQ API key configured for AI mode
+  useEffect(() => {
+    const checkGroqKey = async () => {
+      try {
+        const email = localStorage.getItem("user_email")
+        if (!email) return
+
+        const response = await fetch(`/api/user/groq-keys?email=${encodeURIComponent(email)}`)
+        if (response.ok) {
+          const data = await response.json()
+          setHasGroqKeyAssist(!!data.groqKeyAssist)
+        } else {
+          setHasGroqKeyAssist(false)
+        }
+      } catch (error) {
+        console.error("Failed to check GROQ key:", error)
+        setHasGroqKeyAssist(false)
+      }
+    }
+
+    checkGroqKey()
   }, [])
 
   // Load store profile for invoice header
@@ -645,6 +669,17 @@ export function BillingPage() {
   }, [embeddingStatus.checking, embeddingStatus.ready])
 
   const handleAIAssist = async () => {
+    // Check if user has GROQ API key configured
+    if (hasGroqKeyAssist === false) {
+      setError(
+        "AI Service Disabled\n\n" +
+        "This AI assistance service has been disabled by your administrator.\n\n" +
+        "Please contact support to enable this feature for your account."
+      )
+      setTimeout(() => setError(null), 5000)
+      return
+    }
+
     if (!embeddingStatus.ready) {
       setError("AI embeddings are still being prepared. Please wait...")
       setTimeout(() => setError(null), 3000)
@@ -656,21 +691,92 @@ export function BillingPage() {
     setAiResponse(null)
 
     try {
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/get_medicines?query=` + encodeURIComponent(symptoms), {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      })
+      const email = localStorage.getItem("user_email")
+      const password = localStorage.getItem("user_password")
+
+      if (!email || !password) {
+        setError("Authentication required. Please log in again.")
+        setTimeout(() => setError(null), 3000)
+        setIsAILoading(false)
+        return
+      }
+
+      // Check if user has medicines imported
+      const medicinesCheckResponse = await fetch(
+        `/api/medicines/search?email=${encodeURIComponent(email)}&query=`,
+        { method: "GET" }
+      )
+
+      if (medicinesCheckResponse.ok) {
+        const medicinesData = await medicinesCheckResponse.json()
+        if (!medicinesData.medicines || medicinesData.medicines.length === 0) {
+          setError(
+            "❌ No medicines imported yet in this system.\n\n" +
+            "Please import medicines first from the 'Import' section before using AI recommendations."
+          )
+          setTimeout(() => setError(null), 5000)
+          setIsAILoading(false)
+          return
+        }
+      }
+
+      const apiResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_FASTAPI_URL}/get_medicines?query=${encodeURIComponent(symptoms)}&mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      )
 
       if (!apiResponse.ok) {
-        throw new Error("Failed to get AI suggestions")
+        const errorData = await apiResponse.json().catch(() => ({ detail: "Unknown error" }))
+        
+        // Handle specific error cases
+        if (apiResponse.status === 404) {
+          setError(
+            "❌ No medicines found for AI recommendations.\n\n" +
+            "Please import medicines from the 'Import' section first."
+          )
+        } else if (apiResponse.status === 403) {
+          setError(
+            "❌ AI Service Not Available for Admin.\n\n" +
+            "Admin accounts cannot use AI recommendations. Please log in with a regular user account."
+          )
+        } else if (apiResponse.status === 500) {
+          setError(
+            "⚠️ AI Service Error: Check if GROQ API Key is configured.\n\n" +
+            "The AI service encountered an error. Please ensure:\n" +
+            "1. GROQ_API_KEY is set in environment variables\n" +
+            "2. FastAPI backend is running correctly"
+          )
+        } else {
+          setError(errorData.detail || `API error: ${apiResponse.status}`)
+        }
+        setTimeout(() => setError(null), 6000)
+        setIsAILoading(false)
+        return
       }
 
       const data = await apiResponse.json()
       setAiResponse(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred while fetching suggestions")
+      const errorMessage = err instanceof Error ? err.message : "An error occurred while fetching suggestions"
+      
+      // Check if it's a connection error
+      if (errorMessage.includes("fetch") || errorMessage.includes("Failed")) {
+        setError(
+          "❌ Cannot connect to AI Service.\n\n" +
+          "Make sure:\n" +
+          "1. FastAPI backend is running\n" +
+          "2. GROQ_API_KEY is available\n" +
+          "3. Medicines are imported in the system"
+        )
+      } else {
+        setError(errorMessage)
+      }
+      
       console.error("AI Assistant Error:", err)
-      setTimeout(() => setError(null), 5000)
+      setTimeout(() => setError(null), 6000)
     } finally {
       setIsAILoading(false)
     }
@@ -1197,7 +1303,7 @@ export function BillingPage() {
         <div className="flex flex-wrap gap-2 justify-end">
 
           {/* AI Mode Toggle */}
-          <div className="flex items-center gap-3 px-4 py-2 border rounded-lg bg-card absolute right-0 top-0 sm:relative sm:right-auto sm:top-auto">
+          <div className="flex md:mt-0 mt-10 items-center gap-3 px-4 py-2 border rounded-lg bg-card absolute right-0 top-0 sm:relative sm:right-auto sm:top-auto">
             <Label htmlFor="ai-mode" className="text-sm font-medium cursor-pointer flex items-center gap-2">
               {isAIMode ? <Stethoscope className="h-4 w-4 text-primary" /> : <Package className="h-4 w-4" />}
               {isAIMode ? "AI Mode" : "Static Mode"}
@@ -1447,26 +1553,45 @@ export function BillingPage() {
                       disabled={!embeddingStatus.ready}
                     />
 
-                    <Button
-                      size="lg"
-                      className="w-full"
-                      onClick={handleAIAssist}
-                      disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready}
-                    >
-                      {isAILoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : !embeddingStatus.ready ? (
-                        <>Preparing AI...</>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-5 w-5" />
-                          Get Recommendations
-                        </>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-full">
+                          <Button
+                            size="lg"
+                            className="w-full"
+                            onClick={handleAIAssist}
+                            disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready || hasGroqKeyAssist === false}
+                          >
+                            {isAILoading ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                Analyzing...
+                              </>
+                            ) : !embeddingStatus.ready ? (
+                              <>Preparing AI...</>
+                            ) : hasGroqKeyAssist === false ? (
+                              <>
+                                <AlertCircle className="mr-2 h-5 w-5" />
+                                Service Disabled
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="mr-2 h-5 w-5" />
+                                Get Recommendations
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      {hasGroqKeyAssist === false && (
+                        <TooltipContent side="top" align="center" className="max-w-sm text-left">
+                          <p className="font-medium">⚠️ AI Service Disabled</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            This AI assistance service has been disabled by your administrator. Please contact support to enable this feature for your account.
+                          </p>
+                        </TooltipContent>
                       )}
-                    </Button>
+                    </Tooltip>
                   </div>
 
                   {/* AI Recommendations List */}
@@ -1482,7 +1607,7 @@ export function BillingPage() {
 
                     {/* AI Summary */}
                     {aiResponse?.["AI Response"] && (
-                      <Card className="border-primary/20 bg-primary/5">
+                      <Card className="border-primary/20 bg-primary/5 mb-2">
                         <CardContent>
                           <div className="flex items-start gap-2">
                             <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
@@ -1556,9 +1681,9 @@ export function BillingPage() {
                                   <Button
                                     size="sm"
                                     onClick={() => addAIMedicineToCart(medicine)}
-                                    className="h-8 px-3 bg-card"
+                                    className="h-8 px-3 border"
                                   >
-                                    {getCartQuantity(medicine["Batch_ID"])}
+                                    {getCartQuantity(medicine["Batch_ID"])} Added
                                   </Button>
                                 ) : (
                                   <Button

@@ -1,13 +1,14 @@
 "use client"
-
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
+import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Upload, Camera, FileText, CheckCircle, AlertCircle, Loader2, Eye, RotateCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface PipelineStage {
   id: string
@@ -46,6 +47,8 @@ export function ImportMedicinePage() {
   const [logs, setLogs] = useState<string[]>([])
   const logsRef = useRef<HTMLDivElement | null>(null)
   const [excludedItems, setExcludedItems] = useState<ExtractedItem[]>([])
+  const [userPassword, setUserPassword] = useState<string>("")
+  const [hasGroqKeyImport, setHasGroqKeyImport] = useState<boolean | null>(null)
 
   const appendLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString()
@@ -138,6 +141,29 @@ export function ImportMedicinePage() {
     }
   }, [logs])
 
+  // Check if user has GROQ API key configured for import
+  useEffect(() => {
+    const checkGroqKey = async () => {
+      try {
+        const email = localStorage.getItem("user_email")
+        if (!email) return
+
+        const response = await fetch(`/api/user/groq-keys?email=${encodeURIComponent(email)}`)
+        if (response.ok) {
+          const data = await response.json()
+          setHasGroqKeyImport(!!data.groqKeyImport)
+        } else {
+          setHasGroqKeyImport(false)
+        }
+      } catch (error) {
+        console.error("Failed to check GROQ key:", error)
+        setHasGroqKeyImport(false)
+      }
+    }
+
+    checkGroqKey()
+  }, [])
+
   // Convert Excel serial date to readable format
   const convertExcelDate = (value: any): string => {
     if (!value) return ""
@@ -157,6 +183,17 @@ export function ImportMedicinePage() {
 
   const startProcessing = async () => {
     if (!file) return
+
+    // Check if user has GROQ API key configured
+    if (hasGroqKeyImport === false) {
+      setError(
+        "Medicine Import Service Disabled\n\n" +
+        "The medicine import service has been disabled by your administrator.\n\n" +
+        "Please contact support to enable this feature for your account."
+      )
+      return
+    }
+
     setIsProcessing(true)
     setSuccess(false)
     setError(null)
@@ -296,6 +333,18 @@ export function ImportMedicinePage() {
       setIsReviewing(false)
       setLastImportId(data.importId || null)
       appendLog(`[Commit] ✓ Saved. ImportId: ${data.importId || "unknown"}`)
+
+      // Invalidate cache after successful import
+      if (userPassword) {
+        appendLog(`[Cache] Refreshing search index for medicines...`)
+        invalidateCacheWithFeedback(userEmail, userPassword, (msg, type) => {
+          if (type === "success") {
+            appendLog(`[Cache] ✓ Search index refreshed`)
+          } else if (type === "error") {
+            appendLog(`[Cache] ⚠ Index refresh warning: ${msg}`)
+          }
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save to inventory")
       appendLog(`[Error] Could not save to inventory`)
@@ -344,23 +393,35 @@ export function ImportMedicinePage() {
 
 
       </div>
-
       {error && (
-        <Alert variant="destructive">
+        <Alert
+          variant="destructive"
+          className="fixed top-5 right-5 z-50 w-[90%] max-w-md flex items-center gap-2 shadow-lg"
+        >
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && !isReviewing && result && (
-        <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-800">
+        <div className="fixed top-5 right-5 z-50 w-[90%] max-w-md flex items-center justify-between gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 shadow-lg">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5" />
-            <span>Import saved to inventory.</span>
+            <span className="text-sm font-medium">
+              Import saved to inventory.
+            </span>
           </div>
+
           {lastImportId && (
-            <Button className="hover:text-primary" size="sm" variant="outline" onClick={undoLastImport} disabled={isProcessing}>
-              <RotateCw className="h-4 w-4 mr-1" /> Undo last import
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={undoLastImport}
+              disabled={isProcessing}
+              className="whitespace-nowrap"
+            >
+              <RotateCw className="h-4 w-4 mr-1" />
+              Undo
             </Button>
           )}
         </div>
@@ -403,16 +464,31 @@ export function ImportMedicinePage() {
                 <Upload className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Drop Bill Image Here</h3>
                 <p className="text-sm text-muted-foreground mb-4">Supports JPG, PNG, PDF, Excel, CSV</p>
-                <div className="flex gap-3 justify-center">
-                  <Button onClick={() => document.getElementById("file-upload")?.click()} disabled={isProcessing}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Choose File
-                  </Button>
-                  <Button variant="outline" disabled={isProcessing}>
-                    <Camera className="mr-2 h-4 w-4" />
-                    Take Photo
-                  </Button>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex gap-3 justify-center">
+                      <Button
+                        onClick={() => document.getElementById("file-upload")?.click()}
+                        disabled={isProcessing || hasGroqKeyImport === false}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        {hasGroqKeyImport === false ? "Service Disabled" : "Choose File"}
+                      </Button>
+                      <Button variant="outline" disabled={isProcessing || hasGroqKeyImport === false}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Take Photo
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {hasGroqKeyImport === false && (
+                    <TooltipContent side="top" align="center" className="max-w-sm text-left">
+                      <p className="font-medium">⚠️ AI Service Disabled</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This AI assistance service has been disabled by your administrator. Please contact support to enable this feature for your account.
+                      </p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
                 <input
                   id="file-upload"
                   type="file"

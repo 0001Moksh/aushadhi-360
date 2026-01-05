@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,6 +90,7 @@ export function ManualImportTable() {
   const [showAddColumnDialog, setShowAddColumnDialog] = useState(false)
   const [newColumnName, setNewColumnName] = useState("")
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [userPassword, setUserPassword] = useState<string>("")
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -516,6 +518,16 @@ export function ManualImportTable() {
 
     const data = await res.json()
     setSuccess(`Saved: ${data.summary.total} (Updated: ${data.summary.updated}, New: ${data.summary.new})`)
+    
+    // Invalidate cache after successful import
+    if (userPassword) {
+      invalidateCacheWithFeedback(email, userPassword, (msg, type) => {
+        if (type === "error") {
+          console.warn("[Manual Import] Cache invalidation warning:", msg)
+        }
+      })
+    }
+    
     setRows([emptyRow()])
     setHistory([])
     setHistoryIndex(-1)

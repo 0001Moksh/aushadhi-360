@@ -40,60 +40,65 @@ export function LoginPage() {
       if (response.ok) {
         localStorage.setItem("auth_token", data.token)
         localStorage.setItem("user_email", email)
+        localStorage.setItem("user_password", password)
         localStorage.setItem("user_role", data.role || "user")
 
-        // 🔥 Trigger FastAPI embedding preparation with retry logic
-        let attempts = 0
-        const maxAttempts = 30 // 30 retries
-        const retryInterval = 3000 // 3 seconds
-        let embeddingReady = false
+        // 🔥 Trigger FastAPI embedding preparation with retry logic (skip for admin)
+        const isAdmin = (data.role === "admin") || (email === process.env.NEXT_PUBLIC_ADMIN_MAIL)
 
-        const triggerEmbedding = async () => {
-          while (attempts < maxAttempts && !embeddingReady) {
-            try {
-              attempts++
-              console.log(`Attempting to prepare embeddings... (Attempt ${attempts}/${maxAttempts})`)
+        if (!isAdmin) {
+          let attempts = 0
+          const maxAttempts = 30 // 30 retries
+          const retryInterval = 3000 // 3 seconds
+          let embeddingReady = false
 
-              const fastApiResponse = await fetch(
-                `${process.env.NEXT_PUBLIC_FASTAPI_URL}/login?mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
-                { method: "POST" }
-              )
+          const triggerEmbedding = async () => {
+            while (attempts < maxAttempts && !embeddingReady) {
+              try {
+                attempts++
+                console.log(`Attempting to prepare embeddings... (Attempt ${attempts}/${maxAttempts})`)
 
-              if (fastApiResponse.ok) {
-                const fastApiData = await fastApiResponse.json()
-                if (fastApiData.status === "success") {
-                  embeddingReady = true
-                  localStorage.setItem("embedding_attempts", attempts.toString())
-                  localStorage.setItem("embedding_ready", "true")
-                  console.log(`✅ Embeddings ready! (Attempts: ${attempts})`)
-                  break
+                const fastApiResponse = await fetch(
+                  `${process.env.NEXT_PUBLIC_FASTAPI_URL}/login?mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+                  { method: "POST" }
+                )
+
+                if (fastApiResponse.ok) {
+                  const fastApiData = await fastApiResponse.json()
+                  if (fastApiData.status === "success") {
+                    embeddingReady = true
+                    localStorage.setItem("embedding_attempts", attempts.toString())
+                    localStorage.setItem("embedding_ready", "true")
+                    console.log(`✅ Embeddings ready! (Attempts: ${attempts})`)
+                    break
+                  }
+                }
+
+                // If not ready, wait before retrying
+                if (!embeddingReady && attempts < maxAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, retryInterval))
+                }
+              } catch (err) {
+                console.warn(`Attempt ${attempts} failed, retrying...`)
+                if (attempts < maxAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, retryInterval))
                 }
               }
+            }
 
-              // If not ready, wait before retrying
-              if (!embeddingReady && attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, retryInterval))
-              }
-            } catch (err) {
-              console.warn(`Attempt ${attempts} failed, retrying...`)
-              if (attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, retryInterval))
-              }
+            if (!embeddingReady) {
+              console.warn(`⚠️ Embeddings not ready after ${attempts} attempts - FastAPI may be down`)
+              localStorage.setItem("embedding_attempts", attempts.toString())
+              localStorage.setItem("embedding_ready", "false")
             }
           }
 
-          if (!embeddingReady) {
-            console.warn(`⚠️ Embeddings not ready after ${attempts} attempts - FastAPI may be down`)
-            localStorage.setItem("embedding_attempts", attempts.toString())
-            localStorage.setItem("embedding_ready", "false")
-          }
+          // Start embedding preparation in background
+          triggerEmbedding()
         }
 
-        // Start embedding preparation in background
-        triggerEmbedding()
-
         // Redirect based on role (don't wait for embedding)
-        if (data.role === "admin") {
+        if (isAdmin) {
           router.push("/admin")
         } else {
           router.push("/dashboard")
@@ -106,6 +111,7 @@ export function LoginPage() {
       if (email === "demo@aushadhi360.com" && password === "demo123") {
         localStorage.setItem("auth_token", "demo_token")
         localStorage.setItem("user_email", email)
+        localStorage.setItem("user_password", password)
         localStorage.setItem("user_role", "user")
 
         // 🔥 Trigger FastAPI embedding preparation with retry logic for demo

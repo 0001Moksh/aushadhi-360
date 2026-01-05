@@ -23,6 +23,10 @@ import {
     LayoutDashboard,
     Settings,
     ChevronDown,
+    Linkedin,
+    Twitter,
+    Facebook,
+    Instagram
 } from "lucide-react"
 
 export function LandingPage() {
@@ -241,7 +245,7 @@ export function LandingPage() {
                     {/* Gradient Overlays for fade effect */}
                     <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent dark:from-background z-10 pointer-events-none" />
                     <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent dark:from-background z-10 pointer-events-none" />
-                    
+
                     {/* Scrolling Container */}
                     <div className="flex gap-2 animate-infinite-scroll hover:[animation-play-state:paused]">
                         {/* First Set */}
@@ -253,12 +257,12 @@ export function LandingPage() {
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
                                     {feature.icon}
                                 </div>
-                                <span className="font-semibold text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
+                                <span className="font-semibold text-sm md:text-base text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
                                     {feature.title}
                                 </span>
                             </div>
                         ))}
-                        
+
                         {/* Second Set (Duplicate for seamless loop) */}
                         {features.map((feature, index) => (
                             <div
@@ -268,14 +272,14 @@ export function LandingPage() {
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
                                     {feature.icon}
                                 </div>
-                                <span className="font-semibold text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
+                                <span className="font-semibold text-sm md:text-base text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
                                     {feature.title}
                                 </span>
                             </div>
                         ))}
                     </div>
                 </div>
-                
+
                 <style jsx>{`
                     @keyframes infinite-scroll {
                         from {
@@ -320,16 +324,16 @@ export function LandingPage() {
                                         key={index}
                                         onClick={() => setExpandedFeature(isExpanded ? null : index)}
                                         className={`w-full text-left transition-all duration-500 overflow-hidden rounded-2xl border-2 ${isExpanded
-                                                ? "border-primary/50 dark:border-secondary/50 bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20"
-                                                : "border-primary/10 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 bg-card/50 dark:bg-background/50 hover:bg-card/70 dark:hover:bg-background/70"
+                                            ? "border-primary/50 dark:border-secondary/50 bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20"
+                                            : "border-primary/10 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 bg-card/50 dark:bg-background/50 hover:bg-card/70 dark:hover:bg-background/70"
                                             }`}
                                     >
                                         <div className="p-6 flex items-start justify-between">
                                             <div className="flex-1 flex items-start gap-4">
                                                 {/* Icon */}
                                                 <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500 ${isExpanded
-                                                        ? "bg-gradient-to-br from-primary/40 to-secondary/30 text-primary dark:text-secondary scale-110"
-                                                        : "bg-primary/10 dark:bg-primary/20 text-primary/70 dark:text-secondary/70 group-hover:scale-105"
+                                                    ? "bg-gradient-to-br from-primary/40 to-secondary/30 text-primary dark:text-secondary scale-110"
+                                                    : "bg-primary/10 dark:bg-primary/20 text-primary/70 dark:text-secondary/70 group-hover:scale-105"
                                                     }`}>
                                                     {feature.icon}
                                                 </div>
@@ -337,8 +341,8 @@ export function LandingPage() {
                                                 {/* Content */}
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className={`font-bold transition-colors duration-300 ${isExpanded
-                                                            ? "text-primary dark:text-secondary text-lg"
-                                                            : "text-foreground text-base group-hover:text-primary dark:group-hover:text-secondary"
+                                                        ? "text-primary dark:text-secondary text-lg"
+                                                        : "text-foreground text-base group-hover:text-primary dark:group-hover:text-secondary"
                                                         }`}>
                                                         {feature.title}
                                                     </h3>
@@ -557,101 +561,114 @@ export function LandingPage() {
 
 
 
-            <footer className="relative overflow-hidden bg-background text-foreground py-14">
-
-                {/* Animated gradient */}
-                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,#22d3ee,#6366f1,#a855f7)] 
-                  bg-[length:300%_300%] animate-gradient opacity-10" />
-
+            <footer className="relative overflow-hidden bg-gradient-to-t from-background to-background-light text-foreground py-12 lg:pt-20">
                 {/* Noise texture */}
-                <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
-
                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-
+                    <div className="flex flex-col lg:flex-row gap-12 mb-16">
                         {/* Logo + description */}
-                        <div className="col-span-2 md:col-span-1">
-                            <div className="flex items-center gap-3 mb-4">
+                        <div className="lg:w-1/3">
+                            <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
                                 <Image
                                     src="/logo2.png"
                                     alt="Aushadhi 360 Logo"
-                                    width={400}
-                                    height={400}
-                                    className="rounded-md"
+                                    width={300}
+                                    height={300}
                                 />
                             </div>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
+                            <p className="text-foreground text-base text-center lg:text-left leading-relaxed max-w-sm mx-auto lg:mx-0">
                                 Smart medical store management software for modern pharmacies
                             </p>
                         </div>
 
-                        {/* Product */}
-                        <div>
-                            <h4 className="font-semibold mb-4">Product</h4>
-                            <ul className="space-y-2 text-muted-foreground text-sm">
-                                {["Features", "Pricing", "Security"].map(item => (
-                                    <li key={item}>
-                                        <Link href="#" className="hover:text-background transition-colors">
-                                            {item}
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                        <div className="lg:w-2/3 grid grid-cols-2 sm:grid-cols-3 gap-8 lg:gap-12 pt-10 lg:pl-12">
+                            {/* Product */}
+                            <div className="text-center sm:text-left">
+                                <h4 className="font-semibold mb-4">Product</h4>
+                                <ul className="space-y-2 text-muted-foreground text-sm">
+                                    {["Features", "Pricing", "Security"].map(item => (
+                                        <li key={item}>
+                                            <Link href="#" className="hover:text-foreground transition-colors">
+                                                {item}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
 
-                        {/* Company */}
-                        <div>
-                            <h4 className="font-semibold mb-4">Company</h4>
-                            <ul className="space-y-2 text-muted-foreground text-sm">
-                                {["About", "Blog", "Contact"].map(item => (
-                                    <li key={item}>
-                                        <Link href="#" className="hover:text-background transition-colors">
-                                            {item}
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                            {/* Company */}
+                            <div className="text-center sm:text-left">
+                                <h4 className="font-semibold mb-4">Company</h4>
+                                <ul className="space-y-2 text-muted-foreground text-sm">
+                                    {["About", "Blog", "Contact"].map(item => (
+                                        <li key={item}>
+                                            <Link href="#" className="hover:text-foreground transition-colors">
+                                                {item}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
 
-                        {/* Legal */}
-                        <div>
-                            <h4 className="font-semibold mb-4">Legal</h4>
-                            <ul className="space-y-2 text-muted-foreground text-sm">
-                                {["Privacy", "Terms"].map(item => (
-                                    <li key={item}>
-                                        <Link href="#" className="hover:text-background transition-colors">
-                                            {item}
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
+                            {/* Legal */}
+                            <div className="col-span-2 sm:col-span-1 text-center sm:text-left">
+                                <h4 className="font-semibold mb-4">Legal</h4>
+                                <ul className="space-y-2 text-muted-foreground text-sm">
+                                    {["Privacy", "Terms"].map(item => (
+                                        <li key={item}>
+                                            <Link href="#" className="hover:text-foreground transition-colors">
+                                                {item}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Bottom bar */}
-                    <div className="border-t border-card/20 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-muted-foreground text-sm">
+                    {/* Bottom section */}
+                    <div className="border-t-2 rounded-full px-10 border-border pt-8 pb-8">
+                        {/* NexYug Tech */}
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-muted-foreground">
+                            <div className="flex justify-center md:justify-start w-full md:w-auto">
+                                <a
+                                    href="https://nexyugtech.com/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 hover:opacity-80 transition group"
+                                >
+                                    <Image
+                                        src="/nyt_logo.png"
+                                        alt="NexYug Tech Logo"
+                                        width={120}
+                                        height={120}
+                                        className="object-contain"
+                                    />
+                                    <div className="flex flex-col">
+                                        <span className="pt-10 text-lg font-bold text-foreground group-hover:text-primary transition-colors">NEXYUG TECH</span>
+                                        <span className="text-[10px]">&lt;Let's code the task/&gt;</span>
+                                    </div>
+                                </a>
+                            </div>
 
-                        <p>&copy; 2025 Aushadhi 360. All rights reserved.</p>
-
-                        <div className="flex items-center gap-2">
-                            <a
-                                href="https://nexyugtech.com/"
-                                target="_blank"
-                                className="flex items-center gap-2 hover:opacity-80 transition"
-                            >
-                                <Image
-                                    src="/nyt_logo.png"
-                                    alt="NexYug Tech Logo"
-                                    width={150}
-                                    height={84}
-                                    className="object-contain"
-                                />NEXYUG TECH <br />
-                                &lt;Let's code the task/&gt;
-
-                            </a>
+                            {/* Copyright and social */}
+                            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                                <p className="text-center">&copy; 2026 Aushadhi 360. All rights reserved.</p>
+                                <div className="flex gap-4">
+                                    <a href="#" className="hover:text-foreground transition" aria-label="Facebook">
+                                        <Facebook className="h-5 w-5" />
+                                    </a>
+                                    <a href="#" className="hover:text-foreground transition" aria-label="Twitter">
+                                        <Twitter className="h-5 w-5" />
+                                    </a>
+                                    <a href="#" className="hover:text-foreground transition" aria-label="Instagram">
+                                        <Instagram className="h-5 w-5" />
+                                    </a>
+                                    <a href="#" className="hover:text-foreground transition" aria-label="LinkedIn">
+                                        <Linkedin className="h-5 w-5" />
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-
                     </div>
                 </div>
             </footer>

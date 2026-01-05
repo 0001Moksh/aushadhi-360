@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -182,6 +183,7 @@ export function ProductsPage() {
   const [pageSize, setPageSize] = useState(25)
   const [isProcessing, setIsProcessing] = useState(false)
   const [detailView, setDetailView] = useState<NormalizedMedicine | null>(null)
+  const [userPassword, setUserPassword] = useState<string>("")
 
   const loadMedicines = async () => {
     setIsLoading(true)
@@ -307,10 +309,28 @@ export function ProductsPage() {
         throw new Error(data.error || "Failed to update")
       }
 
+      // Invalidate cache after successful update
+      if (userPassword) {
+        invalidateCacheWithFeedback(email, userPassword, (msg, type) => {
+          if (type === "error") {
+            console.warn("[Products] Cache invalidation warning:", msg)
+          }
+        })
+      }
+
       await loadMedicines()
       cancelEdit()
+      toast({
+        title: "Medicine updated",
+        description: "Changes saved and search index refreshed"
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save changes")
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save changes",
+        variant: "destructive"
+      })
     } finally {
       setIsProcessing(false)
     }
@@ -342,11 +362,29 @@ export function ProductsPage() {
         throw new Error(data.error || "Failed to delete")
       }
 
+      // Invalidate cache after successful deletion
+      if (userPassword) {
+        invalidateCacheWithFeedback(email, userPassword, (msg, type) => {
+          if (type === "error") {
+            console.warn("[Products] Cache invalidation warning:", msg)
+          }
+        })
+      }
+
       await loadMedicines()
       setSelectedIds(new Set())
       setDeleteDialog({ open: false, ids: [] })
+      toast({
+        title: "Medicines deleted",
+        description: `${ids.length} medicine(s) removed and search index refreshed`
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete medicines")
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to delete medicines",
+        variant: "destructive"
+      })
     } finally {
       setIsProcessing(false)
     }
