@@ -29,6 +29,7 @@ interface ExtractedItem {
   batch?: string
   expiryDate?: string
   isExisting?: boolean
+  otherInfo?: Record<string, string | number | boolean>
 }
 
 export function ImportMedicinePage() {
@@ -49,6 +50,31 @@ export function ImportMedicinePage() {
   const [excludedItems, setExcludedItems] = useState<ExtractedItem[]>([])
   const [userPassword, setUserPassword] = useState<string>("")
   const [hasGroqKeyImport, setHasGroqKeyImport] = useState<boolean | null>(null)
+  const [metadataFields, setMetadataFields] = useState<string[]>([
+    "Manufacture Location",
+    "Storage Temperature",
+    "Shelf Life Days",
+    "Distributor",
+  ])
+
+  // Get all unique otherInfo keys from extracted items (auto-detected columns)
+  const getAutoDetectedColumns = () => {
+    const autoColumns = new Set<string>()
+    extractedItems.forEach(item => {
+      if (item.otherInfo) {
+        Object.keys(item.otherInfo).forEach(key => {
+          autoColumns.add(key)
+        })
+      }
+    })
+    return Array.from(autoColumns)
+  }
+
+  // Combine metadata fields with auto-detected columns
+  const getAllMetadataFields = () => {
+    const autoColumns = getAutoDetectedColumns()
+    return [...new Set([...metadataFields, ...autoColumns])]
+  }
 
   const appendLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString()
@@ -655,6 +681,11 @@ export function ImportMedicinePage() {
                           <th className="px-3 py-2 text-left">Expiry Date</th>
                           <th className="px-3 py-2 text-right">Qty</th>
                           <th className="px-3 py-2 text-right">Price</th>
+                          {getAllMetadataFields().length > 0 && (
+                            <>
+                              <th className="px-3 py-2 text-left border-l">Additional Info</th>
+                            </>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -707,6 +738,29 @@ export function ImportMedicinePage() {
                                 onChange={(e) => updateItem(idx, "price", e.target.value)}
                               />
                             </td>
+                            {getAllMetadataFields().length > 0 && (
+                              <td className="px-3 py-2 border-l">
+                                <div className="space-y-1 text-xs">
+                                  {getAllMetadataFields().map(field => (
+                                    <div key={field}>
+                                      <input
+                                        className="w-full rounded border px-1 py-0.5 text-xs"
+                                        placeholder={field}
+                                        value={String(item.otherInfo?.[field] || "")}
+                                        onChange={(e) => {
+                                          const newItems = [...extractedItems]
+                                          if (!newItems[idx].otherInfo) {
+                                            newItems[idx].otherInfo = {}
+                                          }
+                                          newItems[idx].otherInfo![field] = e.target.value
+                                          setExtractedItems(newItems)
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>

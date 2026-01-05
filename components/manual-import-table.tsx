@@ -54,6 +54,7 @@ interface Row {
   instructions?: string
   hinglish?: string
   customFields?: Record<string, string>
+  otherInfo?: Record<string, string | number | boolean>
 }
 
 interface CustomColumn {
@@ -91,6 +92,15 @@ export function ManualImportTable() {
   const [newColumnName, setNewColumnName] = useState("")
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [userPassword, setUserPassword] = useState<string>("")
+  const [metadataFields, setMetadataFields] = useState<string[]>([
+    "Manufacture Location",
+    "Storage Temperature",
+    "Shelf Life Days",
+    "Distributor",
+    "Reorder Level"
+  ])
+  const [showAddMetadataDialog, setShowAddMetadataDialog] = useState(false)
+  const [newMetadataField, setNewMetadataField] = useState("")
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -195,6 +205,48 @@ export function ManualImportTable() {
     setRows(updatedRows)
   }
 
+  const addMetadataField = () => {
+    const trimmed = newMetadataField.trim()
+    if (!trimmed) return
+
+    if (!metadataFields.includes(trimmed)) {
+      setMetadataFields([...metadataFields, trimmed])
+      // Initialize the new metadata field in all existing rows
+      const updatedRows = rows.map(row => ({
+        ...row,
+        otherInfo: { ...row.otherInfo, [trimmed]: "" }
+      }))
+      setRows(updatedRows)
+      saveToHistory(updatedRows)
+    }
+
+    setNewMetadataField("")
+    setShowAddMetadataDialog(false)
+    setSuccess(`Metadata field "${trimmed}" added!`)
+    setTimeout(() => setSuccess(null), 3000)
+  }
+
+  const removeMetadataField = (fieldName: string) => {
+    setMetadataFields(metadataFields.filter(f => f !== fieldName))
+    // Remove the field from all rows
+    const updatedRows = rows.map(row => {
+      const newOtherInfo = { ...row.otherInfo }
+      delete newOtherInfo[fieldName]
+      return { ...row, otherInfo: newOtherInfo }
+    })
+    setRows(updatedRows)
+    saveToHistory(updatedRows)
+  }
+
+  const updateMetadata = (rowIndex: number, fieldName: string, value: string | number | boolean) => {
+    const updatedRows = [...rows]
+    if (!updatedRows[rowIndex].otherInfo) {
+      updatedRows[rowIndex].otherInfo = {}
+    }
+    updatedRows[rowIndex].otherInfo![fieldName] = value
+    setRows(updatedRows)
+  }
+
   const toggleRowExpansion = (rowId: string) => {
     const newExpanded = new Set(expandedRows)
     if (newExpanded.has(rowId)) {
@@ -210,6 +262,25 @@ export function ManualImportTable() {
     .filter((c): c is string => Boolean(c && c.trim()))
 
   const allCategories = [...new Set([...categories, ...customCategories, ...categoryValuesInRows])].sort()
+
+  // Get unique auto-detected columns from otherInfo across all rows
+  const getAutoDetectedColumns = (): string[] => {
+    const autoColumns = new Set<string>()
+    rows.forEach(row => {
+      if (row.otherInfo) {
+        Object.keys(row.otherInfo).forEach(key => {
+          autoColumns.add(key)
+        })
+      }
+    })
+    return Array.from(autoColumns)
+  }
+
+  // Combine manual metadata fields with auto-detected columns (avoid duplicates)
+  const getAllMetadataFields = (): string[] => {
+    const autoColumns = getAutoDetectedColumns()
+    return [...new Set([...metadataFields, ...autoColumns])]
+  }
 
   const saveToHistory = (newRows: Row[]) => {
     const newHistory = history.slice(0, historyIndex + 1)
@@ -350,6 +421,30 @@ export function ManualImportTable() {
         )
       }
 
+      // Define all known standard columns (for auto-detection of unknown columns)
+      const knownColumnVariations: Record<string, string[]> = {
+        Batch_ID: ["Batch_ID", "BatchID", "batch_id", "Batch No", "Batch_No", "Batch Number", "batch_number"],
+        name: ["Name of Medicine", "Medicine Name", "Name", "medicine_name", "Drug Name", "drug_name", "Product Name", "product_name"],
+        price: ["Price (INR)", "Price_INR", "Price", "price_inr", "MRP", "mrp", "Cost", "cost", "Unit Price", "unit_price"],
+        qty: ["Total Quantity", "Total_Quantity", "Quantity", "quantity", "Stock", "stock", "Available Quantity", "available_qty", "Balance"],
+        manufacture: ["Manufacture", "manufacture", "Manufacturer", "manufacturer", "Mfg", "mfg", "Made By", "made_by"],
+        expiryDate: ["Expiry_date", "Expiry_Date", "expiry_date", "EXPIRY_DATE", "Expiry Date", "ExpiryDate", "expirydate", "Exp Date", "Exp_Date", "exp_date", "Expiry", "expiry", "Exp.", "Exp"],
+        category: ["Category", "category", "Medicine Category", "medicine_category", "Drug Category", "drug_category", "Type"],
+        form: ["Medicine Forms", "Medicine_Forms", "Form", "form", "Dosage Form", "dosage_form", "Drug Form", "drug_form"],
+        qtyPerPack: ["Quantity_per_pack", "Quantity per pack", "Qty/Pack", "qty_per_pack", "Pack Size", "pack_size", "Packing", "pack"],
+        coverDisease: ["Cover Disease", "Cover_Disease", "Disease", "disease", "Used For", "used_for", "Indication", "indications", "Treats"],
+        symptoms: ["Symptoms", "symptoms", "Symptom Covered", "symptom", "Signs"],
+        sideEffects: ["Side Effects", "Side_Effects", "SideEffects", "side_effects", "Adverse Effects", "adverse_effects", "Reactions"],
+        instructions: ["Instructions", "instructions", "Dosage", "dosage", "How to Use", "how_to_use", "Usage Instructions", "usage"],
+        hinglish: ["Description in Hinglish", "Description_in_Hinglish", "Hinglish", "hinglish", "Hindi Description", "Hindi+English", "Local Language Description"],
+      }
+
+      // Build set of all known column variations (normalized)
+      const allKnownVariations = new Set<string>()
+      Object.values(knownColumnVariations).forEach(variations => {
+        variations.forEach(v => allKnownVariations.add(normalize(v)))
+      })
+
       const getFieldValue = (record: any, fieldNames: string[]) => {
         const recordKeys = Object.keys(record)
         for (const fieldName of fieldNames) {
@@ -421,6 +516,29 @@ export function ManualImportTable() {
         return null
       }
 
+      /**
+       * Detect unknown/extra columns and map them to otherInfo
+       * Returns object with all unmapped columns as key-value pairs
+       */
+      const getOtherInfo = (record: any): Record<string, string | number | boolean> => {
+        const otherInfo: Record<string, string | number | boolean> = {}
+        const recordKeys = Object.keys(record)
+
+        recordKeys.forEach(key => {
+          const normalizedKey = normalize(key)
+          // Skip if this column is a known standard field
+          if (!allKnownVariations.has(normalizedKey)) {
+            const val = record[key]
+            // Store non-empty values
+            if (val !== null && val !== undefined && val !== "") {
+              otherInfo[key] = typeof val === "string" ? val.trim() : val
+            }
+          }
+        })
+
+        return otherInfo
+      }
+
       const parsed = (data.records || []).map((r: any) => {
         // Extract raw expiry value and normalize it
         const rawExpiryValue = getExpiryRawValue(r)
@@ -432,6 +550,9 @@ export function ManualImportTable() {
             `Expiry date processing: [RAW: "${rawExpiryValue}"] → [PARSED: "${expiryParseResult.normalized}"] | ${expiryParseResult.debugLog}`
           )
         }
+
+        // Auto-detect unknown columns and populate otherInfo
+        const otherInfo = getOtherInfo(r)
 
         return {
           id: crypto.randomUUID(),
@@ -450,6 +571,7 @@ export function ManualImportTable() {
           sideEffects: getFieldValue(r, ["Side Effects", "Side_Effects", "SideEffects", "side_effects", "Adverse Effects", "adverse_effects", "Reactions"]) || "",
           instructions: getFieldValue(r, ["Instructions", "instructions", "Dosage", "dosage", "How to Use", "how_to_use", "Usage Instructions", "usage"]) || "",
           hinglish: getFieldValue(r, ["Description in Hinglish", "Description_in_Hinglish", "Hinglish", "hinglish", "Hindi Description", "Hindi+English", "Local Language Description"]) || "",
+          otherInfo: Object.keys(otherInfo).length > 0 ? otherInfo : undefined,
         }
       })
 
@@ -464,6 +586,24 @@ export function ManualImportTable() {
     if (previewData) {
       setRows(previewData)
       saveToHistory(previewData)
+      
+      // Merge auto-detected columns into metadataFields
+      const autoColumns = new Set<string>()
+      previewData.forEach(row => {
+        if (row.otherInfo) {
+          Object.keys(row.otherInfo).forEach(key => {
+            autoColumns.add(key)
+          })
+        }
+      })
+      
+      const newAutoColumns = Array.from(autoColumns).filter(col => !metadataFields.includes(col))
+      if (newAutoColumns.length > 0) {
+        setMetadataFields([...metadataFields, ...newAutoColumns])
+        setSuccess(`Auto-detected ${newAutoColumns.length} new column(s): ${newAutoColumns.join(", ")}`)
+        setTimeout(() => setSuccess(null), 4000)
+      }
+      
       setShowPreview(false)
       setPreviewData(null)
     }
@@ -502,6 +642,7 @@ export function ManualImportTable() {
       "Side Effects": r.sideEffects,
       Instructions: r.instructions,
       "Description in Hinglish": r.hinglish,
+      otherInfo: r.otherInfo || {},
     }))
 
     const res = await fetch("/api/import/manual", {
@@ -1019,6 +1160,50 @@ export function ManualImportTable() {
                     rows={2}
                   />
                 </div>
+                
+                {/* Metadata Fields Section */}
+                <div className="col-span-2 border-t pt-3 mt-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-xs font-semibold">Additional Info</Label>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAddMetadataDialog(true)}
+                      className="h-6 text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Field
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {getAllMetadataFields().map(fieldName => {
+                      const isAutoDetected = !metadataFields.includes(fieldName)
+                      return (
+                        <div key={fieldName}>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs">
+                              {fieldName}
+                              {isAutoDetected && <span className="text-[10px] text-blue-600 ml-1 font-semibold">(Auto-detected)</span>}
+                            </Label>
+                            <button
+                              onClick={() => removeMetadataField(fieldName)}
+                              className="text-xs text-destructive hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <Input
+                            value={String(r.otherInfo?.[fieldName] || "")}
+                            onChange={(e) => updateMetadata(i, fieldName, e.target.value)}
+                            onBlur={handleBlur}
+                            className="mt-1 text-xs"
+                            placeholder={`Enter ${fieldName.toLowerCase()}`}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 {customColumns.map(col => (
                   <div key={col.id}>
                     <Label className="text-xs">{col.name}</Label>
@@ -1203,6 +1388,50 @@ export function ManualImportTable() {
             </Button>
             <Button onClick={confirmPreview}>
               <Eye className="h-4 w-4 mr-2" /> Confirm & Import
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Metadata Field Dialog */}
+      <Dialog open={showAddMetadataDialog} onOpenChange={setShowAddMetadataDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Metadata Field</DialogTitle>
+            <DialogDescription>
+              Add a new additional information field for all medicines (e.g., Manufacture Location, Storage Temperature)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="metadataFieldName">Field Name</Label>
+              <Input
+                id="metadataFieldName"
+                value={newMetadataField}
+                onChange={(e) => setNewMetadataField(e.target.value)}
+                placeholder="e.g., Manufacture Location, Storage Temp, Distributor"
+                className="mt-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newMetadataField.trim()) {
+                    addMetadataField()
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" className="hover:text-primary" onClick={() => {
+              setShowAddMetadataDialog(false)
+              setNewMetadataField("")
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={addMetadataField}
+              disabled={!newMetadataField.trim()}
+            >
+              Add Field
             </Button>
           </div>
         </DialogContent>

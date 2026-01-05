@@ -18,6 +18,9 @@ interface ManualMedicineRecord {
   Total_Quantity: number
   status_import?: string
   customFields?: Record<string, string>
+  otherInfo?: Record<string, string | number | boolean>
+  Manufacture?: string
+  Expiry_date?: string
 }
 
 async function getDatabase() {
@@ -54,12 +57,14 @@ export async function POST(req: NextRequest) {
           existingMedicines[idx] = {
             ...existingMedicines[idx],
             ...rec,
+            otherInfo: { ...existingMedicines[idx].otherInfo, ...rec.otherInfo },
             status_import: "updated manually",
           }
           updatedCount += 1
         } else {
           existingMedicines.push({
             ...rec,
+            otherInfo: rec.otherInfo || {},
             status_import: "new item added - manual",
           })
           newCount += 1

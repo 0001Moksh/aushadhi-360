@@ -31,6 +31,7 @@ interface MedicineRecord {
   Price_INR: number
   Total_Quantity: number
   status_import?: string
+  otherInfo?: Record<string, string | number | boolean>
 }
 
 async function getDatabase() {
@@ -117,7 +118,57 @@ async function extractDocument(file: File, inputType: string, groqApiKey?: strin
       }
 
       const data = await response.json()
-      return data.records || []
+      const records = data.records || []
+
+      // Auto-detect unknown columns and map to otherInfo
+      if (records.length > 0) {
+        const knownColumnVariations: Record<string, string[]> = {
+          Batch_ID: ["Batch_ID", "BatchID", "batch_id", "Batch No", "Batch_No", "Batch Number"],
+          "Name of Medicine": ["Name of Medicine", "Medicine Name", "Name", "medicine_name", "Drug Name"],
+          Price_INR: ["Price (INR)", "Price_INR", "Price", "price_inr", "MRP", "mrp"],
+          Total_Quantity: ["Total Quantity", "Total_Quantity", "Quantity", "quantity", "Stock"],
+          Category: ["Category", "category", "Medicine Category", "Type"],
+          "Medicine Forms": ["Medicine Forms", "Form", "form", "Dosage Form"],
+          Quantity_per_pack: ["Quantity_per_pack", "Qty/Pack", "qty_per_pack", "Pack Size"],
+          "Cover Disease": ["Cover Disease", "Disease", "disease"],
+          Symptoms: ["Symptoms", "symptoms", "Symptom"],
+          "Side Effects": ["Side Effects", "SideEffects", "side_effects"],
+          Instructions: ["Instructions", "instructions", "Dosage"],
+          "Description in Hinglish": ["Description in Hinglish", "Hinglish", "hinglish"],
+          Manufacturer: ["Manufacture", "Manufacturer", "manufacturer", "Mfg"],
+          Expiry: ["Expiry_date", "Expiry Date", "ExpiryDate", "Exp Date"],
+        }
+
+        // Build set of all known column variations (normalized)
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+        const allKnownVariations = new Set<string>()
+        Object.values(knownColumnVariations).forEach(variations => {
+          variations.forEach(v => allKnownVariations.add(normalize(v)))
+        })
+
+        // Process each record to extract unknown columns
+        records.forEach((record: any) => {
+          const otherInfo: Record<string, string | number | boolean> = {}
+          Object.keys(record).forEach(key => {
+            const normalizedKey = normalize(key)
+            // Skip if this column is a known standard field
+            if (!allKnownVariations.has(normalizedKey)) {
+              const val = record[key]
+              // Store non-empty values
+              if (val !== null && val !== undefined && val !== "") {
+                otherInfo[key] = typeof val === "string" ? val.trim() : val
+              }
+            }
+          })
+
+          // Add otherInfo to record if it has unknown columns
+          if (Object.keys(otherInfo).length > 0) {
+            record.otherInfo = otherInfo
+          }
+        })
+      }
+
+      return records
     } catch (error) {
       console.error("Excel parsing error:", error)
       return []
@@ -188,6 +239,10 @@ async function matchAndUpdateRecords(
         existing.Total_Quantity = (existing.Total_Quantity || 0) + (record.Total_Quantity || 0)
         existing.Manufacturer = record.Manufacturer || existing.Manufacturer
         existing.Expiry = record.Expiry || existing.Expiry
+        // Merge otherInfo
+        if (record.otherInfo && Object.keys(record.otherInfo).length > 0) {
+          existing.otherInfo = { ...existing.otherInfo, ...record.otherInfo }
+        }
         existing.status_import = "updated price & quantity"
         updated.push(existing)
       } else {
@@ -247,6 +302,7 @@ async function enrichMedicineData(records: MedicineRecord[], groqKeyAssist?: str
         Price_INR: record.Price_INR,
         Total_Quantity: record.Total_Quantity,
         status_import: "new item added",
+        otherInfo: record.otherInfo || {},
       })
 
       await new Promise((r) => setTimeout(r, 1000))

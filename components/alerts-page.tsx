@@ -54,21 +54,14 @@ export function AlertsPage() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
-          // Backward-compatible defaults
-          return {
-            lowStockMin: parsed.lowStockMin ?? 50,
-            expiryValue: parsed.expiryValue ?? (parsed.expiryDays ?? 365),
-            expiryUnit: parsed.expiryUnit ?? 'days',
-            expiringDays: parsed.expiringDays ?? 90,
-          }
+          return { lowStockMin: parsed.lowStockMin ?? 50 }
         } catch {
-          return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days', expiringDays: 90 }
+          return { lowStockMin: 50 }
         }
       }
     }
-    return { lowStockMin: 50, expiryValue: 365, expiryUnit: 'days', expiringDays: 90 }
+    return { lowStockMin: 50 }
   })
-  const [topCount, setTopCount] = useState<number>(20) // Default to top 20
   const [filteredData, setFilteredData] = useState({
     lowStock: [] as Medicine[],
     topSelling: [] as TopSellingMedicine[],
@@ -82,7 +75,7 @@ export function AlertsPage() {
 
   useEffect(() => {
     applyThresholds()
-  }, [data, thresholds, topCount])
+  }, [data, thresholds])
 
   useEffect(() => {
     // Save thresholds to localStorage whenever they change
@@ -117,7 +110,7 @@ export function AlertsPage() {
       }
 
       const medicinesRes = await fetch(`/api/medicines/search?email=${encodeURIComponent(email)}&query=`)
-      const topSellingRes = await fetch(`/api/billing/top-selling?email=${encodeURIComponent(email)}`)
+      const billsRes = await fetch(`/api/billing/history?email=${encodeURIComponent(email)}&limit=500`)
 
       let medicines: Medicine[] = []
       let topSelling: TopSellingMedicine[] = []
@@ -177,16 +170,69 @@ export function AlertsPage() {
         console.error("Failed to load medicines", { status: medicinesRes.status, text })
       }
 
-      if (topSellingRes.ok) {
-        const topSellingData = await topSellingRes.json()
-        const rawTop = Array.isArray(topSellingData)
-          ? topSellingData
-          : topSellingData.topSelling || topSellingData.data?.topSelling || topSellingData.items || []
-        topSelling = normalizeTopSelling(rawTop)
-        console.debug("Alerts: Top selling fetched", { count: topSelling.length, sample: topSelling.slice(0, 3) })
+      if (billsRes.ok) {
+        const billsData = await billsRes.json()
+        const bills = Array.isArray(billsData) ? billsData : billsData.bills || billsData.data || []
+        
+        // Analyze frequency from bills: user > bill > medicine
+        const medicineFrequency: Record<string, any> = {}
+        
+        bills.forEach((bill: any) => {
+          const items = Array.isArray(bill.items) ? bill.items : []
+          items.forEach((item: any) => {
+            const medName = item.medicineName || item.name || ""
+            const medBatch = item.batchId || item.batch || "N/A"
+            const medKey = `${medName}|${medBatch}`
+            const qty = Number(item.quantity || item.qty || 0)
+            const price = Number(item.price || item.unitPrice || 0)
+            const revenue = qty * price
+            
+            if (medName) {
+              if (!medicineFrequency[medKey]) {
+                medicineFrequency[medKey] = {
+                  name: medName,
+                  batch: medBatch,
+                  totalUnitsSold: 0,
+                  peopleBought: 0,
+                  totalRevenue: 0,
+                  price: price,
+                  currentStock: 0,
+                  category: item.category || "",
+                  lastSoldDate: new Date().toISOString(),
+                  medicineId: item.medicineId || medKey,
+                }
+              }
+              medicineFrequency[medKey].totalUnitsSold += qty
+              medicineFrequency[medKey].totalRevenue += revenue
+              medicineFrequency[medKey].lastSoldDate = new Date(bill.date || Date.now()).toISOString()
+            }
+          })
+        })
+        
+        // Count unique customers per medicine
+        const customerSet: Record<string, Set<string>> = {}
+        bills.forEach((bill: any) => {
+          const billUser = bill.userEmail || bill.user || ""
+          const items = Array.isArray(bill.items) ? bill.items : []
+          items.forEach((item: any) => {
+            const medName = item.medicineName || item.name || ""
+            const medBatch = item.batchId || item.batch || "N/A"
+            const medKey = `${medName}|${medBatch}`
+            if (!customerSet[medKey]) customerSet[medKey] = new Set()
+            if (billUser) customerSet[medKey].add(billUser)
+          })
+        })
+        
+        // Update people bought count
+        Object.entries(medicineFrequency).forEach(([key, med]) => {
+          med.peopleBought = customerSet[key]?.size || 0
+        })
+        
+        topSelling = Object.values(medicineFrequency)
+        console.debug("Alerts: Top selling analyzed from bills", { count: topSelling.length })
       } else {
-        const text = await topSellingRes.text().catch(() => "")
-        console.error("Failed to load top selling", { status: topSellingRes.status, text })
+        const text = await billsRes.text().catch(() => "")
+        console.error("Failed to load billing data", { status: billsRes.status, text })
       }
 
       setData({
@@ -223,27 +269,33 @@ export function AlertsPage() {
     // Low Stock
     const lowStock = data.medicines.filter((m) => m.quantity < thresholds.lowStockMin)
 
-    // Expiring Soon
-    const expiringSoon = data.medicines.filter((m) => {
-      if (!m.expiryDate) return false
-      const diff = daysUntil(m.expiryDate)
-      return diff !== null && diff >= 0 && diff <= thresholds.expiringDays
-    }).sort((a, b) => {
-      const daysA = daysUntil(a.expiryDate || "")
-      const daysB = daysUntil(b.expiryDate || "")
-      if (daysA === null) return 1
-      if (daysB === null) return -1
-      return daysA - daysB
-    })
+    // Expiring Soon: Show medicines expiring within 180 days, sorted by closest expiry date (soonest first)
+    const expiringSoon = data.medicines
+      .filter((m) => {
+        if (!m.expiryDate) return false
+        const diff = daysUntil(m.expiryDate)
+        return diff !== null && diff >= 0 && diff <= 180 // Next 6 months
+      })
+      .sort((a, b) => {
+        const daysA = daysUntil(a.expiryDate || "")
+        const daysB = daysUntil(b.expiryDate || "")
+        if (daysA === null) return 1
+        if (daysB === null) return -1
+        return daysA - daysB // Closest expiry first (ascending)
+      })
 
-    // Top Selling: Sort by units sold desc, then revenue desc, then limit to top N
+    // Top Selling: Analyze purchase frequency from bills
     const topSelling = [...data.topSelling]
       .filter((m) => m.totalUnitsSold > 0)
       .sort((a, b) => {
+        // Primary sort: units sold (frequency of purchasing)
         if (b.totalUnitsSold !== a.totalUnitsSold) return b.totalUnitsSold - a.totalUnitsSold
+        // Secondary sort: number of unique customers
+        if (b.peopleBought !== a.peopleBought) return b.peopleBought - a.peopleBought
+        // Tertiary sort: total revenue
         return b.totalRevenue - a.totalRevenue
       })
-      .slice(0, topCount)
+      .slice(0, 10) // Top 10
 
     setFilteredData({
       lowStock,
@@ -294,7 +346,7 @@ export function AlertsPage() {
       const rows = filteredData.lowStock.map(m => [m.name, m.batch, m.quantity, m.price, m.category || "", m.form || ""])
       downloadCSV(headers, rows, `low_stock_report_${dateStr}.csv`)
     } else if (activeTab === "top-selling") {
-      const headers = ["Name", "Batch", "Units Sold", "Revenue", "Current Stock", "Price", "Category"]
+      const headers = ["Name", "Batch", "Units Sold", "Revenue", "Current Stock", "Price"]
       const rows = filteredData.topSelling.map(m => [m.name, m.batch, m.totalUnitsSold, m.totalRevenue.toFixed(2), m.currentStock, m.price, m.category || ""])
       downloadCSV(headers, rows, `top_selling_report_${dateStr}.csv`)
     }
@@ -383,30 +435,6 @@ export function AlertsPage() {
 
         {/* Expiring Soon Tab */}
         <TabsContent value="expiring-soon" className="space-y-4">
-          <Card className="p-4 bg-muted/50">
-            <div className="flex items-center gap-4">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <Label htmlFor="expiringDays" className="text-sm font-medium">
-                  Expiring Soon Threshold
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">Show medicines expiring within this many days</p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="expiringDays"
-                    type="number"
-                    min="1"
-                    max="365"
-                    value={thresholds.expiringDays}
-                    onChange={(e) => setThresholds((prev) => ({ ...prev, expiringDays: parseInt(e.target.value) || 90 }))}
-                    className="w-32"
-                  />
-                  <span className="text-sm text-muted-foreground">days</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
           {filteredData.expiringSoon.length > 0 ? (
             filteredData.expiringSoon.map((medicine) => {
               const daysLeft = daysUntil(medicine.expiryDate || "")
@@ -452,33 +480,11 @@ export function AlertsPage() {
             })
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No medicines expiring within {thresholds.expiringDays} days
+              No medicines expiring soon
             </div>
           )}
         </TabsContent>
         <TabsContent value="top-selling" className="space-y-4">
-          <Card className="p-4 bg-muted/50">
-            <div className="flex items-center gap-4">
-              <Settings className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <Label className="text-sm font-medium">Show Top</Label>
-                <p className="text-xs text-muted-foreground mb-2">Number of top-selling medicines to display</p>
-                <Select value={topCount.toString()} onValueChange={(val) => setTopCount(parseInt(val))}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Top" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[5, 10, 20, 30, 50].map((num) => (
-                      <SelectItem className="text-muted-foreground" key={num} value={num.toString()}>
-                        Top {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </Card>
-
           {filteredData.topSelling.length > 0 ? (
             filteredData.topSelling.map((medicine) => (
               <Card key={medicine.medicineId} className="p-4 hover:shadow-md transition">
@@ -487,7 +493,7 @@ export function AlertsPage() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-semibold text-lg">{medicine.name}</p>
-                      <Badge variant="secondary" className="text-green-600">
+                      <Badge variant="secondary">
                         ₹{medicine.totalRevenue.toFixed(0)}
                       </Badge>
                     </div>
@@ -495,12 +501,12 @@ export function AlertsPage() {
                       <div>
                         <span className="font-medium text-foreground">{medicine.totalUnitsSold}</span> units sold
                       </div>
-                      <div>
+                      {/* <div>
                         <span className="font-medium text-foreground">{medicine.peopleBought}</span> customers
-                      </div>
+                      </div> */}
                       <div>Stock: {medicine.currentStock}</div>
                       <div>Price: ₹{medicine.price.toFixed(2)}</div>
-                      <div>Category: {medicine.category || "N/A"}</div>
+                      {/* <div>Category: {medicine.category || "N/A"}</div> */}
                       <div>Batch: {medicine.batch}</div>
                       <div>Last Sold: {formatDate(medicine.lastSoldDate)}</div>
                     </div>
