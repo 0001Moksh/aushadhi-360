@@ -47,7 +47,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isExpanded, setIsExpanded] = useState(true) // Expanded by default
-  const [profile, setProfile] = useState<{ email: string; storeName?: string; ownerName?: string } | null>(null)
+  const [profile, setProfile] = useState<{ email: string; storeName?: string; ownerName?: string; photoUrl?: string } | null>(null)
 
   useEffect(() => {
     const savedState = localStorage.getItem("sidebarExpanded")
@@ -71,6 +71,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             email: data.user.email,
             storeName: data.user.storeName || data.user.name,
             ownerName: data.user.ownerName || data.user.name,
+            photoUrl: data.user.photoUrl || undefined,
           })
         }
       } catch (error) {
@@ -242,7 +243,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className={cn("p-4 border-t border-sidebar-border", !showFullSidebar && "p-2")}>
               <div className={cn("flex items-center gap-3 mb-3", !showFullSidebar && "justify-center")}>
                 <Avatar>
-                  <AvatarImage src="/diverse-user-avatars.png" />
+                  <AvatarImage src={profile?.photoUrl || "/diverse-user-avatars.png"} />
                   <AvatarFallback>{initials || "U"}</AvatarFallback>
                 </Avatar>
                 <div className={cn("flex-1 min-w-0", !showFullSidebar && "hidden")}>

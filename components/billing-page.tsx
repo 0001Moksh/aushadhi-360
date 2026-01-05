@@ -48,6 +48,7 @@ interface DraftBill {
   gst: number
   total: number
   customerEmail?: string
+  customerPhone?: string
   storeName: string
 }
 
@@ -60,6 +61,7 @@ interface BillHistory {
   gst: number
   total: number
   customerEmail?: string
+  customerPhone?: string
   itemCount: number
   storeName?: string
 }
@@ -93,6 +95,7 @@ export function BillingPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerEmail, setCustomerEmail] = useState("")
+  const [customerPhone, setCustomerPhone] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -307,6 +310,7 @@ export function BillingPage() {
       gst,
       total,
       customerEmail: customerEmail || undefined,
+      customerPhone: customerPhone || undefined,
       storeName,
     }
 
@@ -326,6 +330,7 @@ export function BillingPage() {
     if (!draft) return
     setCart(draft.items)
     setCustomerEmail(draft.customerEmail || "")
+    setCustomerPhone(draft.customerPhone || "")
     setRestoredDraftId(id)
     setSuccess("Draft loaded - edit or checkout to remove from drafts")
     setTimeout(() => setSuccess(null), 3000)
@@ -346,6 +351,7 @@ export function BillingPage() {
       gst: bill.gst,
       total: bill.total,
       customerEmail: bill.customerEmail,
+      customerPhone: bill.customerPhone,
       billId: bill.billId,
       invoiceDate: new Date(bill.date),
       storeName: bill.storeName || storeName,
@@ -730,7 +736,7 @@ export function BillingPage() {
 
       if (!apiResponse.ok) {
         const errorData = await apiResponse.json().catch(() => ({ detail: "Unknown error" }))
-        
+
         // Handle specific error cases
         if (apiResponse.status === 404) {
           setError(
@@ -761,7 +767,7 @@ export function BillingPage() {
       setAiResponse(data)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred while fetching suggestions"
-      
+
       // Check if it's a connection error
       if (errorMessage.includes("fetch") || errorMessage.includes("Failed")) {
         setError(
@@ -774,7 +780,7 @@ export function BillingPage() {
       } else {
         setError(errorMessage)
       }
-      
+
       console.error("AI Assistant Error:", err)
       setTimeout(() => setError(null), 6000)
     } finally {
@@ -873,6 +879,7 @@ export function BillingPage() {
         gst,
         total,
         customerEmail: customerEmail || undefined,
+        customerPhone: customerPhone || undefined,
       }
 
       // If offline, queue and exit early
@@ -881,6 +888,7 @@ export function BillingPage() {
         setSuccess("Offline: bill queued and will sync when you are online")
         setCart([])
         setCustomerEmail("")
+        setCustomerPhone("")
         setIsCheckingOut(false)
         return
       }
@@ -906,6 +914,7 @@ export function BillingPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             customerEmail,
+            customerPhone,
             billId: billData.billId,
             storeName,
             storePhone,
@@ -929,6 +938,7 @@ export function BillingPage() {
       }
       setCart([])
       setCustomerEmail("")
+      setCustomerPhone("")
       await loadMedicines() // Refresh inventory
       await loadRecentBills() // Refresh bill history
 
@@ -947,6 +957,7 @@ export function BillingPage() {
     gst: number
     total: number
     customerEmail?: string
+    customerPhone?: string
     billId?: string
     invoiceDate?: Date
     storeName?: string
@@ -1160,6 +1171,7 @@ export function BillingPage() {
       </div>
       <div>
         ${payload.customerEmail ? `<p><strong>Customer:</strong> ${payload.customerEmail}</p>` : `<p><strong>Customer:</strong> Walk-in</p>`}
+        ${payload.customerPhone ? `<p><strong>Phone:</strong> ${payload.customerPhone}</p>` : ""}
         <p class="muted">This is a system generated invoice.</p>
       </div>
     </div>
@@ -1237,6 +1249,7 @@ export function BillingPage() {
       gst,
       total,
       customerEmail,
+      customerPhone,
       billId: `BILL-${Date.now()}`,
       invoiceDate: new Date(),
       storeName,
@@ -1263,6 +1276,7 @@ export function BillingPage() {
       gst,
       total,
       customerEmail,
+      customerPhone,
       billId: `BILL-${Date.now()}`,
       invoiceDate: new Date(),
       storeName,
@@ -1358,7 +1372,6 @@ export function BillingPage() {
                 className="gap-2 hover:text-primary"
               >
                 <Printer className="h-4 w-4" />
-                Print
               </Button>
             </>
           )}
@@ -1755,6 +1768,12 @@ export function BillingPage() {
                             <span className="text-muted-foreground">Total:</span>
                             <span className="font-semibold text-primary">₹{draft.total.toFixed(2)}</span>
                           </div>
+                          {(draft.customerEmail || draft.customerPhone) && (
+                            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                              {draft.customerEmail && <p className="truncate">Customer: {draft.customerEmail}</p>}
+                              {draft.customerPhone && <p className="truncate">Phone: {draft.customerPhone}</p>}
+                            </div>
+                          )}
                           <div className="flex gap-2 mt-3">
                             <Button
                               size="sm"
@@ -1822,6 +1841,11 @@ export function BillingPage() {
                             Customer: {bill.customerEmail}
                           </p>
                         )}
+                        {bill.customerPhone && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            Phone: {bill.customerPhone}
+                          </p>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -1858,7 +1882,7 @@ export function BillingPage() {
                   {cart.map((item) => (
                     <div key={`${item.id}-${item.batch}`} className="flex items-start gap-2 p-2 rounded-lg border bg-card">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-sm">{item.name}</p>
+                        <p className="font-medium text-sm break-words">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
                           ₹{item.price.toFixed(2)} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}
                         </p>
@@ -1921,6 +1945,20 @@ export function BillingPage() {
                     <p className="text-xs text-muted-foreground mt-1">
                       Invoice will be emailed if provided
                     </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="customer-phone" className="text-sm">
+                      Customer Phone (Optional)
+                    </Label>
+                    <Input
+                      id="customer-phone"
+                      type="tel"
+                      placeholder="98765 43210"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="mt-1.5"
+                      disabled={isCheckingOut}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Button
@@ -2160,7 +2198,7 @@ export function BillingPage() {
                                       disabled={medicine.quantity === 0}
                                       className="flex-shrink-0 bg-card text-foreground border"
                                     >
-                                      {getCartQuantity(medicine.id, medicine.batch)} 
+                                      {getCartQuantity(medicine.id, medicine.batch)}
                                       <div>Add</div>
                                     </Button>
                                   ) : (
@@ -2260,6 +2298,11 @@ export function BillingPage() {
                               {draft.customerEmail}
                             </p>
                           )}
+                          {draft.customerPhone && (
+                            <p className="text-xs text-muted-foreground mb-3 truncate" title={draft.customerPhone}>
+                              {draft.customerPhone}
+                            </p>
+                          )}
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -2328,6 +2371,11 @@ export function BillingPage() {
                             Customer: {bill.customerEmail}
                           </p>
                         )}
+                        {bill.customerPhone && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            Phone: {bill.customerPhone}
+                          </p>
+                        )}
                         {/* {bill.storeName && (
                         <p className="text-xs text-muted-foreground truncate">
                           Store: {bill.storeName}
@@ -2369,15 +2417,16 @@ export function BillingPage() {
                   {cart.map((item) => (
                     <div key={`${item.id}-${item.batch}`} className="flex items-start gap-2 p-2 rounded-lg border bg-card">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-sm">{item.name}</p>
+                        <p className="font-medium text-sm break-words">{item.name}</p>
                         {/* <p className="text-xs text-muted-foreground">
                         Batch: {item.batch}
                       </p> */}
                         <p className="text-xs text-muted-foreground">
-                          ₹{item.price.toFixed(2)} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}
+                          ₹{item.price.toFixed(2)} × {item.quantity}
+                          <br /> -&gt; ₹{(item.price * item.quantity).toFixed(2)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-0 md:gap-2 flex-shrink-0">
 
                         <Badge variant="outline" className="text-xs mt-1">
                           {item.availableQty} <br />
@@ -2421,23 +2470,30 @@ export function BillingPage() {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  <div>
-                    <Label htmlFor="customer-email" className="text-sm">
-                      Customer Email (Optional)
-                    </Label>
+                  <Label htmlFor="customer-email" className="text-sm">
+                    Customer Info (Optional)
+                  </Label>
+                  <div className="md:grid md:grid-cols-2 gap-3">
                     <Input
                       id="customer-email"
                       type="email"
-                      placeholder="customer@example.com"
+                      placeholder="Mail ID - invoice send on it"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       className="mt-1.5"
                       disabled={isCheckingOut}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Invoice will be emailed if provided
-                    </p>
+                    <Input
+                      id="customer-phone"
+                      type="tel"
+                      placeholder="Phone Number"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="mt-1.5"
+                      disabled={isCheckingOut}
+                    />
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="outline"
@@ -2468,6 +2524,15 @@ export function BillingPage() {
                           Payment Done
                         </>
                       )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={printBill}
+                      title="Print Bill (Ctrl+P)"
+                      className="gap-2 hover:text-primary"
+                    >
+                      <Printer className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

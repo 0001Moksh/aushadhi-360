@@ -14,6 +14,7 @@ interface UserProfile {
   ownerName: string
   phone: string
   address: string
+  photoUrl?: string
 }
 
 interface DashboardStats {
@@ -21,6 +22,17 @@ interface DashboardStats {
   lowStockItems: number
   expiringSoon: number
 }
+
+type AlertType = "low" | "expiry" | "top"
+
+interface AlertItem {
+  type: AlertType
+  title: string
+  detail: string
+}
+
+const getMedName = (m: any) =>
+  m?.Item_Name || m?.name || m?.item || m?.Medicine || m?.Medicine_Name || m?.medicine || "Medicine"
 
 interface BillHistory {
   id: string
@@ -40,6 +52,7 @@ export function DashboardHome() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentBills, setRecentBills] = useState<BillHistory[]>([])
+  const [alerts, setAlerts] = useState<AlertItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [thresholds, setThresholds] = useState({ lowStockMin: 50, expiryDays: 365 })
 
@@ -98,10 +111,58 @@ export function DashboardHome() {
           lowStockItems: lowStock,
           expiringSoon: expiring,
         })
+
+        const today = new Date()
+        const nonExpired = medicines.filter((m: any) => {
+          const exp = m.expiryDate ?? m.Expiry_date ?? m.expiry_date ?? m["Expiry Date"]
+          if (!exp) return true
+          const expiryDate = new Date(exp)
+          return !Number.isNaN(expiryDate.getTime()) && expiryDate.getTime() > today.getTime()
+        })
+
+        const lowStockCandidate = [...nonExpired]
+          .map((m: any) => {
+            const qty = m.quantity ?? m.Total_Quantity ?? m.qty
+            const quantity = Number(qty) || 0
+            return { ...m, quantity }
+          })
+          .filter((m) => m.quantity >= 0)
+          .sort((a, b) => a.quantity - b.quantity)[0]
+
+        const expiryCandidate = [...nonExpired]
+          .map((m: any) => {
+            const exp = m.expiryDate ?? m.Expiry_date ?? m.expiry_date ?? m["Expiry Date"]
+            const expiryDate = exp ? new Date(exp) : null
+            const days = expiryDate ? Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24)) : Infinity
+            return { ...m, daysUntilExpiry: days }
+          })
+          .filter((m) => m.daysUntilExpiry !== Infinity && m.daysUntilExpiry > 0)
+          .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)[0]
+
+        const computedAlerts: AlertItem[] = []
+
+        if (lowStockCandidate) {
+          computedAlerts.push({
+            type: "low",
+            title: "Low Stock",
+            detail: `${getMedName(lowStockCandidate)} - ${lowStockCandidate.quantity} units remaining`,
+          })
+        }
+
+        if (expiryCandidate) {
+          computedAlerts.push({
+            type: "expiry",
+            title: "Expiring Soon",
+            detail: `${getMedName(expiryCandidate)} - expires in ${expiryCandidate.daysUntilExpiry} days`,
+          })
+        }
+
+        // temp store for later after bills fetch
+        setAlerts(computedAlerts)
       }
 
       // Load recent bills - today's last 5 bills only
-      const billsRes = await fetch(`/api/billing/history?email=${encodeURIComponent(email)}&limit=50`)
+      const billsRes = await fetch(`/api/billing/history?email=${encodeURIComponent(email)}&limit=200`)
       if (billsRes.ok) {
         const data = await billsRes.json()
         const allBills = data.bills || []
@@ -118,6 +179,37 @@ export function DashboardHome() {
 
         // Get last 5 bills from today
         setRecentBills(todayBills.slice(0, 5))
+
+        // Compute top selling across all fetched bills
+        const counts: Record<string, { name: string; qty: number }> = {}
+        allBills.forEach((bill: any) => {
+          (bill.items || []).forEach((item: any) => {
+            const key = `${item.name || item.Item_Name || item.item || "Unknown"}`
+            const qty = Number(item.quantity || item.qty || item.Total_Quantity || 1) || 1
+            if (!counts[key]) counts[key] = { name: key, qty: 0 }
+            counts[key].qty += qty
+          })
+        })
+        const top = Object.values(counts).sort((a, b) => b.qty - a.qty)[0]
+
+        setAlerts((prev) => {
+          const existing = [...prev]
+          const hasType = (t: AlertType) => existing.some((a) => a.type === t)
+
+          if (!hasType("top") && top) {
+            existing.push({ type: "top", title: "Top Selling", detail: `${top.name} — ${top.qty} units sold` })
+          }
+
+          // ensure at least one per category with simple fallbacks
+          if (!hasType("low")) {
+            const fallback = counts ? Object.values(counts)[0] : null
+            if (fallback) existing.push({ type: "low", title: "Low Stock", detail: `${fallback.name} — check inventory` })
+          }
+          if (!hasType("expiry")) {
+            existing.push({ type: "expiry", title: "Expiring Soon", detail: "Review near-expiry medicines" })
+          }
+          return existing
+        })
       }
     } catch (error) {
       console.error("Error loading dashboard data:", error)
@@ -615,36 +707,33 @@ export function DashboardHome() {
           </Button>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
-            <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Low Stock Alert</p>
-              <p className="text-xs text-muted-foreground">Paracetamol 500mg - Only 15 strips remaining</p>
-            </div>
-            <Badge variant="outline">Low Stock</Badge>
-          </div>
+          {alerts.map((alert, idx) => {
+            const tone =
+              alert.type === "low"
+                ? { bg: "bg-warning/10", border: "border-warning/20", icon: <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />, badge: "Low Stock" }
+                : alert.type === "expiry"
+                  ? { bg: "bg-destructive/10", border: "border-destructive/20", icon: <Clock className="h-5 w-5 text-destructive flex-shrink-0" />, badge: "Expiring" }
+                  : { bg: "bg-primary/10", border: "border-primary/20", icon: <TrendingUp className="h-5 w-5 text-primary flex-shrink-0" />, badge: "Popular" }
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <Clock className="h-5 w-5 text-destructive flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Expiry Warning</p>
-              <p className="text-xs text-muted-foreground">Amoxicillin 250mg - Expires in 12 days</p>
-            </div>
-            <Badge variant="outline" className="text-destructive border-destructive">
-              Expiring
-            </Badge>
-          </div>
+            return (
+              <div key={`${alert.type}-${idx}`} className={`flex items-center gap-3 p-3 rounded-lg ${tone.bg} border ${tone.border}`}>
+                {tone.icon}
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{alert.title}</p>
+                  <p className="text-xs text-muted-foreground">{alert.detail}</p>
+                </div>
+                <Badge variant="outline" className={alert.type === "expiry" ? "text-destructive border-destructive" : alert.type === "low" ? "" : "text-primary border-primary"}>
+                  {tone.badge}
+                </Badge>
+              </div>
+            )
+          })}
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
-            <TrendingUp className="h-5 w-5 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Top Selling</p>
-              <p className="text-xs text-muted-foreground">Cyclopam - 47 strips sold this week</p>
+          {alerts.length === 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/10 border border-border">
+              <div className="flex-1 text-sm text-muted-foreground">No alerts right now. Great job keeping inventory healthy!</div>
             </div>
-            <Badge variant="outline" className="text-primary border-primary">
-              Popular
-            </Badge>
-          </div>
+          )}
         </div>
       </Card>
     </div>

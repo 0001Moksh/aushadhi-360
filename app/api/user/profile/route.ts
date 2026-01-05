@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const user = await usersCollection.findOne(
       { email },
-      { projection: { password: 0 } } // Don't return password
+      { projection: { password: 0, passwordReset: 0 } } // Don't return password
     )
 
     if (!user) {
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         ownerName: user.ownerName || user.name || "",
         phone: user.phone || "",
         address: user.address || "",
+        photoUrl: user.photoUrl || "",
         role: user.role,
         approved: user.approved,
         createdAt: user.createdAt,
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { email, storeName, ownerName, phone, address } = await request.json()
+    const { email, storeName, ownerName, phone, address, photoUrl } = await request.json()
 
     if (!email) {
       return NextResponse.json(
@@ -77,6 +78,7 @@ export async function PUT(request: NextRequest) {
     if (ownerName) updateData.ownerName = ownerName
     if (phone !== undefined) updateData.phone = phone
     if (address !== undefined) updateData.address = address
+    if (photoUrl !== undefined) updateData.photoUrl = photoUrl
 
     const result = await usersCollection.updateOne(
       { email },
