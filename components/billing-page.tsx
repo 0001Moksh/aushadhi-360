@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import type React from "react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw, Stethoscope, Activity, Sparkles, Pill, Clock, X, Lightbulb } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -28,6 +29,9 @@ interface Medicine {
   category: string
   form: string
   description?: string
+  expiryDate?: Date | null
+  daysToExpiry?: number | null
+  status?: "fresh" | "expiring" | "expired" | "unknown"
 }
 
 interface CartItem {
@@ -92,7 +96,10 @@ interface AIMedicine {
 
 export function BillingPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [formFilter, setFormFilter] = useState<string>("all")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [medicines, setMedicines] = useState<Medicine[]>([])
+  const [allMedicines, setAllMedicines] = useState<Medicine[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerEmail, setCustomerEmail] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
@@ -137,6 +144,52 @@ export function BillingPage() {
     checking: true,
   })
 
+  // Calculate expiry status for medicines
+  const calculateExpiryStatus = (medicine: any): Medicine => {
+    let expiryDate: Date | null = null
+    let daysToExpiry: number | null = null
+    let status: "fresh" | "expiring" | "expired" | "unknown" = "unknown"
+
+    const expiryRaw = medicine.expiryDate || medicine.expiry_date || medicine.Expiry_Date || medicine.Expiry_date
+    
+    if (expiryRaw) {
+      const expiryStr = String(expiryRaw).trim()
+      
+      // Try parsing "MMM-YYYY" format (e.g., "Sep-2026")
+      const monthYearMatch = expiryStr.match(/^([A-Za-z]{3})-(\d{4})$/)
+      if (monthYearMatch) {
+        const [, month, year] = monthYearMatch
+        const monthNum = new Date(`${month} 1, ${year}`).getMonth()
+        const lastDay = new Date(Number(year), monthNum + 1, 0).getDate()
+        expiryDate = new Date(`${month} ${lastDay}, ${year}`)
+      } else {
+        expiryDate = new Date(expiryStr)
+        if (isNaN(expiryDate.getTime())) {
+          expiryDate = null
+        }
+      }
+      
+      if (expiryDate) {
+        daysToExpiry = Math.floor((expiryDate.getTime() - Date.now()) / 86400000)
+        
+        if (daysToExpiry < 0) {
+          status = "expired"
+        } else if (daysToExpiry <= 60) {
+          status = "expiring"
+        } else {
+          status = "fresh"
+        }
+      }
+    }
+
+    return {
+      ...medicine,
+      expiryDate,
+      daysToExpiry,
+      status,
+    }
+  }
+
   const loadMedicines = useCallback(async () => {
     setIsSearching(true)
     setError(null)
@@ -148,18 +201,19 @@ export function BillingPage() {
         return
       }
 
-      const res = await fetch(`/api/medicines/search?email=${encodeURIComponent(email)}&query=${encodeURIComponent(searchQuery)}`)
+      const res = await fetch(`/api/medicines/search?email=${encodeURIComponent(email)}&query=`)
       if (!res.ok) throw new Error("Failed to load medicines")
 
       const data = await res.json()
-      setMedicines(data.medicines || [])
+      const medicinesWithExpiry = (data.medicines || []).map(calculateExpiryStatus)
+      setAllMedicines(medicinesWithExpiry)
     } catch (err) {
       setError("Could not load medicines. Please try again.")
       console.error(err)
     } finally {
       setIsSearching(false)
     }
-  }, [searchQuery])
+  }, [])
 
   // Load recent bills
   const loadRecentBills = useCallback(async () => {
@@ -367,23 +421,56 @@ export function BillingPage() {
     }
   }
 
+  // Extract unique forms and categories for filters
+  const uniqueForms = useMemo(() => {
+    const forms = new Set(allMedicines.map(m => m.form).filter(Boolean) as string[])
+    return Array.from(forms).sort()
+  }, [allMedicines])
+
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(allMedicines.map(m => m.category).filter(Boolean) as string[])
+    return Array.from(categories).sort()
+  }, [allMedicines])
+
+  // Enhanced filtering logic like products page
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase()
+    // Exclude expired medicines from billing
+    let filtered = allMedicines.filter(m => m.status !== "expired")
+
+    // Apply search filter across multiple fields
+    if (q) {
+      filtered = filtered.filter((m) =>
+        [
+          m.name,
+          m.batch,
+          m.category,
+          m.form,
+          m.description,
+        ]
+          .filter(Boolean)
+          .some((field) => String(field).toLowerCase().includes(q))
+      )
+    }
+
+    // Apply form filter
+    if (formFilter !== "all") {
+      filtered = filtered.filter(m => m.form === formFilter)
+    }
+
+    // Apply category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter(m => m.category === categoryFilter)
+    }
+
+    setMedicines(filtered)
+  }, [allMedicines, searchQuery, formFilter, categoryFilter])
+
   // Load medicines on mount
   useEffect(() => {
     loadMedicines()
     loadRecentBills()
   }, [])
-
-  // Debounced search when user types
-  useEffect(() => {
-    if (searchQuery === "") {
-      loadMedicines()
-      return
-    }
-    const timer = setTimeout(() => {
-      loadMedicines()
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
 
   // Online/offline state and offline queue sync
   useEffect(() => {
@@ -2024,35 +2111,83 @@ export function BillingPage() {
 
               <TabsContent value="search" className="mt-0">
 
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="space-y-3 mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
 
-                  <Input
-                    ref={searchInputRef}
-                    placeholder="Search by name, batch, or category... (Ctrl+K)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
-                    className="pl-10 pr-16"
-                  />
+                    <Input
+                      ref={searchInputRef}
+                      placeholder="Search by name, batch, category, form... (Ctrl+K)"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
+                      className="pl-10 pr-16"
+                    />
 
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      aria-label="Clear search"
-                      onClick={() => {
-                        setSearchQuery("")
-                        searchInputRef.current?.focus()
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        aria-label="Clear search"
+                        onClick={() => {
+                          setSearchQuery("")
+                          searchInputRef.current?.focus()
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
 
-                  {isSearching && (
-                    <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
-                  )}
+                    {isSearching && (
+                      <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
+                    )}
+                  </div>
+
+                  {/* Filter dropdowns */}
+                  <div className="flex gap-2">
+                    <Select value={formFilter} onValueChange={setFormFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter by form" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Forms</SelectItem>
+                        {uniqueForms.map((form) => (
+                          <SelectItem key={form} value={form}>
+                            {form}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter by category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {uniqueCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {(formFilter !== "all" || categoryFilter !== "all") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setFormFilter("all")
+                          setCategoryFilter("all")
+                        }}
+                        className="gap-1"
+                      >
+                        <X className="h-4 w-4" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {isQuickMode && (
                   <p className="text-xs text-muted-foreground mb-2">Keyboard: ↑/↓ to highlight, Enter to add, Ctrl+Enter to checkout.</p>

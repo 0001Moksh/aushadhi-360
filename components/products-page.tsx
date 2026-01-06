@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, RefreshCcw, PackageSearch, Pencil, Trash2, Download, Filter, X, Check, ChevronDown, ChevronUp } from "lucide-react"
+import { Loader2, RefreshCcw, PackageSearch, Pencil, Trash2, Download, Filter, X, Check, ChevronDown, ChevronUp, AlertCircle, Eye, ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -173,6 +173,8 @@ export function ProductsPage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [formFilter, setFormFilter] = useState<string>("all")
+  const [qtyPackFilter, setQtyPackFilter] = useState<string>("all")
   const [sortField, setSortField] = useState<keyof NormalizedMedicine | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -184,6 +186,11 @@ export function ProductsPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [detailView, setDetailView] = useState<NormalizedMedicine | null>(null)
   const [userPassword, setUserPassword] = useState<string>("")
+  const [showExpired, setShowExpired] = useState(false)
+
+  const handleExpiredCardClick = () => {
+    setShowExpired(true)
+  }
 
   const loadMedicines = async () => {
     setIsLoading(true)
@@ -282,25 +289,29 @@ export function ProductsPage() {
       const medicine = medicines.find(m => m.id === editingId)
       if (!medicine) throw new Error("Medicine not found")
 
+      const updatedFields = {
+        Batch_ID: editForm.batch !== undefined ? editForm.batch : medicine.batch,
+        "Name of Medicine": editForm.name !== undefined ? editForm.name : medicine.name,
+        Price_INR: editForm.price !== undefined ? Number(editForm.price) : medicine.price,
+        Total_Quantity: editForm.quantity !== undefined ? Number(editForm.quantity) : medicine.quantity,
+        Expiry_date: editForm.expiryLabel !== undefined ? editForm.expiryLabel : medicine.expiryLabel,
+        Category: editForm.category !== undefined ? editForm.category : medicine.category,
+        "Medicine Forms": editForm.form !== undefined ? editForm.form : medicine.form,
+        Quantity_per_pack: editForm.qtyPerPack !== undefined ? editForm.qtyPerPack : medicine.qtyPerPack,
+        "Cover Disease": editForm.coverDisease !== undefined ? editForm.coverDisease : medicine.coverDisease,
+        Symptoms: editForm.symptoms !== undefined ? editForm.symptoms : medicine.symptoms,
+        "Side Effects": editForm.sideEffects !== undefined ? editForm.sideEffects : medicine.sideEffects,
+        Instructions: editForm.instructions !== undefined ? editForm.instructions : medicine.instructions,
+        "Description in Hinglish": editForm.hinglish !== undefined ? editForm.hinglish : medicine.hinglish
+      }
+
       const res = await fetch("/api/medicines/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           id: editingId,
-          Batch_ID: editForm.batch || medicine.batch,
-          "Name of Medicine": editForm.name || medicine.name,
-          Price_INR: editForm.price !== undefined ? Number(editForm.price) : medicine.price,
-          Total_Quantity: editForm.quantity !== undefined ? Number(editForm.quantity) : medicine.quantity,
-          Expiry_date: editForm.expiryLabel || null,
-          Category: editForm.category || medicine.category,
-          "Medicine Forms": editForm.form || medicine.form,
-          Quantity_per_pack: editForm.qtyPerPack || medicine.qtyPerPack,
-          "Cover Disease": editForm.coverDisease || medicine.coverDisease,
-          Symptoms: editForm.symptoms || medicine.symptoms,
-          "Side Effects": editForm.sideEffects || medicine.sideEffects,
-          Instructions: editForm.instructions || medicine.instructions,
-          "Description in Hinglish": editForm.hinglish || medicine.hinglish
+          ...updatedFields
         })
       })
 
@@ -308,6 +319,28 @@ export function ProductsPage() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || "Failed to update")
       }
+
+      // Optimistically update local state
+      setMedicines(prev => prev.map(m => {
+        if (m.id === editingId) {
+          return {
+            ...m,
+            name: updatedFields["Name of Medicine"] as string,
+            batch: updatedFields.Batch_ID as string,
+            quantity: updatedFields.Total_Quantity as number,
+            price: updatedFields.Price_INR as number | null,
+            category: updatedFields.Category as string,
+            form: updatedFields["Medicine Forms"] as string,
+            qtyPerPack: updatedFields.Quantity_per_pack as string,
+            coverDisease: updatedFields["Cover Disease"] as string,
+            symptoms: updatedFields.Symptoms as string,
+            sideEffects: updatedFields["Side Effects"] as string,
+            instructions: updatedFields.Instructions as string,
+            hinglish: updatedFields["Description in Hinglish"] as string,
+          }
+        }
+        return m
+      }))
 
       // Invalidate cache after successful update
       if (userPassword) {
@@ -318,11 +351,10 @@ export function ProductsPage() {
         })
       }
 
-      await loadMedicines()
       cancelEdit()
       toast({
         title: "Medicine updated",
-        description: "Changes saved and search index refreshed"
+        description: "Changes saved successfully"
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save changes")
@@ -419,9 +451,49 @@ export function ProductsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const exportExpiredToCSV = () => {
+    const headers = ["Name", "Batch", "Quantity", "Price", "Expiry", "Status", "Category", "Form", "Qty/Pack", "Cover Disease", "Symptoms", "Side Effects", "Instructions", "Description (Hinglish)"]
+    const rows = expiredMedicines.map(m => [
+      m.name,
+      m.batch,
+      m.quantity,
+      m.price || "",
+      m.expiryLabel,
+      m.statusLabel,
+      m.category || "",
+      m.form || "",
+      m.qtyPerPack || "",
+      m.coverDisease || "",
+      m.symptoms || "",
+      m.sideEffects || "",
+      m.instructions || "",
+      m.hinglish || ""
+    ])
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `expired-medicines-${new Date().toISOString().split("T")[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const uniqueForms = useMemo(() => {
+    const forms = new Set(medicines.map(m => m.form).filter(Boolean) as string[])
+    return Array.from(forms).sort()
+  }, [medicines])
+
+  const uniqueQtyPacks = useMemo(() => {
+    const packs = new Set(medicines.map(m => m.qtyPerPack).filter(Boolean) as string[])
+    return Array.from(packs).sort()
+  }, [medicines])
+
   const filteredMedicines = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let filtered = medicines
+    // Exclude expired medicines from main inventory by default
+    let filtered = medicines.filter(m => m.status !== "expired")
 
     // Apply search filter
     if (q) {
@@ -435,6 +507,16 @@ export function ProductsPage() {
     // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(m => m.status === statusFilter)
+    }
+
+    // Apply form filter
+    if (formFilter !== "all") {
+      filtered = filtered.filter(m => m.form === formFilter)
+    }
+
+    // Apply qtyPack filter
+    if (qtyPackFilter !== "all") {
+      filtered = filtered.filter(m => m.qtyPerPack === qtyPackFilter)
     }
 
     // Apply sorting
@@ -458,7 +540,11 @@ export function ProductsPage() {
     }
 
     return filtered
-  }, [medicines, query, statusFilter, sortField, sortDirection])
+  }, [medicines, query, statusFilter, formFilter, qtyPackFilter, sortField, sortDirection])
+
+  const expiredMedicines = useMemo(() => {
+    return medicines.filter(m => m.status === "expired")
+  }, [medicines])
 
   const summary = useMemo(() => {
     return medicines.reduce(
@@ -513,7 +599,7 @@ export function ProductsPage() {
                 <Filter className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-56">
               <div className="p-2">
                 <Label className="text-xs text-muted-foreground mb-2">Filter by Status</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -526,6 +612,31 @@ export function ProductsPage() {
                     <SelectItem value="expiring">Expiring</SelectItem>
                     <SelectItem value="expired">Expired</SelectItem>
                     <SelectItem value="unknown">Unknown</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DropdownMenuSeparator />
+              <div className="p-2">
+                <Label className="text-xs text-muted-foreground mb-2">Filter by Form</Label>
+                <Select value={formFilter} onValueChange={setFormFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="All Forms" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    <SelectItem value="all">All Forms</SelectItem>
+                    {uniqueForms.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="p-2">
+                <Label className="text-xs text-muted-foreground mb-2">Filter by Qty/Pack</Label>
+                <Select value={qtyPackFilter} onValueChange={setQtyPackFilter}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="All Packs" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    <SelectItem value="all">All Packs</SelectItem>
+                    {uniqueQtyPacks.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -556,22 +667,14 @@ export function ProductsPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         <Card className="p-3">
-          <p className="text-xs text-muted-foreground">Total Products</p>
-          <p className="text-xl font-bold mt-1">{summary.total}</p>
+          <p className="text-xs text-muted-foreground">Active Products</p>
+          <p className="text-xl font-bold mt-1">{summary.total - summary.expired}</p>
         </Card>
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Fresh Stock (new imports)</p>
           <p className="text-xl font-bold mt-1 text-success">{summary.statusImportNew}</p>
-        </Card>
-        <Card className="p-3">
-          <p className="text-xs text-muted-foreground">Expiring Soon</p>
-          <p className="text-xl font-bold mt-1 text-warning">{summary.expiring}</p>
-        </Card>
-        <Card className="p-3">
-          <p className="text-xs text-muted-foreground">Expired</p>
-          <p className="text-xl font-bold mt-1 text-destructive">{summary.expired}</p>
         </Card>
       </div>
 
@@ -787,14 +890,96 @@ export function ProductsPage() {
                             {sortField === "price" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                           </div>
                         </TableHead>
-                        <TableHead className="cursor-pointer hover:bg-muted/50 min-w-[150px] h-9 px-2 text-xs" onClick={() => handleSort("daysToExpiry")}>
-                          <div className="flex items-center gap-1">
-                            Status
-                            {sortField === "daysToExpiry" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                        <TableHead className="min-w-[150px] h-9 px-2 text-xs">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1 cursor-pointer hover:text-foreground/80" onClick={() => handleSort("daysToExpiry")}>
+                              Status
+                              {sortField === "daysToExpiry" && (sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className={`h-6 w-6 ${statusFilter !== 'all' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem onClick={() => setStatusFilter("all")}>
+                                  <div className="flex items-center gap-2">
+                                    {statusFilter === "all" && <Check className="h-3 w-3" />}
+                                    <span>All Statuses</span>
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {["fresh", "expiring", "expired", "unknown"].map((status) => (
+                                  <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>
+                                    <div className="flex items-center gap-2">
+                                      {statusFilter === status && <Check className="h-3 w-3" />}
+                                      <span className="capitalize">{status}</span>
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
-                        <TableHead className="min-w-[120px] h-9 px-2 text-xs">Form</TableHead>
-                        <TableHead className="min-w-[100px] h-9 px-2 text-xs">Qty/Pack</TableHead>
+                        <TableHead className="min-w-[120px] h-9 px-2 text-xs">
+                          <div className="flex items-center justify-between gap-1">
+                            <span>Form</span>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className={`h-6 w-6 ${formFilter !== 'all' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
+                                <DropdownMenuItem onClick={() => setFormFilter("all")}>
+                                  <div className="flex items-center gap-2">
+                                    {formFilter === "all" && <Check className="h-3 w-3" />}
+                                    <span>All Forms</span>
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {uniqueForms.map((form) => (
+                                  <DropdownMenuItem key={form} onClick={() => setFormFilter(form)}>
+                                    <div className="flex items-center gap-2">
+                                      {formFilter === form && <Check className="h-3 w-3" />}
+                                      <span>{form}</span>
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableHead>
+                        <TableHead className="min-w-[100px] h-9 px-2 text-xs">
+                          <div className="flex items-center justify-between gap-1">
+                            <span>Qty/Pack</span>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className={`h-6 w-6 ${qtyPackFilter !== 'all' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
+                                <DropdownMenuItem onClick={() => setQtyPackFilter("all")}>
+                                  <div className="flex items-center gap-2">
+                                    {qtyPackFilter === "all" && <Check className="h-3 w-3" />}
+                                    <span>All Packs</span>
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {uniqueQtyPacks.map((pack) => (
+                                  <DropdownMenuItem key={pack} onClick={() => setQtyPackFilter(pack)}>
+                                    <div className="flex items-center gap-2">
+                                      {qtyPackFilter === pack && <Check className="h-3 w-3" />}
+                                      <span>{pack}</span>
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableHead>
                         <TableHead className="w-16 min-w-16 sticky right-0 bg-background h-9 px-2 text-xs">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -934,7 +1119,132 @@ export function ProductsPage() {
         </>
       )}
 
+      {/* Expired Medicines Dialog */}
+      <Dialog open={showExpired} onOpenChange={setShowExpired}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Expired Medicines ({expiredMedicines.length})
+            </DialogTitle>
+            <DialogDescription>
+              These medicines have expired and are excluded from active inventory.
+            </DialogDescription>
+          </DialogHeader>
 
+          <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+            <div className="space-y-2">
+              {/* Mobile View */}
+              <div className="grid grid-cols-1 gap-2 md:hidden">
+                {expiredMedicines.map((m) => (
+                  <Card key={m.id} className="p-3 bg-destructive/10 border-destructive/20">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{m.name}</p>
+                        <p className="text-xs text-muted-foreground">Batch: {m.batch}</p>
+                      </div>
+                      <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">
+                        Expired
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Qty:</span> {m.quantity}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Expiry:</span> {m.expiryLabel}
+                      </div>
+                      {m.price && (
+                        <div>
+                          <span className="text-muted-foreground">Price:</span> ₹{m.price}
+                        </div>
+                      )}
+                      {m.daysToExpiry !== null && (
+                        <div>
+                          <span className="text-muted-foreground">Days ago:</span> {Math.abs(m.daysToExpiry)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setDetailView(m)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" /> View Details
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => openDeleteDialog([m.id])}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden md:block border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Medicine Name</TableHead>
+                      <TableHead>Batch</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Expired Date</TableHead>
+                      <TableHead>Days Ago</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expiredMedicines.map((m) => (
+                      <TableRow key={m.id} className="bg-destructive/5">
+                        <TableCell className="font-medium">{m.name}</TableCell>
+                        <TableCell>{m.batch}</TableCell>
+                        <TableCell>{m.quantity}</TableCell>
+                        <TableCell>{m.price ? `₹${m.price}` : "—"}</TableCell>
+                        <TableCell>{m.expiryLabel}</TableCell>
+                        <TableCell>
+                          {m.daysToExpiry !== null ? `${Math.abs(m.daysToExpiry)} days ago` : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDetailView(m)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openDeleteDialog([m.id])}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={exportExpiredToCSV} className="mr-auto">
+              <Download className="h-4 w-4 mr-2" /> Export
+            </Button>
+            <Button variant="outline" onClick={() => setShowExpired(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, ids: [] })}>

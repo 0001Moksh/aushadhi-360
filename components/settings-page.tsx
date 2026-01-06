@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { User, Bell, Shield, Database, Upload, Loader2, Download, Mail, KeyRound } from "lucide-react"
+import { User, Bell, Shield, Database, Upload, Loader2, Download, Mail, KeyRound, Eye, FileText } from "lucide-react"
 
 interface UserProfile {
   email: string
@@ -37,12 +37,14 @@ interface Preferences {
 const defaultPreferences: Preferences = {
   notifications: { emailAlerts: true },
   invoiceTemplate: "detailed",
-  invoiceColumns: ["name", "batch", "quantity", "price", "amount", "description"],
+  invoiceColumns: ["name", "batch", "form", "qtyPerPack", "quantity", "price", "amount", "description"],
 }
 
 const invoiceColumnOptions = [
   { value: "name", label: "Medicine Name" },
   { value: "batch", label: "Batch" },
+  { value: "form", label: "Form" },
+  { value: "qtyPerPack", label: "Qty/Pack" },
   { value: "quantity", label: "Quantity" },
   { value: "price", label: "Unit Price" },
   { value: "amount", label: "Line Total" },
@@ -73,6 +75,7 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState("")
   const [otpSending, setOtpSending] = useState(false)
   const [otpVerifying, setOtpVerifying] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -331,6 +334,22 @@ export function SettingsPage() {
     (formData.ownerName?.charAt(0) || "") + (formData.storeName?.charAt(0) || "")
   ).toUpperCase()
 
+  // Sample invoice data for preview
+  const sampleInvoiceData = {
+    invoiceNumber: "INV-2026-001",
+    date: new Date().toLocaleDateString(),
+    customerName: "Sample Customer",
+    customerPhone: "+91 98765 43210",
+    items: [
+      { name: "Paracetamol 500mg", batch: "B123", form: "Tablet", qtyPerPack: "10", quantity: 10, price: 5, amount: 50, description: "Fever relief" },
+      { name: "Amoxicillin 250mg", batch: "B456", form: "Capsule", qtyPerPack: "20", quantity: 20, price: 8, amount: 160, description: "Antibiotic" },
+      { name: "Vitamin D3", batch: "B789", form: "Syrup", qtyPerPack: "100ml", quantity: 5, price: 15, amount: 75, description: "Supplement" },
+    ],
+    subtotal: 285,
+    tax: 28.5,
+    total: 313.5,
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -429,9 +448,20 @@ export function SettingsPage() {
         {/* Quick Actions */}
         <div className="space-y-6">
           <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <Bell className="h-5 w-5" />
-              <h3 className="font-semibold">Notifications</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="h-5 w-5" />
+                <h3 className="font-semibold">Invoice & Notifications</h3>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPreview(!showPreview)}
+                className="gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                {showPreview ? "Hide" : "Preview"}
+              </Button>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -472,7 +502,7 @@ export function SettingsPage() {
                 <Label className="text-sm">Medicine table columns</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {invoiceColumnOptions.map((option) => (
-                    <label key={option.value} className="flex items-center gap-2 text-sm">
+                    <label key={option.value} className="flex items-center gap-2 text-sm cursor-pointer hover:text-primary transition-colors">
                       <Checkbox
                         checked={preferences.invoiceColumns.includes(option.value)}
                         onCheckedChange={(checked) => {
@@ -494,6 +524,119 @@ export function SettingsPage() {
                 </p>
               </div>
 
+              {/* Invoice Preview */}
+              {showPreview && (
+                <Card className="p-4 bg-muted/30 space-y-3 border-2 border-primary/20">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                    <FileText className="h-4 w-4" />
+                    Live Preview
+                  </div>
+                  
+                  {/* Preview based on template type */}
+                  <div className="bg-background p-4 rounded-lg text-xs space-y-3 border">
+                    {/* Header - Always shown */}
+                    <div className="flex justify-between items-start pb-2 border-b">
+                      <div>
+                        <h4 className="font-bold text-sm">{formData.storeName || "Your Store Name"}</h4>
+                        {preferences.invoiceTemplate !== "minimal" && (
+                          <>
+                            <p className="text-muted-foreground">{formData.ownerName || "Owner Name"}</p>
+                            <p className="text-muted-foreground">{formData.phone || "Phone"}</p>
+                          </>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">Invoice #{sampleInvoiceData.invoiceNumber}</p>
+                        <p className="text-muted-foreground">{sampleInvoiceData.date}</p>
+                      </div>
+                    </div>
+
+                    {/* Customer Info - Detailed & Compact */}
+                    {preferences.invoiceTemplate !== "minimal" && (
+                      <div className="space-y-1">
+                        <p className="font-semibold">Bill To:</p>
+                        <p>{sampleInvoiceData.customerName}</p>
+                        <p className="text-muted-foreground">{sampleInvoiceData.customerPhone}</p>
+                      </div>
+                    )}
+
+                    {/* Minimal template - just customer name */}
+                    {preferences.invoiceTemplate === "minimal" && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Customer:</span>
+                        <span className="font-medium">{sampleInvoiceData.customerName}</span>
+                      </div>
+                    )}
+
+                    {/* Items Table */}
+                    <div className="space-y-2">
+                      <p className="font-semibold text-xs">Items:</p>
+                      <div className="border rounded overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted">
+                            <tr>
+                              {preferences.invoiceColumns.includes("name") && <th className="text-left p-2">Medicine</th>}
+                              {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <th className="text-left p-2">Batch</th>}
+                              {preferences.invoiceColumns.includes("form") && preferences.invoiceTemplate !== "minimal" && <th className="text-left p-2">Form</th>}
+                              {preferences.invoiceColumns.includes("qtyPerPack") && preferences.invoiceTemplate !== "minimal" && <th className="text-center p-2">Qty/Pack</th>}
+                              {preferences.invoiceColumns.includes("quantity") && <th className="text-center p-2">Qty</th>}
+                              {preferences.invoiceColumns.includes("price") && <th className="text-right p-2">Price</th>}
+                              {preferences.invoiceColumns.includes("amount") && <th className="text-right p-2">Amount</th>}
+                              {preferences.invoiceColumns.includes("description") && preferences.invoiceTemplate === "detailed" && <th className="text-left p-2">Notes</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sampleInvoiceData.items.slice(0, preferences.invoiceTemplate === "minimal" ? 2 : 3).map((item, idx) => (
+                              <tr key={idx} className="border-t">
+                                {preferences.invoiceColumns.includes("name") && <td className="p-2">{item.name}</td>}
+                                {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <td className="p-2 text-muted-foreground">{item.batch}</td>}
+                                {preferences.invoiceColumns.includes("form") && preferences.invoiceTemplate !== "minimal" && <td className="p-2 text-muted-foreground">{item.form}</td>}
+                                {preferences.invoiceColumns.includes("qtyPerPack") && preferences.invoiceTemplate !== "minimal" && <td className="p-2 text-center text-muted-foreground">{item.qtyPerPack}</td>}
+                                {preferences.invoiceColumns.includes("quantity") && <td className="p-2 text-center">{item.quantity}</td>}
+                                {preferences.invoiceColumns.includes("price") && <td className="p-2 text-right">₹{item.price}</td>}
+                                {preferences.invoiceColumns.includes("amount") && <td className="p-2 text-right font-medium">₹{item.amount}</td>}
+                                {preferences.invoiceColumns.includes("description") && preferences.invoiceTemplate === "detailed" && <td className="p-2 text-muted-foreground">{item.description}</td>}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Totals */}
+                    <div className="space-y-1 pt-2 border-t">
+                      {preferences.invoiceTemplate === "detailed" && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Subtotal:</span>
+                            <span>₹{sampleInvoiceData.subtotal}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Tax (10%):</span>
+                            <span>₹{sampleInvoiceData.tax}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between font-bold text-sm pt-1 border-t">
+                        <span>Total:</span>
+                        <span>₹{sampleInvoiceData.total}</span>
+                      </div>
+                    </div>
+
+                    {/* Footer - Detailed only */}
+                    {preferences.invoiceTemplate === "detailed" && (
+                      <div className="pt-2 border-t text-center text-muted-foreground">
+                        <p>Thank you for your business!</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground italic">
+                    This preview updates in real-time as you change settings above.
+                  </p>
+                </Card>
+              )}
+
               <Button onClick={handleSavePreferences} disabled={isPrefSaving || !isPreferencesDirty} className="w-full">
                 {isPrefSaving ? (
                   <>
@@ -501,7 +644,7 @@ export function SettingsPage() {
                     Saving...
                   </>
                 ) : (
-                  "Save Notification & Invoice Settings"
+                  "Save Invoice & Notification Settings"
                 )}
               </Button>
             </div>

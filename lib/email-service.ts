@@ -18,6 +18,8 @@ interface InvoiceData {
   items: Array<{
     name: string
     batch: string
+    form?: string
+    qtyPerPack?: string
     quantity: number
     price: number
     description?: string
@@ -270,6 +272,8 @@ export function generateInvoiceHTML(data: InvoiceData): string {
       <tr>
         <th>Medicine</th>
         <th>Batch</th>
+        <th>Form</th>
+        <th>Qty/Pack</th>
         <th class="right">Qty</th>
         <th class="right">Price</th>
         <th class="right">Amount</th>
@@ -281,6 +285,8 @@ export function generateInvoiceHTML(data: InvoiceData): string {
         <tr>
           <td>${item.name}</td>
           <td>${item.batch}</td>
+          <td>${item.form || "-"}</td>
+          <td>${item.qtyPerPack || "-"}</td>
           <td class="right">${item.quantity}</td>
           <td class="right">₹${item.price.toFixed(2)}</td>
           <td class="right">₹${(item.price * item.quantity).toFixed(2)}</td>
@@ -339,7 +345,7 @@ Date: ${data.date || new Date()}
 Customer: ${data.customerEmail}
 
 Items:
-${data.items.map((item) => `- ${item.name} (Batch: ${item.batch}) x${item.quantity} @ ₹${item.price} = ₹${(item.quantity * item.price).toFixed(2)} | ${item.description || "Medicine sale"}`).join("\n")}
+${data.items.map((item) => `- ${item.name} (Batch: ${item.batch}${item.form ? `, Form: ${item.form}` : ""}${item.qtyPerPack ? `, Qty/Pack: ${item.qtyPerPack}` : ""}) x${item.quantity} @ ₹${item.price} = ₹${(item.quantity * item.price).toFixed(2)} | ${item.description || "Medicine sale"}`).join("\n")}
 
 Subtotal: ₹${data.subtotal.toFixed(2)}
 GST (18%): ₹${data.gst.toFixed(2)}

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const preferences = user?.preferences || {
       notifications: { emailAlerts: true },
       invoiceTemplate: "detailed",
-      invoiceColumns: ["name", "batch", "quantity", "price", "amount", "description"],
+      invoiceColumns: ["name", "batch", "form", "qtyPerPack", "quantity", "price", "amount", "description"],
     }
 
     return NextResponse.json({ preferences })

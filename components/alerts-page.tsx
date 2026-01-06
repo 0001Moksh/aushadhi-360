@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { AlertTriangle, Clock, TrendingUp, Download, Loader2, Settings, Calendar } from "lucide-react"
+import { AlertTriangle, Clock, TrendingUp, Download, Loader2, Settings, Calendar, AlertCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { normalizeExpiryDate } from "@/lib/date-parser"
 
@@ -66,6 +66,7 @@ export function AlertsPage() {
     lowStock: [] as Medicine[],
     topSelling: [] as TopSellingMedicine[],
     expiringSoon: [] as Medicine[],
+    expired: [] as Medicine[],
   })
   const [activeTab, setActiveTab] = useState("low-stock")
 
@@ -284,6 +285,21 @@ export function AlertsPage() {
         return daysA - daysB // Closest expiry first (ascending)
       })
 
+    // Expired: Show medicines that have already expired (daysUntil < 0)
+    const expired = data.medicines
+      .filter((m) => {
+        if (!m.expiryDate) return false
+        const diff = daysUntil(m.expiryDate)
+        return diff !== null && diff < 0 // Already expired
+      })
+      .sort((a, b) => {
+        const daysA = daysUntil(a.expiryDate || "")
+        const daysB = daysUntil(b.expiryDate || "")
+        if (daysA === null) return 1
+        if (daysB === null) return -1
+        return daysA - daysB // Most recently expired first (ascending, closest to 0)
+      })
+
     // Top Selling: Analyze purchase frequency from bills
     const topSelling = [...data.topSelling]
       .filter((m) => m.totalUnitsSold > 0)
@@ -301,6 +317,7 @@ export function AlertsPage() {
       lowStock,
       topSelling,
       expiringSoon,
+      expired,
     })
   }
 
@@ -349,6 +366,13 @@ export function AlertsPage() {
       const headers = ["Name", "Batch", "Units Sold", "Revenue", "Current Stock", "Price"]
       const rows = filteredData.topSelling.map(m => [m.name, m.batch, m.totalUnitsSold, m.totalRevenue.toFixed(2), m.currentStock, m.price, m.category || ""])
       downloadCSV(headers, rows, `top_selling_report_${dateStr}.csv`)
+    } else if (activeTab === "expired") {
+      const headers = ["Name", "Batch", "Quantity", "Price", "Expiry Date", "Days Overdue", "Category", "Form"]
+      const rows = filteredData.expired.map(m => {
+        const daysOverdue = m.expiryDate ? Math.abs(getDaysRemaining(m.expiryDate)) : 0
+        return [m.name, m.batch, m.quantity, m.price, formatDate(m.expiryDate || ""), daysOverdue, m.category || "", m.form || ""]
+      })
+      downloadCSV(headers, rows, `expired_medicines_report_${dateStr}.csv`)
     }
   }
 
@@ -381,6 +405,7 @@ export function AlertsPage() {
         <TabsList>
           <TabsTrigger value="low-stock">Low Stock ({filteredData.lowStock.length})</TabsTrigger>
           <TabsTrigger value="expiring-soon">Expiring Soon ({filteredData.expiringSoon.length})</TabsTrigger>
+          <TabsTrigger value="expired">Expired ({filteredData.expired.length})</TabsTrigger>
           <TabsTrigger value="top-selling">Top Selling ({filteredData.topSelling.length})</TabsTrigger>
         </TabsList>
 
@@ -484,6 +509,55 @@ export function AlertsPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* Expired Tab */}
+        <TabsContent value="expired" className="space-y-4">
+          <Card className="p-4 bg-destructive/5 border-destructive/30">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Expired Medicines</p>
+                <p className="text-xs text-muted-foreground">These medicines have passed their expiry date and should not be sold</p>
+              </div>
+            </div>
+          </Card>
+
+          {filteredData.expired.length > 0 ? (
+            filteredData.expired.map((medicine) => {
+              const daysOverdue = medicine.expiryDate ? Math.abs(getDaysRemaining(medicine.expiryDate)) : 0
+
+              return (
+                <Card key={medicine.id} className="p-4 border-destructive/50 bg-destructive/5">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-destructive" />
+                    <div className="flex-1">
+                      <p className="font-medium">{medicine.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Batch: {medicine.batch} | Quantity: {medicine.quantity}
+                      </p>
+                      {medicine.category && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Category: {medicine.category}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <Badge className="bg-destructive/20 text-destructive border-destructive border">
+                        Expired {daysOverdue} {daysOverdue === 1 ? 'day' : 'days'} ago
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">{formatDate(medicine.expiryDate || "")}</p>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No expired medicines found
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="top-selling" className="space-y-4">
           {filteredData.topSelling.length > 0 ? (
             filteredData.topSelling.map((medicine) => (
