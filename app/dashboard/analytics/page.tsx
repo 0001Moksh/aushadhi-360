@@ -1,10 +1,13 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AnalyticsPage } from "@/components/analytics-page"
+import { UserGuard } from "@/components/user-guard"
 
 export default function AnalyticsRoute() {
   return (
-    <DashboardLayout>
-      <AnalyticsPage />
-    </DashboardLayout>
+    <UserGuard>
+      <DashboardLayout>
+        <AnalyticsPage />
+      </DashboardLayout>
+    </UserGuard>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import Link from "next/link"
 import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Upload, Plus, Trash2, Copy, GripVertical, RotateCcw,
-  RotateCw, Clipboard, Download, Eye, MoreVertical, ChevronDown, ChevronUp, Columns
+  RotateCw, Clipboard, Download, Eye, MoreVertical, ChevronDown, ChevronUp, Columns, Package
 } from "lucide-react"
 import {
   Dialog,
@@ -619,11 +620,14 @@ export function ManualImportTable() {
       return
     }
 
+    // Check for all required fields
     const invalid = rows.find(
-      (r) => !r.Batch_ID || !r.name || isNaN(Number(r.price)) || isNaN(Number(r.qty))
+      (r) => !r.Batch_ID || !r.name || isNaN(Number(r.price)) || isNaN(Number(r.qty)) ||
+             !r.expiryDate || !r.category || !r.form || !r.qtyPerPack ||
+             !r.coverDisease || !r.symptoms || !r.sideEffects || !r.instructions || !r.hinglish
     )
     if (invalid) {
-      setError("Please fill Batch_ID, Name, numeric Price and Quantity for all rows.")
+      setError("All fields are required: Batch_ID, Name, Price, Quantity, Expiry Date, Category, Medicine Forms, Qty/Pack, Cover Disease, Symptoms, Side Effects, Instructions, and Description (Hinglish).")
       return
     }
 
@@ -1225,6 +1229,20 @@ export function ManualImportTable() {
 
   return (
     <div className="space-y-4 pb-4">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Manual Import</h1>
+          <p className="text-sm text-muted-foreground">Add medicines manually to your inventory</p>
+        </div>
+        <Link href="/dashboard/products">
+          <Button variant="outline" className="gap-2">
+            <Package className="h-4 w-4" />
+            View Products
+          </Button>
+        </Link>
+      </div>
+      
       {/* Header Controls */}
       <Card className="p-3 sticky top-0 z-10 bg-background border-b">
         <div className="flex flex-wrap items-center justify-between gap-2">

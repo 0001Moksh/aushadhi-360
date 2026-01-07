@@ -42,6 +42,11 @@ interface CartItem {
   quantity: number
   availableQty: number
   description?: string
+  isAIRecommended?: boolean
+  aiInstructions?: string
+  aiUsage?: string
+  aiSideEffects?: string
+  aiCoverDisease?: string
 }
 
 interface DraftBill {
@@ -95,6 +100,7 @@ interface AIMedicine {
 }
 
 export function BillingPage() {
+  const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [formFilter, setFormFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -115,7 +121,6 @@ export function BillingPage() {
   const [storeName, setStoreName] = useState("Your Pharmacy")
   const [storePhone, setStorePhone] = useState<string | undefined>()
   const [storeAddress, setStoreAddress] = useState<string | undefined>()
-  const [isQuickMode, setIsQuickMode] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isOnline, setIsOnline] = useState(true)
   const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
@@ -144,6 +149,10 @@ export function BillingPage() {
     checking: true,
   })
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Calculate expiry status for medicines
   const calculateExpiryStatus = (medicine: any): Medicine => {
     let expiryDate: Date | null = null
@@ -151,10 +160,10 @@ export function BillingPage() {
     let status: "fresh" | "expiring" | "expired" | "unknown" = "unknown"
 
     const expiryRaw = medicine.expiryDate || medicine.expiry_date || medicine.Expiry_Date || medicine.Expiry_date
-    
+
     if (expiryRaw) {
       const expiryStr = String(expiryRaw).trim()
-      
+
       // Try parsing "MMM-YYYY" format (e.g., "Sep-2026")
       const monthYearMatch = expiryStr.match(/^([A-Za-z]{3})-(\d{4})$/)
       if (monthYearMatch) {
@@ -168,10 +177,10 @@ export function BillingPage() {
           expiryDate = null
         }
       }
-      
+
       if (expiryDate) {
         daysToExpiry = Math.floor((expiryDate.getTime() - Date.now()) / 86400000)
-        
+
         if (daysToExpiry < 0) {
           status = "expired"
         } else if (daysToExpiry <= 60) {
@@ -189,6 +198,8 @@ export function BillingPage() {
       status,
     }
   }
+
+  if (!mounted) return null
 
   const loadMedicines = useCallback(async () => {
     setIsSearching(true)
@@ -341,6 +352,41 @@ export function BillingPage() {
       reorderFavorites(draggingFavorite.current, targetId)
     }
     draggingFavorite.current = null
+  }
+
+  const getFieldValue = (medicine: any, keys: string[]) => {
+    for (const key of keys) {
+      const path = key.split(".")
+      let value: any = medicine
+      for (const part of path) {
+        if (value && Object.prototype.hasOwnProperty.call(value, part)) {
+          value = value[part]
+        } else {
+          value = undefined
+          break
+        }
+      }
+      if (value !== undefined && value !== null) {
+        if (typeof value === "string") {
+          if (value.trim() !== "") return value
+        } else if (!(Array.isArray(value) && value.length === 0)) {
+          return value
+        }
+      }
+    }
+    return undefined
+  }
+
+  const renderDetailRow = (label: string, value: React.ReactNode, fullWidth = false) => {
+    if (value === undefined || value === null || value === "") return null
+    return (
+      <div className={`flex items-start justify-between gap-2 ${fullWidth ? "col-span-2" : ""}`}>
+        <span className="text-muted-foreground whitespace-nowrap">{label}</span>
+        <span className={`ml-2 font-medium text-foreground ${fullWidth ? "text-left" : "text-right"} flex-1 min-w-0 break-words`}>
+          {value}
+        </span>
+      </div>
+    )
   }
 
   const dismissAlert = (key: string) => {
@@ -582,11 +628,6 @@ export function BillingPage() {
         e.preventDefault()
         printBill()
       }
-      // Ctrl + Q: Toggle Quick Mode
-      if ((e.ctrlKey || e.metaKey) && e.key === "q") {
-        e.preventDefault()
-        setIsQuickMode(v => !v)
-      }
       // Alt + 1: Search Tab
       if (e.altKey && e.key === "1") {
         e.preventDefault()
@@ -607,13 +648,7 @@ export function BillingPage() {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [cart, isCheckingOut, isQuickMode, activeTab])
-
-  useEffect(() => {
-    if (isQuickMode) {
-      searchInputRef.current?.focus()
-    }
-  }, [isQuickMode])
+  }, [cart, isCheckingOut, activeTab])
 
   useEffect(() => {
     setHighlightedIndex(0)
@@ -884,6 +919,11 @@ export function BillingPage() {
       quantity: 1,
       availableQty: Number.parseInt(medicine.Quantity || "999"),
       description: medicine.Description,
+      isAIRecommended: true,
+      aiInstructions: medicine.Instructions,
+      aiUsage: medicine["Cover Disease"],
+      aiSideEffects: medicine["Side Effects"],
+      aiCoverDisease: medicine["Cover Disease"],
     }
 
     const existing = cart.find((item) => item.batch === cartItem.batch)
@@ -1278,13 +1318,28 @@ export function BillingPage() {
       <tbody>
         ${payload.items.map(item => `
           <tr>
-            <td>${item.name}</td>
+            <td>
+              ${item.name}
+              ${item.isAIRecommended ? '<span style="background: #3b82f6; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">AI</span>' : ''}
+            </td>
             <td>${item.batch}</td>
             <td class="right">${item.quantity}</td>
             <td class="right">₹${item.price.toFixed(2)}</td>
             <td class="right">₹${(item.price * item.quantity).toFixed(2)}</td>
             <td>${item.description || "Medicine sale"}</td>
           </tr>
+          ${item.isAIRecommended && (item.aiInstructions || item.aiUsage || item.aiSideEffects) ? `
+          <tr style="background: #f0f9ff;">
+            <td colspan="6" style="padding: 8px 12px;">
+              <div style="font-size: 12px; color: #1e40af;">
+                <strong>AI Recommended Guidelines:</strong><br/>
+                ${item.aiUsage ? `<strong>Usage:</strong> ${item.aiUsage}<br/>` : ''}
+                ${item.aiInstructions ? `<strong>Instructions:</strong> ${item.aiInstructions}<br/>` : ''}
+                ${item.aiSideEffects ? `<strong>Side Effects:</strong> ${item.aiSideEffects}` : ''}
+              </div>
+            </td>
+          </tr>
+          ` : ''}
         `).join("")}
       </tbody>
     </table>
@@ -1378,56 +1433,47 @@ export function BillingPage() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-4">
-      <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 pr-24 sm:pr-0">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-balance mb-1">
+    <div className="w-full space-y-3 sm:space-y-4 md:space-y-4">
+      <div className="relative flex flex-col gap-3 sm:gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-balance break-words">
             {isAIMode ? "AI-Assisted Billing" : "Manual Billing"}
           </h1>
-          <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1">
-            {isOnline ? "Online" : "Offline"}
-            {offlineQueueCount > 0 && <span className="text-xs">• {offlineQueueCount} queued</span>}
-          </Badge>
-          {offlineQueueCount > 0 && isOnline && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={syncOfflineQueue}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={isOnline ? "secondary" : "destructive"} className="flex items-center gap-1 text-xs sm:text-sm">
+              {isOnline ? "Online" : "Offline"}
+              {offlineQueueCount > 0 && <span className="text-xs">• {offlineQueueCount} queued</span>}
+            </Badge>
+            {offlineQueueCount > 0 && isOnline && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={syncOfflineQueue}
               disabled={syncingOfflineQueue}
-              className="gap-2 hover:text-primary"
+              className="gap-2 hover:text-primary text-xs"
             >
-              {syncingOfflineQueue ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sync queued
+              {syncingOfflineQueue ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />}
+              <span className="hidden sm:inline">Sync queued</span>
+              <span className="sm:hidden">Sync</span>
             </Button>
           )}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 justify-end">
 
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full">
           {/* AI Mode Toggle */}
-          <div className="flex md:mt-0 mt-10 items-center gap-3 px-4 py-2 border rounded-lg bg-card absolute right-0 top-0 sm:relative sm:right-auto sm:top-auto">
-            <Label htmlFor="ai-mode" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-              {isAIMode ? <Stethoscope className="h-4 w-4 text-primary" /> : <Package className="h-4 w-4" />}
-              {isAIMode ? "AI Mode" : "Static Mode"}
+          <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 border rounded-lg bg-card text-xs sm:text-sm flex-shrink-0">
+            <Label htmlFor="ai-mode" className="font-medium cursor-pointer flex items-center gap-1.5 flex-shrink-0">
+              {isAIMode ? <Stethoscope className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" /> : <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              <span className="hidden sm:inline">{isAIMode ? "AI Mode" : "Static Mode"}</span>
             </Label>
             <Switch
               id="ai-mode"
               checked={isAIMode}
               onCheckedChange={setIsAIMode}
+              className="scale-75 sm:scale-100 origin-left"
             />
           </div>
-
-          {/* Quick Mode Button */}
-          <Button
-            variant={isQuickMode ? "default" : "outline"}
-            size="sm"
-            onClick={() => setIsQuickMode(v => !v)}
-            title="Toggle Quick Mode (Ctrl+Q)"
-            className="hidden md:flex items-center gap-2 transition-all">
-            <Zap className={`h-4 w-4 ${isQuickMode ? "animate-pulse" : ""}`} />
-            <span className="font-medium">
-              {isQuickMode ? "Quick Mode On" : "Quick Mode"}
-            </span>
-          </Button>
 
           {/* Shortcuts Button */}
           <Button
@@ -1435,8 +1481,8 @@ export function BillingPage() {
             size="sm"
             onClick={() => setShowShortcuts(true)}
             title="View Shortcuts (Ctrl+/)"
-            className="hidden md:flex items-center gap-2 transition-all hover:text-primary">
-            <Keyboard className="h-4 w-4" />
+            className="hidden md:flex items-center gap-2 transition-all hover:text-primary text-xs">
+            <Keyboard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="font-medium">Shortcuts</span>
           </Button>
 
@@ -1550,33 +1596,33 @@ export function BillingPage() {
 
       {/* AI Mode Content */}
       {isAIMode ? (
-        <div className={`grid gap-4 md:gap-6 lg:grid-cols-2`}>
+        <div className={`grid gap-3 sm:gap-4 md:gap-6 lg:grid-cols-2`}>
           {/* AI Symptom Input & Recommendations with tabs */}
-          <Card className="p-4 md:p-6">
+          <Card className="p-3 sm:p-4 md:p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger value="search" className="gap-2">
-                  <Search className="h-4 w-4" />
-                  Search
+              <TabsList className="grid w-full grid-cols-3 mb-3 sm:mb-4 h-auto">
+                <TabsTrigger value="search" className="gap-1 sm:gap-2 py-2 text-xs sm:text-sm flex-col sm:flex-row">
+                  <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Search</span>
                 </TabsTrigger>
-                <TabsTrigger value="drafts" className="gap-1">
-                  <FileText className="h-4 w-4" />
-                  Drafts
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                <TabsTrigger value="drafts" className="gap-1 py-2 text-xs sm:text-sm flex-col sm:flex-row">
+                  <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Drafts</span>
+                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px] sm:text-xs font-medium text-primary px-1">
                     {drafts.length}
                   </span>
                 </TabsTrigger>
-                <TabsTrigger value="history" className="gap-1">
-                  <History className="h-4 w-4" />
-                  Recent Bills
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                <TabsTrigger value="history" className="gap-1 py-2 text-xs sm:text-sm flex-col sm:flex-row">
+                  <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Bills</span>
+                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px] sm:text-xs font-medium text-primary px-1">
                     {recentBills.length}
                   </span>
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="search" className="mt-0">
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Symptom Input Section */}
                   <div>
                     {/* Embedding Status */}
@@ -1653,45 +1699,90 @@ export function BillingPage() {
                       disabled={!embeddingStatus.ready}
                     />
 
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="w-full">
+                    <div className="flex gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex-1">
+                            <Button
+                              size="lg"
+                              className="w-full relative"
+                              onClick={handleAIAssist}
+                              disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready || hasGroqKeyAssist === false}
+                            >
+                              {isAILoading ? (
+                                <>
+
+                                  Analyzing...
+                                </>
+                              ) : !embeddingStatus.ready ? (
+                                <>Preparing AI...</>
+                              ) : hasGroqKeyAssist === false ? (
+                                <>
+                                  <AlertCircle className="mr-2 h-5 w-5" />
+                                  Service Disabled
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="mr-2 h-5 w-5" />
+                                  Get Recommendations
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {hasGroqKeyAssist === false && (
+                          <TooltipContent side="top" align="center" className="max-w-sm text-left">
+                            <p className="font-medium">⚠️ AI Service Disabled</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              This AI assistance service has been disabled by your administrator. Please contact support to enable this feature for your account.
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                           <Button
                             size="lg"
-                            className="w-full"
-                            onClick={handleAIAssist}
-                            disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready || hasGroqKeyAssist === false}
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const email = localStorage.getItem("user_email")
+                                const password = localStorage.getItem("user_password")
+                                if (!email || !password) {
+                                  setError("Authentication credentials not found. Please log in again.")
+                                  setTimeout(() => setError(null), 3000)
+                                  return
+                                }
+                                const response = await fetch(
+                                  `${process.env.NEXT_PUBLIC_FASTAPI_URL}/login?mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+                                  { method: "POST" }
+                                )
+                                if (response.ok) {
+                                  setSuccess("AI Doctor authentication successful!")
+                                  setTimeout(() => setSuccess(null), 3000)
+                                } else {
+                                  setError("Authentication failed. Please check credentials.")
+                                  setTimeout(() => setError(null), 3000)
+                                }
+                              } catch (err) {
+                                setError("Failed to connect to AI Doctor service")
+                                setTimeout(() => setError(null), 3000)
+                              }
+                            }}
+                            disabled={isAILoading}
                           >
-                            {isAILoading ? (
-                              <>
-                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Analyzing...
-                              </>
-                            ) : !embeddingStatus.ready ? (
-                              <>Preparing AI...</>
-                            ) : hasGroqKeyAssist === false ? (
-                              <>
-                                <AlertCircle className="mr-2 h-5 w-5" />
-                                Service Disabled
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="mr-2 h-5 w-5" />
-                                Get Recommendations
-                              </>
-                            )}
+                            <Stethoscope className="h-5 w-5 mr-2" />
+                            Call AI Doctor
                           </Button>
-                        </div>
-                      </TooltipTrigger>
-                      {hasGroqKeyAssist === false && (
-                        <TooltipContent side="top" align="center" className="max-w-sm text-left">
-                          <p className="font-medium">⚠️ AI Service Disabled</p>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-sm text-left">
+                          <p className="font-medium">🩺 Call AI Doctor</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            This AI assistance service has been disabled by your administrator. Please contact support to enable this feature for your account.
+                            Authenticate with FastAPI backend for AI recommendations
                           </p>
                         </TooltipContent>
-                      )}
-                    </Tooltip>
+                      </Tooltip>
+                    </div>
                   </div>
 
                   {/* AI Recommendations List */}
@@ -1727,10 +1818,101 @@ export function BillingPage() {
 
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
                       {isAILoading ? (
-                        <div className="text-center text-muted-foreground py-8">
-                          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                          Analyzing symptoms...
+                        <div className="relative flex justify-center items-center h-48 overflow-hidden">
+                          {/* Small floating sparkles */}
+                          {[...Array(6)].map((_, i) => (
+                            <svg
+                              key={i}
+                              className={`absolute w-6 h-6 sparkle sparkle-${i}`}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                            >
+                              <path
+                                d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"
+                                stroke="url(#tinyGradient)"
+                                strokeWidth="1.5"
+                              />
+                            </svg>
+                          ))}
+
+                          {/* Main sparkle */}
+                          <svg
+                            width="90"
+                            height="100"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            className="relative z-10 animate-pulse"
+                          >
+                            <defs>
+                              <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%">
+                                  <animate
+                                    attributeName="stop-color"
+                                    values="#3b82f6;#22c55e;#a855f7;#f97316;#3b82f6"
+                                    dur="4s"
+                                    repeatCount="indefinite"
+                                  />
+                                </stop>
+                                <stop offset="100%">
+                                  <animate
+                                    attributeName="stop-color"
+                                    values="#a855f7;#f97316;#3b82f6;#22c55e;#a855f7"
+                                    dur="4s"
+                                    repeatCount="indefinite"
+                                  />
+                                </stop>
+                              </linearGradient>
+
+                              <linearGradient id="tinyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop stopColor="#ffffffaa" />
+                                <stop stopColor="#ffffff33" />
+                              </linearGradient>
+
+                              {/* Glow */}
+                              <filter id="glow">
+                                <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+                                <feMerge>
+                                  <feMergeNode in="coloredBlur" />
+                                  <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                              </filter>
+                            </defs>
+
+                            <Sparkles
+                              stroke="url(#mainGradient)"
+                              strokeWidth={2}
+                              filter="url(#glow)"
+                              className="w-20 h-20 opacity-90"
+                            />
+                          </svg>
+
+                          <style jsx>{`
+    .sparkle {
+      opacity: 0.6;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .sparkle-0 { top: 20%; left: 35%; animation-delay: 0s; }
+    .sparkle-1 { top: 30%; right: 30%; animation-delay: 1s; }
+    .sparkle-2 { bottom: 25%; left: 30%; animation-delay: 2s; }
+    .sparkle-3 { bottom: 30%; right: 35%; animation-delay: 1.5s; }
+    .sparkle-4 { top: 15%; left: 55%; animation-delay: 0.8s; }
+    .sparkle-5 { bottom: 15%; right: 50%; animation-delay: 2.3s; }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: 0.4;
+      }
+      50% {
+        transform: translateY(-6px) scale(1.15);
+        opacity: 0.8;
+      }
+    }
+  `}</style>
                         </div>
+
+
                       ) : !aiResponse ? (
                         <div className="text-center text-muted-foreground py-8">
                           <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -1745,8 +1927,11 @@ export function BillingPage() {
                         </div>
                       ) : (
                         aiResponse.Medicines?.map((medicine, idx) => (
-                          <Card key={idx} className="p-3 hover:border-accent transition-colors">
-                            <div className="flex items-start justify-between gap-2">
+                          <Card key={idx} className="p-3 hover:border-accent transition-colors relative">
+                            <Badge variant="outline" className="absolute top-2 left-2 text-xs font-bold">
+                              #{idx + 1}
+                            </Badge>
+                            <div className="flex items-start justify-between gap-2 mt-6">
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm truncate">{medicine["Name of Medicine"]}</p>
                                 <p className="text-xs text-muted-foreground">Batch: {medicine["Batch_ID"]}</p>
@@ -1828,7 +2013,7 @@ export function BillingPage() {
 
               <TabsContent value="drafts" className="mt-0">
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold">Draft Bills</h2>
+                  <h2 className="text-sm font-semibold">Customer Information</h2>
                   <Badge variant="secondary" className="text-xs">{drafts.length}</Badge>
                 </div>
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
@@ -1952,9 +2137,23 @@ export function BillingPage() {
 
           {/* Cart (Same as Static Mode) */}
           <Card className="p-4 md:p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <ShoppingCart className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
+              </div>
+              {cart.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setCart([])}
+                  className="gap-2"
+                  title="Clear all items from cart"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Clear All
+                </Button>
+              )}
             </div>
 
             {cart.length === 0 ? (
@@ -2084,7 +2283,7 @@ export function BillingPage() {
         </div>
       ) : (
         // Static Mode Content
-        <div className={`grid gap-4 md:gap-6 ${isQuickMode ? "lg:grid-cols-[1.4fr,1fr]" : "lg:grid-cols-2"}`}>
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
           {/* Search & Add */}
           <Card className="p-1 md:p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -2189,9 +2388,6 @@ export function BillingPage() {
                     )}
                   </div>
                 </div>
-                {isQuickMode && (
-                  <p className="text-xs text-muted-foreground mb-2">Keyboard: ↑/↓ to highlight, Enter to add, Ctrl+Enter to checkout.</p>
-                )}
                 {/* <div className="flex items-center justify-end mb-2">
                 {!isSearching && orderedMedicines.length > 0 && (
                   <Badge variant="secondary" className="text-xs">
@@ -2252,6 +2448,22 @@ export function BillingPage() {
                       const cardId = `${medicine.id}-${medicine.batch}`
                       const isViewing = viewMedicineId === cardId
                       const descriptionText = medicine.description?.trim() || [medicine.category, medicine.form].filter(Boolean).join(" • ") || "No description available"
+                      const quantityPerPack = getFieldValue(medicine, ["Quantity_per_pack", "quantity_per_pack"])
+                      const coverDisease = getFieldValue(medicine, ["Cover Disease", "cover_disease"])
+                      const symptoms = getFieldValue(medicine, ["Symptoms", "symptoms"])
+                      const sideEffects = getFieldValue(medicine, ["Side Effects", "side_effects"])
+                      const instructions = getFieldValue(medicine, ["Instructions", "instruction", "usage"])
+                      const descriptionDetail = getFieldValue(medicine, ["Description in Hinglish", "description_hinglish", "description"]) || medicine.description
+                      const manufacturer = getFieldValue(medicine, ["Manufacturer", "manufacturer", "otherInfo.Manufacture", "otherInfo.Manufacturer"])
+                      const expiryRaw = getFieldValue(medicine, ["Expiry", "expiry", "expiry_date", "Expiry_date", "Expiry_Date"])
+                      const expiryDisplay = medicine.expiryDate ? medicine.expiryDate.toLocaleDateString() : expiryRaw
+                      const priceImport = getFieldValue(medicine, ["Price_INR"])
+                      const priceImportDisplay = typeof priceImport === "number" ? `₹${priceImport.toFixed(2)}` : priceImport
+                      const totalQuantity = getFieldValue(medicine, ["Total_Quantity", "total_quantity"])
+                      const formValue = getFieldValue(medicine, ["Medicine Forms", "form"]) || medicine.form
+                      const batchId = getFieldValue(medicine, ["Batch_ID", "batch"]) || medicine.batch
+                      const importStatus = getFieldValue(medicine, ["status_import", "status"])
+                      const daysToExpiryText = typeof medicine.daysToExpiry === "number" ? `${medicine.daysToExpiry} days` : undefined
 
                       return (
                         <div
@@ -2358,30 +2570,25 @@ export function BillingPage() {
 
                           {isViewing && (
                             <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Name</span>
-                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.name}>{isMobile ? truncateName(medicine.name) : medicine.name}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Price</span>
-                                <span className="ml-2 font-semibold text-foreground">₹{medicine.price.toFixed(2)}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Available</span>
-                                <span className="ml-2 font-medium text-foreground">{medicine.quantity}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Batch</span>
-                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.batch}>{medicine.batch}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Category</span>
-                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.category}>{medicine.category}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Form</span>
-                                <span className="ml-2 font-medium text-foreground truncate" title={medicine.form}>{medicine.form}</span>
-                              </div>
+                              {renderDetailRow("Name", <span title={medicine.name}>{isMobile ? truncateName(medicine.name) : medicine.name}</span>)}
+                              {renderDetailRow("Price", `₹${medicine.price.toFixed(2)}`)}
+                              {renderDetailRow("Available", medicine.quantity)}
+                              {renderDetailRow("Batch", <span title={medicine.batch}>{medicine.batch}</span>)}
+                              {renderDetailRow("Batch ID", batchId)}
+                              {renderDetailRow("Category", medicine.category)}
+                              {renderDetailRow("Form", formValue)}
+                              {renderDetailRow("Quantity / Pack", quantityPerPack)}
+                              {renderDetailRow("Total Quantity", totalQuantity)}
+                              {renderDetailRow("Import Price", priceImportDisplay)}
+                              {renderDetailRow("Cover Disease", coverDisease, true)}
+                              {renderDetailRow("Symptoms", symptoms, true)}
+                              {renderDetailRow("Instructions", instructions, true)}
+                              {renderDetailRow("Side Effects", sideEffects, true)}
+                              {renderDetailRow("Description", descriptionDetail, true)}
+                              {renderDetailRow("Manufacturer", manufacturer)}
+                              {renderDetailRow("Expiry", expiryDisplay)}
+                              {renderDetailRow("Days to Expiry", daysToExpiryText)}
+                              {renderDetailRow("Import Status", importStatus)}
                             </div>
                           )}
                         </div>
@@ -2535,9 +2742,23 @@ export function BillingPage() {
 
           {/* Cart */}
           <Card className="p-4 md:p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <ShoppingCart className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                <h2 className="text-lg font-semibold">Cart ({cart.length} items)</h2>
+              </div>
+              {cart.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setCart([])}
+                  className="gap-2"
+                  title="Clear all items from cart"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Clear All
+                </Button>
+              )}
             </div>
 
             {cart.length === 0 ? (

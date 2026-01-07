@@ -71,8 +71,61 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: email,
-          subject: "Confirm your Aushadhi 360 account",
-          message: `Hello ${newUser.ownerName || newUser.storeName},\n\nPlease confirm your account by clicking the link below:\n\n${confirmUrl}\n\nThis link will expire in 24 hours.\n\nThanks,\nAushadhi 360 Team`,
+          subject: "Confirm Your Aushadhi 360 Account",
+          text: `
+Hello ${newUser.ownerName || newUser.storeName},
+
+Thank you for registering with Aushadhi 360.
+
+Please confirm your account by clicking the link below:
+${confirmUrl}
+
+This confirmation link will expire in 24 hours.
+
+If you did not create this account, you can safely ignore this email.
+
+Regards,
+Aushadhi 360 Team
+  `,
+          html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color:#333;">
+      <h2 style="color:#2E7D32;">Confirm Your Aushadhi 360 Account</h2>
+
+      <p>Hello ${newUser.ownerName || newUser.storeName},</p>
+
+      <p>
+        Thank you for registering with <strong>Aushadhi 360</strong>.
+        Please confirm your account to complete the registration process.
+      </p>
+
+      <a
+        href="${confirmUrl}"
+        style="
+          display:inline-block;
+          background:#2E7D32;
+          color:#ffffff;
+          padding:12px 24px;
+          text-decoration:none;
+          border-radius:6px;
+          font-weight:bold;
+          margin:16px 0;
+        "
+      >
+        Confirm Account
+      </a>
+
+      <p>This confirmation link will expire in <strong>24 hours</strong>.</p>
+
+      <p style="color:#666; font-size:14px;">
+        If you did not create this account, you can safely ignore this email.
+      </p>
+
+      <p style="margin-top:20px;">
+        Regards,<br/>
+        <strong>Aushadhi 360 Team</strong>
+      </p>
+    </div>
+  `,
         }),
       })
     } catch (e) {

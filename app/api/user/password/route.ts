@@ -17,10 +17,44 @@ function generateOtp() {
 
 function buildOtpEmail(otp: string) {
   return {
-    subject: "Your Aushadhi 360 password change code",
-    html: `<p>Use the code below to change your password:</p><h2>${otp}</h2><p>This code expires in 10 minutes.</p>`,
-    text: `Your Aushadhi 360 password change code is ${otp}. It expires in 10 minutes.`,
+    subject: "Aushadhi 360 – Password Reset OTP",
+    html: `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2 style="color:#2E7D32;">Aushadhi 360</h2>
+      <p>Hello,</p>
+      <p>You requested to reset your Aushadhi 360 account password.</p>
+
+      <p style="margin:20px 0;">
+        <strong>Your One-Time Password (OTP):</strong>
+      </p>
+
+      <h1 style="letter-spacing: 4px; color:#000;">${otp}</h1>
+
+      <p>This OTP is valid for <strong>10 minutes</strong>.</p>
+
+      <p>If you did not request this change, please ignore this email or contact support immediately.</p>
+
+      <p style="margin-top:30px;">
+        Regards,<br/>
+        <strong>Aushadhi 360 Team</strong>
+      </p>
+    </div>
+  `,
+    text: `
+Aushadhi 360
+
+You requested to reset your account password.
+
+Your OTP is: ${otp}
+
+This OTP is valid for 10 minutes.
+
+If you did not request this change, please ignore this email.
+
+— Aushadhi 360 Team
+  `,
   }
+
 }
 
 export async function POST(request: NextRequest) {

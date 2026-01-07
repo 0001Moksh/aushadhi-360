@@ -1,14 +1,35 @@
 import { NextRequest, NextResponse } from "next/server"
 import { sendInvoiceEmail } from "@/lib/email-service"
+import { MongoClient } from "mongodb"
+
+const mongoUri = process.env.DATABASE_URL || ""
+
+async function getPreferencesForOwner(email?: string) {
+  if (!email) return null
+  try {
+    const client = new MongoClient(mongoUri)
+    await client.connect()
+    const db = client.db("aushadhi360")
+    const users = db.collection("users")
+    const user = await users.findOne({ email }, { projection: { preferences: 1 } })
+    await client.close()
+    return user?.preferences || null
+  } catch (err) {
+    console.warn("Failed to load preferences for email", email, err)
+    return null
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { customerEmail, storeName, storePhone, storeAddress, items, subtotal, gst, total, billId } = body
+    const { customerEmail, storeName, storePhone, storeAddress, items, subtotal, gst, total, billId, ownerEmail } = body
 
     if (!customerEmail) {
       return NextResponse.json({ error: "Customer email is required" }, { status: 400 })
     }
+
+    const prefs = await getPreferencesForOwner(ownerEmail)
 
     // Send email using Node.js nodemailer
     const emailSent = await sendInvoiceEmail({
@@ -22,6 +43,12 @@ export async function POST(req: NextRequest) {
       gst: gst || 0,
       total: total || 0,
       date: new Date(),
+      invoiceOptions: prefs
+        ? {
+            layout: prefs.invoiceTemplate,
+            columns: prefs.invoiceColumns,
+          }
+        : undefined,
     })
 
     if (emailSent) {

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Eye, History, Search, X } from "lucide-react"
 import { useEffect, useState, useMemo } from "react"
 import { format, subDays, startOfMonth } from "date-fns"
+import { buildInvoiceHtml, type InvoiceTemplateOptions } from "@/lib/invoice-template"
 
 interface BillHistory {
   id: string
@@ -19,6 +20,7 @@ interface BillHistory {
   gst: number
   total: number
   customerEmail?: string
+  customerPhone?: string
   itemCount: number
   storeName?: string
 }
@@ -27,6 +29,8 @@ export default function BillingHistoryPage() {
   const [bills, setBills] = useState<BillHistory[]>([])
   const [search, setSearch] = useState("")
   const [quickFilter, setQuickFilter] = useState<"all" | "today" | "7days" | "month">("all")
+  const [groupByCustomer, setGroupByCustomer] = useState(false)
+  const [invoiceOptions, setInvoiceOptions] = useState<InvoiceTemplateOptions>({})
 
   useEffect(() => {
     const load = async () => {
@@ -38,296 +42,18 @@ export default function BillingHistoryPage() {
         const data = await res.json()
         setBills(data.bills || [])
       }
+
+      const prefRes = await fetch(`/api/user/preferences?email=${encodeURIComponent(email)}`)
+      if (prefRes.ok) {
+        const prefData = await prefRes.json()
+        setInvoiceOptions({
+          layout: prefData.preferences?.invoiceTemplate,
+          columns: prefData.preferences?.invoiceColumns,
+        })
+      }
     }
     load()
   }, [])
-
-  const buildInvoiceHtml = (payload: {
-    items: any[]
-    subtotal: number
-    gst: number
-    total: number
-    customerEmail?: string
-    billId?: string
-    invoiceDate?: Date
-    storeName?: string
-    storePhone?: string
-    storeAddress?: string
-  }) => {
-    const invoiceDate = payload.invoiceDate || new Date()
-    const formattedDate = invoiceDate.toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-    const invoiceNumber = payload.billId || `INV-${invoiceDate.getTime()}`
-    const headerStoreName = payload.storeName || "Your Pharmacy"
-    const headerStorePhone = payload.storePhone || ""
-    const headerStoreAddress = payload.storeAddress || ""
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Invoice - ${headerStoreName}</title>
-
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
-      background: #f7f9fc;
-      padding: 30px;
-      color: #1f2937;
-    }
-
-    .invoice {
-      max-width: 900px;
-      margin: auto;
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 32px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      border: 1px solid #e5e7eb;
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 12px;
-      gap: 12px;
-    }
-
-    .brand {
-      font-size: 26px;
-      font-weight: 700;
-      color: #111827;
-    }
-
-    .brand span {
-      font-size: 13px;
-      font-weight: 500;
-      display: block;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-
-    .contact {
-      text-align: right;
-      font-size: 13px;
-      color: #475569;
-      line-height: 1.4;
-    }
-
-    .invoice-badge {
-      background: #2563eb;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    /* Info */
-    .info {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-      font-size: 14px;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .info div p {
-      margin: 4px 0;
-    }
-
-    /* Table */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 24px;
-      font-size: 14px;
-    }
-
-    thead th {
-      text-align: left;
-      padding: 12px;
-      background: #f1f5f9;
-      color: #334155;
-      font-weight: 600;
-      border-bottom: 2px solid #e5e7eb;
-    }
-
-    tbody td {
-      padding: 12px;
-      border-bottom: 1px solid #e5e7eb;
-      vertical-align: top;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    .right { text-align: right; }
-    .muted { color: #6b7280; font-size: 12px; }
-
-    /* Totals */
-    .totals {
-      margin-top: 24px;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .totals-box {
-      width: 320px;
-      font-size: 14px;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .totals-box div {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 12px;
-      border-bottom: 1px solid #e5e7eb;
-      background: #fff;
-    }
-
-    .totals-box div:last-child { border-bottom: none; }
-
-    .totals-box .grand {
-      font-size: 18px;
-      font-weight: 700;
-      color: #2563eb;
-      border-top: 2px solid #e5e7eb;
-      padding-top: 10px;
-      margin-top: 8px;
-      background: #f8fafc;
-    }
-
-    /* Notes */
-    .notes {
-      margin-top: 24px;
-      padding: 16px;
-      border-radius: 12px;
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
-      color: #475569;
-      font-size: 13px;
-    }
-
-    /* Footer */
-    .footer {
-      margin-top: 28px;
-      text-align: center;
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    @media print {
-      body { padding: 0; background: #fff; }
-      .invoice { box-shadow: none; border: 1px solid #e5e7eb; border-radius: 0; }
-      @page { size: A4; margin: 12mm; }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="invoice">
-
-    <!-- Header -->
-    <div class="header">
-      <div class="brand">
-        ${headerStoreName}
-        <span>Powered by Aushadhi 360 (software)</span>
-      </div>
-      <div class="contact">
-        <div class="invoice-badge" style="float:right; margin-bottom:8px;">INVOICE</div>
-        ${headerStorePhone ? `<div><strong>Phone:</strong> ${headerStorePhone}</div>` : ""}
-        ${headerStoreAddress ? `<div><strong>Address:</strong> ${headerStoreAddress}</div>` : ""}
-      </div>
-    </div>
-
-    <!-- Info -->
-    <div class="info">
-      <div>
-        <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Invoice No:</strong> ${invoiceNumber}</p>
-      </div>
-      <div>
-        ${payload.customerEmail ? `<p><strong>Customer:</strong> ${payload.customerEmail}</p>` : `<p><strong>Customer:</strong> Walk-in</p>`}
-        <p class="muted">This is a system generated invoice.</p>
-      </div>
-    </div>
-
-    <!-- Table -->
-    <table>
-      <thead>
-        <tr>
-          <th>Medicine</th>
-          <th>Batch</th>
-          <th class="right">Qty</th>
-          <th class="right">Price</th>
-          <th class="right">Amount</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${payload.items.map((item: any) => `
-          <tr>
-            <td>${item.name}</td>
-            <td>${item.batch}</td>
-            <td class="right">${item.quantity}</td>
-            <td class="right">₹${item.price.toFixed(2)}</td>
-            <td class="right">₹${(item.price * item.quantity).toFixed(2)}</td>
-            <td>${item.description || "Medicine sale"}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-
-    <!-- Totals -->
-    <div class="totals">
-      <div class="totals-box">
-        <div>
-          <span>Subtotal</span>
-          <span>₹${payload.subtotal.toFixed(2)}</span>
-        </div>
-        <div>
-          <span>GST (18%)</span>
-          <span>₹${payload.gst.toFixed(2)}</span>
-        </div>
-        <div class="grand">
-          <span>Total</span>
-          <span>₹${payload.total.toFixed(2)}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Notes -->
-    <div class="notes">
-      <strong>Notes & Guidance</strong><br/>
-      • Medicines once sold will not be returned.<br/>
-      • Please consult physician before use.<br/>
-      • For support, contact your pharmacist.<br/>
-      ${headerStorePhone ? `• Store Phone: ${headerStorePhone}<br/>` : ""}
-      ${headerStoreAddress ? `• Address: ${headerStoreAddress}` : ""}
-    </div>
- 
-    <!-- Footer -->
-    <div class="footer">
-      Thank you for choosing ${headerStoreName}<br />
-    </div>
-  </div>
-</body>
-</html>
-    `
-  }
 
   const previewInvoice = (bill: BillHistory) => {
     const payload = {
@@ -342,7 +68,7 @@ export default function BillingHistoryPage() {
       storePhone: undefined,
       storeAddress: undefined,
     }
-    const htmlContent = buildInvoiceHtml(payload)
+    const htmlContent = buildInvoiceHtml(payload, invoiceOptions)
     const printWindow = window.open("", "_blank")
     if (printWindow) {
       printWindow.document.write(htmlContent)
@@ -360,6 +86,7 @@ export default function BillingHistoryPage() {
       data = data.filter(b =>
         b.billId?.toLowerCase().includes(q) ||
         b.customerEmail?.toLowerCase().includes(q) ||
+        b.customerPhone?.toLowerCase().includes(q) ||
         b.items?.some((i: any) => i.name?.toLowerCase().includes(q))
       )
     }
@@ -381,6 +108,21 @@ export default function BillingHistoryPage() {
     // Default sort: latest first
     return data.sort((a, b) => +new Date(b.date) - +new Date(a.date))
   }, [bills, search, quickFilter])
+
+  // Group bills by customer (email or phone)
+  const groupedByCustomer = useMemo(() => {
+    if (!groupByCustomer) return null
+
+    const groups: Record<string, BillHistory[]> = {}
+    filteredBills.forEach(bill => {
+      const key = bill.customerEmail || bill.customerPhone || "Walk-in Customer"
+      if (!groups[key]) {
+        groups[key] = []
+      }
+      groups[key].push(bill)
+    })
+    return groups
+  }, [filteredBills, groupByCustomer])
 
   return (
     <DashboardLayout>
@@ -422,7 +164,7 @@ export default function BillingHistoryPage() {
           </div>
 
           {/* Quick Filters */}
-          <div className="flex gap-2 flex-wrap ">
+          <div className="flex gap-2 flex-wrap items-center">
             {["all", "today", "7days", "month"].map((f) => (
               <Button
                 key={f}
@@ -434,12 +176,22 @@ export default function BillingHistoryPage() {
                 {f === "all" ? "All" : f === "today" ? "Today" : f === "7days" ? "Last 7 Days" : "This Month"}
               </Button>
             ))}
+            <div className="border-l pl-2">
+              <Button
+                size="sm"
+                variant={groupByCustomer ? "default" : "outline"}
+                onClick={() => setGroupByCustomer(!groupByCustomer)}
+              >
+                {groupByCustomer ? "Ungroup" : "Group by Customer"}
+              </Button>
+            </div>
           </div>
         </div>
 
       </Card>
         <div className="text-sm text-foreground py-2 ml-1">
           Showing <b>{filteredBills.length}</b> of {bills.length} bills
+          {groupByCustomer && groupedByCustomer && ` • ${Object.keys(groupedByCustomer).length} customers`}
         </div>
 
       {/* Bills */}
@@ -448,7 +200,57 @@ export default function BillingHistoryPage() {
           <History className="h-12 w-12 mx-auto mb-4 opacity-40" />
           No billing records found
         </div>
+      ) : groupByCustomer && groupedByCustomer ? (
+        // Grouped by Customer View
+        <div className="space-y-6">
+          {Object.entries(groupedByCustomer).map(([customer, customerBills]) => {
+            const totalRevenue = customerBills.reduce((sum, bill) => sum + bill.total, 0)
+            return (
+              <Card key={customer} className="p-4">
+                <div className="flex items-center justify-between mb-3 border-b pb-2">
+                  <div>
+                    <h3 className="font-semibold text-lg">{customer}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {customerBills.length} {customerBills.length === 1 ? 'bill' : 'bills'} • Total: ₹{totalRevenue.toFixed(2)}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{customerBills.length}</Badge>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {customerBills.map((bill) => (
+                    <Card key={bill.id} className="p-3 hover:shadow-lg hover:border-accent transition">
+                      <div className="flex justify-between">
+                        <div>
+                          <p className="font-semibold text-sm">{bill.billId}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(bill.date), "dd MMM, hh:mm a")}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">{bill.itemCount} items</Badge>
+                      </div>
+
+                      <div className="text-lg font-bold text-primary mt-2">
+                        ₹{bill.total.toFixed(2)}
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full hover:text-primary mt-2"
+                        onClick={() => previewInvoice(bill)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              </Card>
+            )
+          })}
+        </div>
       ) : (
+        // Standard List View
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredBills.map((bill) => (
             <Card key={bill.id} className="p-3 hover:shadow-lg hover:border-accent transition">

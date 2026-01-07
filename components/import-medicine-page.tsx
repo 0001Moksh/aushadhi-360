@@ -4,7 +4,7 @@ import Link from "next/link"
 import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Upload, Camera, FileText, CheckCircle, AlertCircle, Loader2, Eye, RotateCw } from "lucide-react"
+import { Upload, Camera, FileText, CheckCircle, AlertCircle, Loader2, Eye, RotateCw, Package } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -56,6 +56,7 @@ export function ImportMedicinePage() {
     "Shelf Life Days",
     "Distributor",
   ])
+  const [previewWidth, setPreviewWidth] = useState<number>(100) // Preview width percentage
 
   // Get all unique otherInfo keys from extracted items (auto-detected columns)
   const getAutoDetectedColumns = () => {
@@ -411,13 +412,19 @@ export function ImportMedicinePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-balance mb-2">Import Medicine</h1>
-        <p className="text-muted-foreground text-pretty">
-          Upload supplier bill photos to quickly add stock (max 10 items per bill)
-        </p>
-
-
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-balance mb-2">Import Medicine</h1>
+          <p className="text-muted-foreground text-pretty">
+            Upload supplier bill photos to quickly add stock (max 10 items per bill)
+          </p>
+        </div>
+        <Link href="/dashboard/products">
+          <Button variant="outline" className="gap-2">
+            <Package className="h-4 w-4" />
+            View Products
+          </Button>
+        </Link>
       </div>
       {error && (
         <Alert
@@ -454,7 +461,7 @@ export function ImportMedicinePage() {
       )}
 
       <Card className="p-6 md:p-8 text-center">
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           {success && result ? (
             <>
               <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
@@ -473,12 +480,79 @@ export function ImportMedicinePage() {
                   <div className="text-sm text-muted-foreground">New Added</div>
                 </Card>
               </div>
+
+              {/* Show list of new and updated medicines */}
+              {extractedItems.length > 0 && (
+                <div className="text-left mt-6 space-y-4">
+                  {extractedItems.filter(item => !item.isExisting).length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                        <Badge variant="default" className="text-sm">New Medicines ({extractedItems.filter(item => !item.isExisting).length})</Badge>
+                      </h4>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {extractedItems.filter(item => !item.isExisting).map((item, idx) => (
+                          <Card key={idx} className="p-3 border-green-200 bg-green-50/50">
+                            <div className="space-y-1">
+                              <p className="font-semibold text-sm">{item.name}</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                <div><strong>Batch:</strong> {item.batch || "N/A"}</div>
+                                <div><strong>Quantity:</strong> {item.quantity}</div>
+                                <div><strong>Price:</strong> ₹{item.price.toFixed(2)}</div>
+                                <div><strong>Expiry:</strong> {item.expiryDate || "N/A"}</div>
+                              </div>
+                              {item.otherInfo && Object.keys(item.otherInfo).length > 0 && (
+                                <div className="mt-2 pt-2 border-t text-xs">
+                                  {Object.entries(item.otherInfo).map(([key, value]) => (
+                                    <div key={key}><strong>{key}:</strong> {String(value)}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {extractedItems.filter(item => item.isExisting).length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                        <Badge variant="outline" className="text-sm">Updated Medicines ({extractedItems.filter(item => item.isExisting).length})</Badge>
+                      </h4>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {extractedItems.filter(item => item.isExisting).map((item, idx) => (
+                          <Card key={idx} className="p-3 border-orange-200 bg-orange-50/50">
+                            <div className="space-y-1">
+                              <p className="font-semibold text-sm">{item.name}</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                <div><strong>Batch:</strong> {item.batch || "N/A"}</div>
+                                <div><strong>Quantity:</strong> {item.quantity}</div>
+                                <div><strong>Price:</strong> ₹{item.price.toFixed(2)}</div>
+                                <div><strong>Expiry:</strong> {item.expiryDate || "N/A"}</div>
+                              </div>
+                              {item.otherInfo && Object.keys(item.otherInfo).length > 0 && (
+                                <div className="mt-2 pt-2 border-t text-xs">
+                                  {Object.entries(item.otherInfo).map(([key, value]) => (
+                                    <div key={key}><strong>{key}:</strong> {String(value)}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <Button
                 onClick={() => {
                   setFile(null)
                   setSuccess(false)
                   setResult(null)
                   setCurrentStage(0)
+                  setExtractedItems([])
                 }}
               >
                 Upload Another Bill
@@ -527,13 +601,36 @@ export function ImportMedicinePage() {
                 />
 
                 {file && !success && (
-                  <div className="mt-4 p-3 rounded-lg shadow-sm border-2 border-dashed border-primary/20">
+                  <div className="mt-4 p-3 rounded-lg shadow-sm border-2 border-dashed border-primary/20" style={{ width: `${previewWidth}%`, margin: '0 auto' }}>
                     <div className="flex items-center justify-between mb-2">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm px-4">{file.name}</p>
                         <p className="text-xs">{(file.size / 1024).toFixed(1)} KB • {file.type || "Unknown"}</p>
                       </div>
-                      <Badge variant="secondary">Ready to preview</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Ready to preview</Badge>
+                        <div className="flex items-center gap-1 border rounded px-2 py-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => setPreviewWidth(Math.max(50, previewWidth - 10))}
+                            title="Decrease width"
+                          >
+                            -
+                          </Button>
+                          <span className="text-xs mx-1">{previewWidth}%</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => setPreviewWidth(Math.min(100, previewWidth + 10))}
+                            title="Increase width"
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     {previewUrl && file.type.startsWith("image") && (
                       <div className="relative w-full h-48 overflow-hidden rounded-md border mb-3">

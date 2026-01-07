@@ -40,7 +40,7 @@ export function SystemStatusIndicator() {
       }
     } catch {
       setStatus("offline")
-      setMessage("Connection issue detected. Working offline.")
+      setMessage("")
     }
   }
 
@@ -50,44 +50,46 @@ export function SystemStatusIndicator() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4">
-  <Alert
-    variant={status === "offline" ? "destructive" : "default"}
-    className={`
-      w-1/2 max-w-2xl
-      backdrop-blur-xl
-      bg-background/10
-      shadow-lg 
-      border-white border-3
-      animate-slide-down
-      flex items-start gap-3
-    `}
-  >
-    {/* Status Icon */}
-    <div className="mt-0.5">
-      {status === "offline" ? (
-        <WifiOff className="h-5 w-5 text-destructive" />
-      ) : status === "degraded" ? (
-        <AlertCircle className="h-5 w-5 text-yellow-500" />
-      ) : (
-        <CheckCircle className="h-5 w-5 text-green-600" />
-      )}
-    </div>
+      <Alert
+        variant={status === "offline" ? "destructive" : "default"}
+        className={`
+  w-1/2 max-w-2xl
+  backdrop-blur-xl
+  bg-background/10
+  shadow-lg 
+  border-white border-2
+  animate-slide-down
+  flex items-start gap-3
+  absolute top-2 right-2
+`}
 
-    {/* Content */}
-    <div>
-      <AlertTitle className="text-sm font-semibold tracking-wide">
-        {status === "offline"
-          ? "Offline Mode"
-          : status === "degraded"
-          ? "Limited Connectivity"
-          : "All Systems Operational"}
-      </AlertTitle>
+      >
+        {/* Status Icon */}
+        <div className="mt-0.5">
+          {status === "offline" ? (
+            <WifiOff className="h-5 w-5 text-destructive" />
+          ) : status === "degraded" ? (
+            <AlertCircle className="h-5 w-5 text-yellow-500" />
+          ) : (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          )}
+        </div>
 
-      <AlertDescription className="text-sm text-muted-foreground mt-1 leading-relaxed">
-        {message}
-      </AlertDescription>
+        {/* Content */}
+        <div>
+          <AlertTitle className="text-sm font-semibold tracking-wide">
+            {status === "offline"
+              ? "Offline Mode"
+              : status === "degraded"
+                ? "Limited Connectivity"
+                : "All Systems Operational"}
+          </AlertTitle>
+
+          <AlertDescription className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            {message}
+          </AlertDescription>
+        </div>
+      </Alert>
     </div>
-  </Alert>
-</div>
   )
 }

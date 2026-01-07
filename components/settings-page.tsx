@@ -351,33 +351,33 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-balance mb-2">Settings</h1>
-        <p className="text-muted-foreground text-pretty">Manage your account and application preferences</p>
+    <div className="w-full space-y-4 sm:space-y-5 md:space-y-6">
+      <div className="px-1">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-balance mb-1 sm:mb-2">Settings</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground text-pretty">Manage your account and application preferences</p>
       </div>
 
       {message && (
         <div
-          className={`p-4 rounded-lg border ${message.type === "success"
-              ? "bg-success/10 border-success/20 text-success"
-              : "bg-destructive/10 border-destructive/20 text-destructive"
+          className={`p-3 sm:p-4 rounded-lg border text-sm ${message.type === "success"
+            ? "bg-success/10 border-success/20 text-success"
+            : "bg-destructive/10 border-destructive/20 text-destructive"
             }`}
         >
           {message.text}
         </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
         {/* Profile */}
-        <Card className="p-6 lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-3">
-            <User className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Profile Settings</h2>
+        <Card className="p-3 sm:p-4 md:p-6 lg:col-span-2 space-y-4 sm:space-y-5 md:space-y-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <User className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+            <h2 className="text-base sm:text-lg md:text-xl font-semibold">Profile Settings</h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3 sm:gap-4">
+            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
               <AvatarImage src={formData.photoUrl || "/diverse-user-avatars.png"} />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
@@ -388,52 +388,56 @@ export function SettingsPage() {
               className="hidden"
               onChange={handleAvatarChange}
             />
-            <Button variant="outline" className="hover:text-primary" size="sm" onClick={handleAvatarClick}>
-              <Upload className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="hover:text-primary text-xs sm:text-sm w-full sm:w-auto" size="sm" onClick={handleAvatarClick}>
+              <Upload className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Change Photo
             </Button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="store-name">Store Name</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="store-name" className="text-xs sm:text-sm">Store Name</Label>
               <Input
                 id="store-name"
                 value={formData.storeName}
                 onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                className="text-sm"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="owner-name">Owner Name</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="owner-name" className="text-xs sm:text-sm">Owner Name</Label>
               <Input
                 id="owner-name"
                 value={formData.ownerName}
                 onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                className="text-sm"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={formData.email} disabled />
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="email" className="text-xs sm:text-sm">Email</Label>
+              <Input id="email" type="email" value={formData.email} disabled className="text-sm" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="phone" className="text-xs sm:text-sm">Phone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="text-sm"
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="address">Address</Label>
+            <div className="space-y-1.5 sm:space-y-2 sm:col-span-2">
+              <Label htmlFor="address" className="text-xs sm:text-sm">Address</Label>
               <Input
                 id="address"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="text-sm"
               />
             </div>
           </div>
 
-          <Button onClick={handleSaveChanges} disabled={isSaving || !isProfileDirty}>
+          <Button onClick={handleSaveChanges} disabled={isSaving || !isProfileDirty} className="w-full sm:w-auto text-sm">
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -446,9 +450,9 @@ export function SettingsPage() {
         </Card>
 
         {/* Quick Actions */}
-        <div className="space-y-6">
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4 sm:space-y-5 md:space-y-6">
+          <Card className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Bell className="h-5 w-5" />
                 <h3 className="font-semibold">Invoice & Notifications</h3>
@@ -457,7 +461,7 @@ export function SettingsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowPreview(!showPreview)}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 <Eye className="h-4 w-4" />
                 {showPreview ? "Hide" : "Preview"}
@@ -498,11 +502,11 @@ export function SettingsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm">Medicine table columns</Label>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="text-xs sm:text-sm">Medicine table columns</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                   {invoiceColumnOptions.map((option) => (
-                    <label key={option.value} className="flex items-center gap-2 text-sm cursor-pointer hover:text-primary transition-colors">
+                    <label key={option.value} className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors">
                       <Checkbox
                         checked={preferences.invoiceColumns.includes(option.value)}
                         onCheckedChange={(checked) => {
@@ -514,128 +518,241 @@ export function SettingsPage() {
                             return { ...prev, invoiceColumns: nextColumns }
                           })
                         }}
+                        className="flex-shrink-0"
                       />
-                      {option.label}
+                      <span className="truncate">{option.label}</span>
                     </label>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   These columns will appear in invoice emails and exports.
                 </p>
               </div>
 
               {/* Invoice Preview */}
               {showPreview && (
-                <Card className="p-4 bg-muted/30 space-y-3 border-2 border-primary/20">
+                <Card className="p-3 sm:p-4 bg-muted/30 space-y-3 border-2 border-primary/20">
+                  {/* Title */}
                   <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                     <FileText className="h-4 w-4" />
                     Live Preview
                   </div>
-                  
-                  {/* Preview based on template type */}
-                  <div className="bg-background p-4 rounded-lg text-xs space-y-3 border">
-                    {/* Header - Always shown */}
-                    <div className="flex justify-between items-start pb-2 border-b">
+
+                  {/* Preview Box */}
+                  <div className="bg-background p-3 sm:p-4 rounded-lg text-xs space-y-4 border">
+
+                    {/* Header */}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start pb-2 border-b">
                       <div>
-                        <h4 className="font-bold text-sm">{formData.storeName || "Your Store Name"}</h4>
+                        <h4 className="font-bold text-sm">
+                          {formData.storeName || "Your Store Name"}
+                        </h4>
+
                         {preferences.invoiceTemplate !== "minimal" && (
                           <>
-                            <p className="text-muted-foreground">{formData.ownerName || "Owner Name"}</p>
-                            <p className="text-muted-foreground">{formData.phone || "Phone"}</p>
+                            <p className="text-muted-foreground">
+                              {formData.ownerName || "Owner Name"}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {formData.phone || "Phone"}
+                            </p>
                           </>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">Invoice #{sampleInvoiceData.invoiceNumber}</p>
-                        <p className="text-muted-foreground">{sampleInvoiceData.date}</p>
+
+                      <div className="w-full sm:w-auto flex justify-between sm:flex-col sm:items-end text-xs">
+                        <p className="font-semibold">
+                          Invoice #{sampleInvoiceData.invoiceNumber}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {sampleInvoiceData.date}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Customer Info - Detailed & Compact */}
-                    {preferences.invoiceTemplate !== "minimal" && (
+                    {/* Customer Info */}
+                    {preferences.invoiceTemplate !== "minimal" ? (
                       <div className="space-y-1">
                         <p className="font-semibold">Bill To:</p>
                         <p>{sampleInvoiceData.customerName}</p>
-                        <p className="text-muted-foreground">{sampleInvoiceData.customerPhone}</p>
+                        <p className="text-muted-foreground">
+                          {sampleInvoiceData.customerPhone}
+                        </p>
                       </div>
-                    )}
-
-                    {/* Minimal template - just customer name */}
-                    {preferences.invoiceTemplate === "minimal" && (
+                    ) : (
                       <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Customer:</span>
-                        <span className="font-medium">{sampleInvoiceData.customerName}</span>
+                        <span className="text-muted-foreground">Customer</span>
+                        <span className="font-medium">
+                          {sampleInvoiceData.customerName}
+                        </span>
                       </div>
                     )}
 
-                    {/* Items Table */}
-                    <div className="space-y-2">
-                      <p className="font-semibold text-xs">Items:</p>
-                      <div className="border rounded overflow-hidden">
-                        <table className="w-full text-xs">
+                    {/* ================= MOBILE ITEM CARDS ================= */}
+                    <div className="block sm:hidden space-y-2">
+                      {sampleInvoiceData.items.slice(0, 2).map((item, idx) => (
+                        <div key={idx} className="border rounded p-2">
+                          <p className="font-medium">{item.name}</p>
+                          <div className="flex justify-between text-muted-foreground text-xs">
+                            <span>Qty: {item.quantity}</span>
+                            <span>₹{item.amount}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ================= DESKTOP / TABLET TABLE ================= */}
+                    <div className="hidden sm:block space-y-2">
+                      <p className="font-semibold text-xs">Items</p>
+
+                      <div className="border rounded overflow-x-auto -mx-3 sm:mx-0">
+                        <table className="w-full text-xs min-w-[600px]">
                           <thead className="bg-muted">
                             <tr>
-                              {preferences.invoiceColumns.includes("name") && <th className="text-left p-2">Medicine</th>}
-                              {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <th className="text-left p-2">Batch</th>}
-                              {preferences.invoiceColumns.includes("form") && preferences.invoiceTemplate !== "minimal" && <th className="text-left p-2">Form</th>}
-                              {preferences.invoiceColumns.includes("qtyPerPack") && preferences.invoiceTemplate !== "minimal" && <th className="text-center p-2">Qty/Pack</th>}
-                              {preferences.invoiceColumns.includes("quantity") && <th className="text-center p-2">Qty</th>}
-                              {preferences.invoiceColumns.includes("price") && <th className="text-right p-2">Price</th>}
-                              {preferences.invoiceColumns.includes("amount") && <th className="text-right p-2">Amount</th>}
-                              {preferences.invoiceColumns.includes("description") && preferences.invoiceTemplate === "detailed" && <th className="text-left p-2">Notes</th>}
+                              {preferences.invoiceColumns.includes("name") && (
+                                <th className="text-left p-2">Medicine</th>
+                              )}
+
+                              {preferences.invoiceColumns.includes("batch") &&
+                                preferences.invoiceTemplate === "detailed" && (
+                                  <th className="hidden md:table-cell text-left p-2">
+                                    Batch
+                                  </th>
+                                )}
+
+                              {preferences.invoiceColumns.includes("form") &&
+                                preferences.invoiceTemplate !== "minimal" && (
+                                  <th className="hidden sm:table-cell text-left p-2">
+                                    Form
+                                  </th>
+                                )}
+
+                              {preferences.invoiceColumns.includes("qtyPerPack") &&
+                                preferences.invoiceTemplate !== "minimal" && (
+                                  <th className="hidden lg:table-cell text-center p-2">
+                                    Qty/Pack
+                                  </th>
+                                )}
+
+                              {preferences.invoiceColumns.includes("quantity") && (
+                                <th className="text-center p-2">Qty</th>
+                              )}
+
+                              {preferences.invoiceColumns.includes("price") && (
+                                <th className="hidden sm:table-cell text-right p-2">
+                                  Price
+                                </th>
+                              )}
+
+                              {preferences.invoiceColumns.includes("amount") && (
+                                <th className="text-right p-2">Amount</th>
+                              )}
+
+                              {preferences.invoiceColumns.includes("description") &&
+                                preferences.invoiceTemplate !== "minimal" && (
+                                  <th className="hidden lg:table-cell text-left p-2">
+                                    Description
+                                  </th>
+                                )}
                             </tr>
                           </thead>
+
                           <tbody>
-                            {sampleInvoiceData.items.slice(0, preferences.invoiceTemplate === "minimal" ? 2 : 3).map((item, idx) => (
-                              <tr key={idx} className="border-t">
-                                {preferences.invoiceColumns.includes("name") && <td className="p-2">{item.name}</td>}
-                                {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <td className="p-2 text-muted-foreground">{item.batch}</td>}
-                                {preferences.invoiceColumns.includes("form") && preferences.invoiceTemplate !== "minimal" && <td className="p-2 text-muted-foreground">{item.form}</td>}
-                                {preferences.invoiceColumns.includes("qtyPerPack") && preferences.invoiceTemplate !== "minimal" && <td className="p-2 text-center text-muted-foreground">{item.qtyPerPack}</td>}
-                                {preferences.invoiceColumns.includes("quantity") && <td className="p-2 text-center">{item.quantity}</td>}
-                                {preferences.invoiceColumns.includes("price") && <td className="p-2 text-right">₹{item.price}</td>}
-                                {preferences.invoiceColumns.includes("amount") && <td className="p-2 text-right font-medium">₹{item.amount}</td>}
-                                {preferences.invoiceColumns.includes("description") && preferences.invoiceTemplate === "detailed" && <td className="p-2 text-muted-foreground">{item.description}</td>}
-                              </tr>
-                            ))}
+                            {sampleInvoiceData.items
+                              .slice(0, preferences.invoiceTemplate === "minimal" ? 2 : 3)
+                              .map((item, idx) => (
+                                <tr key={idx} className="border-t">
+                                  {preferences.invoiceColumns.includes("name") && (
+                                    <td className="p-2">{item.name}</td>
+                                  )}
+
+                                  {preferences.invoiceColumns.includes("batch") &&
+                                    preferences.invoiceTemplate === "detailed" && (
+                                      <td className="hidden md:table-cell p-2 text-muted-foreground">
+                                        {item.batch}
+                                      </td>
+                                    )}
+
+                                  {preferences.invoiceColumns.includes("form") &&
+                                    preferences.invoiceTemplate !== "minimal" && (
+                                      <td className="hidden sm:table-cell p-2 text-muted-foreground">
+                                        {item.form}
+                                      </td>
+                                    )}
+
+                                  {preferences.invoiceColumns.includes("qtyPerPack") &&
+                                    preferences.invoiceTemplate !== "minimal" && (
+                                      <td className="hidden lg:table-cell p-2 text-center text-muted-foreground">
+                                        {item.qtyPerPack}
+                                      </td>
+                                    )}
+
+                                  {preferences.invoiceColumns.includes("quantity") && (
+                                    <td className="p-2 text-center">
+                                      {item.quantity}
+                                    </td>
+                                  )}
+
+                                  {preferences.invoiceColumns.includes("price") && (
+                                    <td className="hidden sm:table-cell p-2 text-right">
+                                      ₹{item.price}
+                                    </td>
+                                  )}
+
+                                  {preferences.invoiceColumns.includes("amount") && (
+                                    <td className="p-2 text-right font-medium">
+                                      ₹{item.amount}
+                                    </td>
+                                  )}
+
+                                  {preferences.invoiceColumns.includes("description") &&
+                                    preferences.invoiceTemplate !== "minimal" && (
+                                      <td className="hidden lg:table-cell p-2 text-muted-foreground">
+                                        {item.description}
+                                      </td>
+                                    )}
+                                </tr>
+                              ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
 
                     {/* Totals */}
-                    <div className="space-y-1 pt-2 border-t">
+                    <div className="space-y-1 pt-3 border-t text-sm">
                       {preferences.invoiceTemplate === "detailed" && (
                         <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Subtotal:</span>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Subtotal</span>
                             <span>₹{sampleInvoiceData.subtotal}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tax (10%):</span>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Tax (10%)</span>
                             <span>₹{sampleInvoiceData.tax}</span>
                           </div>
                         </>
                       )}
-                      <div className="flex justify-between font-bold text-sm pt-1 border-t">
-                        <span>Total:</span>
+
+                      <div className="flex justify-between font-bold text-base pt-1 border-t">
+                        <span>Total</span>
                         <span>₹{sampleInvoiceData.total}</span>
                       </div>
                     </div>
 
-                    {/* Footer - Detailed only */}
+                    {/* Footer */}
                     {preferences.invoiceTemplate === "detailed" && (
                       <div className="pt-2 border-t text-center text-muted-foreground">
-                        <p>Thank you for your business!</p>
+                        Thank you for your business!
                       </div>
                     )}
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground italic">
                     This preview updates in real-time as you change settings above.
                   </p>
                 </Card>
               )}
+
 
               <Button onClick={handleSavePreferences} disabled={isPrefSaving || !isPreferencesDirty} className="w-full">
                 {isPrefSaving ? (
@@ -650,7 +767,7 @@ export function SettingsPage() {
             </div>
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-3">
               <Database className="h-5 w-5" />
               <h3 className="font-semibold">Data Management</h3>
@@ -690,13 +807,15 @@ export function SettingsPage() {
             </div>
           </Card>
 
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <Shield className="h-5 w-5" />
-              <h3 className="font-semibold">Security</h3>
+          <Card className="p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center gap-3">
+                <Shield className="h-5 w-5" />
+                <h3 className="font-semibold">Security</h3>
+              </div>
               <Button
                 variant="outline"
-                className="flex-1 border-r-3 rounded-lg border-b-4 justify-center"
+                className="w-full sm:flex-1 border-r-3 rounded-lg border-b-4 justify-center"
                 onClick={handleSendOtp}
                 disabled={otpSending || isDemoAccount}
               >

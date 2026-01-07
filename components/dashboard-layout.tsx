@@ -116,21 +116,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const showFullSidebar = isExpanded || sidebarOpen
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <SystemStatusIndicator />
       {/* Mobile header */}
-      <div className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
+      <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-3 py-3 border-b bg-card shadow-sm">
         <Image
           src="/logo1.png"
           alt="Aushadhi 360"
-          width={60}
-          height={60}
-          className="object-contain"
+          width={48}
+          height={48}
+          className="object-contain w-12 h-12"
           priority
         />
 
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X /> : <Menu />}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="h-10 w-10"
+        >
+          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
       </div>
       <div className="flex">
@@ -277,16 +282,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Main content */}
         <main className={cn("flex-1 transition-all duration-300 ease-in-out", isExpanded ? "lg:ml-64" : "lg:ml-20")}>
-          <div className="relative p-4 lg:p-6">
+          <div className="relative w-full min-h-[calc(100vh-200px)] px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6">
             {/* Top-right controls (desktop only) */}
             {/* <div className="hidden lg:flex items-center gap-1 absolute right-6 top-6 z-10">
               <ThemeToggle />
             </div> */}
             {children}
 
-            <footer className="mt-1 border-t pt-1 text-center text-[10px] text-muted-foreground flex flex-col gap-1">
+            <footer className="mt-6 sm:mt-8 border-t pt-3 sm:pt-4 text-center text-xs sm:text-[10px] text-muted-foreground flex flex-col gap-1 px-2">
               <p>&copy; {new Date().getFullYear()} Aushadhi 360. All rights reserved.</p>
-              <p>
+              <p className="leading-relaxed">
                 Powered by{" "}
                 <a
                   href="https://mokshbhardwaj.netlify.app"

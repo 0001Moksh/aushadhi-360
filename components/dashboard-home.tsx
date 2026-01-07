@@ -525,82 +525,68 @@ export function DashboardHome() {
   }
 
   return (
-    <div className="space-y-5 md:space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-balance mb-2">Welcome, {profile?.ownerName || "User"}</h1>
-        <p className="text-muted-foreground text-pretty">{profile?.storeName || "Your medical store"}</p>
+    <div className="w-full space-y-4 sm:space-y-5 md:space-y-6">
+      <div className="px-1">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-balance mb-1 sm:mb-2">Welcome, {profile?.ownerName || "User"}</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground text-pretty">{profile?.storeName || "Your medical store"}</p>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         <Card
-          className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
+          className="p-3 sm:p-4 md:p-5 hover:shadow-md transition-shadow cursor-pointer active:shadow-sm"
           onClick={() => router.push("/dashboard/billing")}
         >
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <Receipt className="h-6 w-6 text-primary" />
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-primary/10 flex-shrink-0">
+              <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
-            <div>
-              <h3 className="font-semibold text-base md:text-base mb-1">Search & Bill</h3>
-              <p className="text-xs text-muted-foreground text-pretty">Search medicines and generate bills</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm sm:text-base mb-0.5 sm:mb-1">Search & Bill</h3>
+              <p className="text-xs text-muted-foreground line-clamp-2">Search medicines and generate bills</p>
             </div>
           </div>
         </Card>
 
-        {/* <Card
-          className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
-          onClick={() => router.push("/dashboard/ai-assist")}
-        >
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-lg bg-accent/10">
-              <Sparkles className="h-6 w-6 text-accent" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-base md:text-base mb-1">Ask AI</h3>
-              <p className="text-xs text-muted-foreground text-pretty">Get symptom-based recommendations</p>
-            </div>
-          </div>
-        </Card> */}
         <Card
-          className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
+          className="p-3 sm:p-4 md:p-5 hover:shadow-md transition-shadow cursor-pointer active:shadow-sm"
           onClick={() => router.push("/dashboard/analytics")}
         >
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <BarChart3 className="h-6 w-6 text-primary" />
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-primary/10 flex-shrink-0">
+              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
-            <div>
-              <h3 className="font-semibold text-base md:text-base mb-1">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm sm:text-base mb-0.5 sm:mb-1">
                 Analytics
               </h3>
-              <p className="text-xs text-muted-foreground text-pretty">
-                View insights, trends & performance metrics
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                View insights, trends & performance
               </p>
             </div>
           </div>
         </Card>
 
         <Card
-          className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
+          className="p-3 sm:p-4 md:p-5 hover:shadow-md transition-shadow cursor-pointer active:shadow-sm"
           onClick={() => router.push("/dashboard/import")}
         >
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-lg bg-secondary/10">
-              <Upload className="h-6 w-6 text-secondary" />
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-secondary/10 flex-shrink-0">
+              <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-secondary" />
             </div>
-            <div>
-              <h3 className="font-semibold text-base md:text-base mb-1">Import Stock</h3>
-              <p className="text-xs text-muted-foreground text-pretty">Upload bill photos to add medicines</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm sm:text-base mb-0.5 sm:mb-1">Import Stock</h3>
+              <p className="text-xs text-muted-foreground line-clamp-2">Upload photos to add medicines</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
         <Card
-          className="p-4 md:p-5 hover:shadow-lg transition-shadow cursor-pointer"
+          className="p-3 sm:p-4 md:p-5 hover:shadow-md transition-shadow cursor-pointer active:shadow-sm"
           role="button"
           tabIndex={0}
           onClick={() => router.push("/dashboard/products")}
@@ -611,43 +597,43 @@ export function DashboardHome() {
             }
           }}
         >
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Total Products</p>
-              <p className="text-xl md:text-2xl font-bold mt-1">{stats?.totalMedicines || 0}</p>
+              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </div>
-            <Package className="h-6 w-6 text-muted-foreground" />
+            <p className="text-lg sm:text-xl md:text-2xl font-bold">{stats?.totalMedicines || 0}</p>
           </div>
         </Card>
 
-        <Card className="p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <div>
+        <Card className="p-3 sm:p-4 md:p-5">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Low Stock</p>
-              <div className="flex">
-                <p className="text-xl md:text-2xl font-bold mt-1 text-warning">{stats?.lowStockItems || 0}</p>
-                <p className="text-xs mt-4 ml-1 text-muted-foreground mt-1">&lt;{thresholds.lowStockMin} units</p>
-              </div>
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-warning flex-shrink-0" />
             </div>
-            <AlertTriangle className="h-6 w-6 text-warning" />
+            <div className="flex items-center gap-1">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-warning">{stats?.lowStockItems || 0}</p>
+              <p className="text-xs text-muted-foreground flex-shrink-0">&lt;{thresholds.lowStockMin}</p>
+            </div>
           </div>
         </Card>
 
-        <Card className="p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <div>
+        <Card className="p-3 sm:p-4 md:p-5">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Expiring Soon</p>
-              <div className="flex">
-                <p className="text-xl md:text-2xl font-bold mt-1 text-destructive">{stats?.expiringSoon || 0}</p>
-                <p className="text-xs mt-4 ml-1 text-muted-foreground mt-1">within {thresholds.expiryDays} days</p>
-              </div>
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0" />
             </div>
-            <Clock className="h-6 w-6 text-destructive" />
+            <div className="flex items-center gap-1">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-destructive">{stats?.expiringSoon || 0}</p>
+              <p className="text-xs text-muted-foreground flex-shrink-0">in {thresholds.expiryDays}d</p>
+            </div>
           </div>
         </Card>
 
-        <Card className="p-4 md:p-5">
-          <div className="flex items-center justify-between">
+        <Card className="p-3 sm:p-4 md:p-5">
+          <div className="flex flex-col gap-2">
             <div>
               <p className="text-xs text-muted-foreground">Status</p>
               <p className="text-xl md:text-2xl font-bold mt-1 text-success">Active</p>
@@ -661,37 +647,38 @@ export function DashboardHome() {
       {recentBills.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Today's Recent Bills</h2>
-            <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/billing/history")}>
+            <h2 className="text-base sm:text-lg font-semibold">Today's Recent Bills</h2>
+            <Button variant="ghost" size="sm" className="text-xs sm:text-sm" onClick={() => router.push("/dashboard/billing/history")}>
               View All
             </Button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
             {recentBills.map((bill) => (
-              <Card key={bill.id} className="p-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">{bill.billId}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(bill.date).toLocaleString("en-IN", {
-                        day: "2-digit", month: "short", year: "numeric",
-                        hour: "2-digit", minute: "2-digit"
-                      })}
-                    </p>
+              <Card key={bill.id} className="p-2.5 sm:p-3 hover:shadow-sm transition-shadow">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-xs sm:text-sm truncate">{bill.billId}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {new Date(bill.date).toLocaleString("en-IN", {
+                          day: "2-digit", month: "short", year: "numeric",
+                          hour: "2-digit", minute: "2-digit"
+                        })}
+                      </p>
+                    </div>
                   </div>
+                  <div className="flex flex-col gap-1 text-xs sm:text-sm">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-muted-foreground flex-shrink-0">Total:</span>
+                      <span className="font-semibold text-primary truncate">₹{bill.total.toFixed(2)}</span>
+                    </div>
+                    <Badge className="w-fit border-accent text-xs" variant="outline">{bill.itemCount} items</Badge>
+                  </div>
+                  <Button size="sm" variant="outline" className="hover:text-primary w-full text-xs" onClick={() => previewInvoice(bill)}>
+                    <Eye className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <span className="truncate">Invoice</span>
+                  </Button>
                 </div>
-                <div className="flex items-center text-sm">
-                  <span className="text-muted-foreground">Total:</span>
-                  <span className="font-semibold ml-1 text-primary">₹{bill.total.toFixed(2)}</span>
-                  <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
-                </div>
-                {/* {bill.customerEmail && (
-                  <p className="text-xs text-muted-foreground truncate">{bill.customerEmail}</p>
-                )} */}
-                <Button size="sm" variant="outline" className="hover:text-primary w-full" onClick={() => previewInvoice(bill)}>
-                  <Eye className="h-3 w-3 mr-1" />
-                  Invoice
-                </Button>
               </Card>
             ))}
           </div>
@@ -699,30 +686,30 @@ export function DashboardHome() {
       )}
 
       {/* Alerts */}
-      <Card className="p-4 md:p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Recent Alerts</h2>
-          <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/alerts")}>
+      <Card className="p-3 sm:p-4 md:p-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-lg font-semibold">Recent Alerts</h2>
+          <Button variant="ghost" size="sm" className="text-xs sm:text-sm" onClick={() => router.push("/dashboard/alerts")}>
             View All
           </Button>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {alerts.map((alert, idx) => {
             const tone =
               alert.type === "low"
-                ? { bg: "bg-warning/10", border: "border-warning/20", icon: <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />, badge: "Low Stock" }
+                ? { bg: "bg-warning/10", border: "border-warning/20", icon: <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-warning flex-shrink-0" />, badge: "Low Stock" }
                 : alert.type === "expiry"
-                  ? { bg: "bg-destructive/10", border: "border-destructive/20", icon: <Clock className="h-5 w-5 text-destructive flex-shrink-0" />, badge: "Expiring" }
-                  : { bg: "bg-primary/10", border: "border-primary/20", icon: <TrendingUp className="h-5 w-5 text-primary flex-shrink-0" />, badge: "Popular" }
+                  ? { bg: "bg-destructive/10", border: "border-destructive/20", icon: <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0" />, badge: "Expiring" }
+                  : { bg: "bg-primary/10", border: "border-primary/20", icon: <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />, badge: "Popular" }
 
             return (
-              <div key={`${alert.type}-${idx}`} className={`flex items-center gap-3 p-3 rounded-lg ${tone.bg} border ${tone.border}`}>
+              <div key={`${alert.type}-${idx}`} className={`flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg ${tone.bg} border ${tone.border}`}>
                 {tone.icon}
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{alert.title}</p>
-                  <p className="text-xs text-muted-foreground">{alert.detail}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium truncate">{alert.title}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{alert.detail}</p>
                 </div>
-                <Badge variant="outline" className={alert.type === "expiry" ? "text-destructive border-destructive" : alert.type === "low" ? "" : "text-primary border-primary"}>
+                <Badge variant="outline" className={`text-xs flex-shrink-0 ${alert.type === "expiry" ? "text-destructive border-destructive" : alert.type === "low" ? "" : "text-primary border-primary"}`}>
                   {tone.badge}
                 </Badge>
               </div>
@@ -730,8 +717,8 @@ export function DashboardHome() {
           })}
 
           {alerts.length === 0 && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/10 border border-border">
-              <div className="flex-1 text-sm text-muted-foreground">No alerts right now. Great job keeping inventory healthy!</div>
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-muted/10 border border-border">
+              <div className="text-xs sm:text-sm text-muted-foreground">No alerts right now. Great job keeping inventory healthy!</div>
             </div>
           )}
         </div>
