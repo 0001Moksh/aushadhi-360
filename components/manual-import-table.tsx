@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Plus, Upload, Clipboard, Columns, RotateCcw, RotateCw, Download, FileText } from "lucide-react"
+import { Plus, List, Upload, Clipboard, Columns, RotateCcw, RotateCw, Download, FileText } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
@@ -82,7 +82,7 @@ export function ManualImportTable() {
   const [previewData, setPreviewData] = useState<Row[] | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [pendingSaveData, setPendingSaveData] = useState<{email: string, medicines: any[]} | null>(null)
+  const [pendingSaveData, setPendingSaveData] = useState<{ email: string, medicines: any[] } | null>(null)
   const [categories, setCategories] = useState<string[]>([])
   const [customCategories, setCustomCategories] = useState<string[]>([])
   const [showCustomInput, setShowCustomInput] = useState<number | null>(null)
@@ -383,7 +383,7 @@ export function ManualImportTable() {
           "Expiry Date",
           "ExpiryDate",
           "expirydate",
-          "Exp Date", 
+          "Exp Date",
           "Exp_Date",
           "exp_date",
           "Expiry",
@@ -569,7 +569,7 @@ export function ManualImportTable() {
 
       const data = await res.json()
       setSuccess(`Saved: ${data.summary.total} (Updated: ${data.summary.updated}, New: ${data.summary.new})`)
-      
+
       // Invalidate cache after successful import
       if (userPassword) {
         invalidateCacheWithFeedback(pendingSaveData.email, userPassword, (msg, type) => {
@@ -578,7 +578,7 @@ export function ManualImportTable() {
           }
         })
       }
-      
+
       setRows([emptyRow()])
       setHistory([])
       setHistoryIndex(-1)
@@ -1101,6 +1101,19 @@ export function ManualImportTable() {
 
   return (
     <div className="space-y-4 pb-4">
+
+      <div>
+        <h1 className="text-3xl font-bold text-balance mb-2">Manual Import</h1>
+        <p className="text-muted-foreground text-pretty">
+          Add medicines via an editable table or upload a CSV/Excel template.
+        </p>
+        <Link className="items-right justify-end flex" href="/dashboard/products">
+          <Button variant="outline" size="sm">
+            <List className="h-4 w-4 mr-2" />
+            View All Products
+          </Button>
+        </Link>
+      </div>
       {/* Header Controls */}
       <Card className="p-3 sticky top-0 z-10 bg-background border-b">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1144,11 +1157,7 @@ export function ManualImportTable() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/products">
-              <Button variant="default" size="sm">
-                <FileText className="h-4 w-4 mr-1" /> View All Products
-              </Button>
-            </Link>
+
             <Button variant="ghost" size="sm" onClick={undo} disabled={historyIndex <= 0}>
               <RotateCcw className="h-4 w-4 mr-1" /> Undo
             </Button>
@@ -1340,7 +1349,7 @@ export function ManualImportTable() {
                 </div>
               </AlertDescription>
             </Alert>
-            
+
             <div className="max-h-[300px] overflow-auto border rounded-lg">
               <table className="w-full text-xs">
                 <thead className="bg-muted sticky top-0">

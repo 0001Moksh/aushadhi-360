@@ -4,7 +4,6 @@ import { type ReactNode, useEffect, useState } from "react"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { useUser } from "@/lib/contexts/user-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -33,7 +32,7 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  // { icon: Package, label: "Products", href: "/dashboard/products" },
+  { icon: Package, label: "Products", href: "/dashboard/products" },
   { icon: Receipt, label: "Billing", href: "/dashboard/billing" },
   // { icon: Sparkles, label: "AI Assist", href: "/dashboard/ai-assist" },
   { icon: Upload, label: "Import Medicine", href: "/dashboard/import" },
@@ -48,7 +47,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isExpanded, setIsExpanded] = useState(true) // Expanded by default
-  const { user, clearUser } = useUser()
+  const [profile, setProfile] = useState<{ email: string; storeName?: string; ownerName?: string; photoUrl?: string } | null>(null)
+  const PROFILE_CACHE_KEY = "dashboard_profile_cache"
 
   useEffect(() => {
     const savedState = localStorage.getItem("sidebarExpanded")
@@ -57,10 +57,49 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [])
 
-  const userEmail = user?.email || (typeof window !== "undefined" ? localStorage.getItem("user_email") : null)
-  const storeName = user?.storeName || "____"
-  const ownerName = user?.ownerName || "____"
-  const photoUrl = user?.photoUrl
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (typeof window === "undefined") return
+      const email = localStorage.getItem("user_email")
+      if (!email) return
+
+      // 1) Serve from cache immediately if available
+      try {
+        const cached = sessionStorage.getItem(PROFILE_CACHE_KEY)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed?.email === email) {
+            setProfile(parsed)
+          }
+        }
+      } catch {}
+
+      // 2) Always revalidate in background to keep fresh
+      try {
+        const response = await fetch(`/api/user/profile?email=${encodeURIComponent(email)}`)
+        if (!response.ok) return
+        const data = await response.json()
+        if (data?.user) {
+          const nextProfile = {
+            email: data.user.email,
+            storeName: data.user.storeName || data.user.name,
+            ownerName: data.user.ownerName || data.user.name,
+            photoUrl: data.user.photoUrl || undefined,
+          }
+          setProfile(nextProfile)
+          try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(nextProfile)) } catch {}
+        }
+      } catch (error) {
+        console.error("Failed to load profile for sidebar:", error)
+      }
+    }
+
+    loadProfile()
+  }, [])
+
+  const userEmail = profile?.email || (typeof window !== "undefined" ? localStorage.getItem("user_email") : null)
+  const storeName = profile?.storeName || "____"
+  const ownerName = profile?.ownerName || "____"
   const initials = `${ownerName?.charAt(0) || ""}${storeName?.charAt(0) || ""}`.toUpperCase()
 
   const handleLogout = () => {
@@ -69,7 +108,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       localStorage.removeItem("user_email")
       localStorage.removeItem("user_role")
     }
-    clearUser()
     router.push("/")
   }
 
@@ -220,7 +258,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className={cn("p-4 border-t border-sidebar-border", !showFullSidebar && "p-2")}>
               <div className={cn("flex items-center gap-3 mb-3", !showFullSidebar && "justify-center")}>
                 <Avatar>
-                  <AvatarImage src={photoUrl || "/diverse-user-avatars.png"} />
+                  <AvatarImage src={profile?.photoUrl || "/diverse-user-avatars.png"} />
                   <AvatarFallback>{initials || "U"}</AvatarFallback>
                 </Avatar>
                 <div className={cn("flex-1 min-w-0", !showFullSidebar && "hidden")}>

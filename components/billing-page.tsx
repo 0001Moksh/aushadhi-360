@@ -1363,7 +1363,7 @@ export function BillingPage() {
             size="sm"
             onClick={() => setShowShortcuts(true)}
             title="View Shortcuts (Ctrl+/)"
-            className="hidden md:flex items-center gap-2 transition-all hover:text-primary">
+            className="hidden md:flex items-center gap-3 transition-all hover:text-primary">
             <Keyboard className="h-4 w-4" />
             <span className="font-medium">Shortcuts</span>
           </Button>
@@ -1395,18 +1395,18 @@ export function BillingPage() {
 
       {/* Status Messages (float above layout to avoid shift) */}
       {(error || success) && (
-        <div className="fixed top-4 right-4 z-50 space-y-3 w-[min(420px,calc(100%-1.5rem))] pointer-events-none">
+        <div className="fixed top-2 left-1/2 -translate-x-1/2 p-2 rounded-lg  z-50 space-y-3 w-[min(420px,calc(100%-1.5rem))] pointer-events-none">
           {error && (
             <Alert variant="destructive" className="relative pointer-events-auto shadow-lg pr-10">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
-              <button
+              {/* <button
                 aria-label="Dismiss error"
                 onClick={() => setError(null)}
                 className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </button> */}
             </Alert>
           )}
 
@@ -1414,13 +1414,13 @@ export function BillingPage() {
             <Alert className="relative border-green-500 text-green-700 dark:text-green-400 pointer-events-auto shadow-lg pr-10">
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>{success}</AlertDescription>
-              <button
+              {/* <button
                 aria-label="Dismiss success"
                 onClick={() => setSuccess(null)}
                 className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </button> */}
             </Alert>
           )}
         </div>

@@ -390,7 +390,12 @@ export function ImportMedicinePage() {
         <p className="text-muted-foreground text-pretty">
           Upload supplier bill photos to quickly add stock (max 10 items per bill)
         </p>
-
+        <Link className="items-right justify-end flex" href="/dashboard/products">
+          <Button variant="outline" size="sm">
+            <List className="h-4 w-4 mr-2" />
+            View All Products
+          </Button>
+        </Link>
 
       </div>
       {error && (
@@ -567,6 +572,7 @@ export function ImportMedicinePage() {
                 )}
 
               </div>
+                <div className="text-bold">OR</div>
               <div className="flex items-center justify-center space-x-4">
                 <Link href="/dashboard/manual-import">
                   <Button variant="outline" className="border-2 hover:text-primary ">
@@ -716,12 +722,7 @@ export function ImportMedicinePage() {
                     <Button className="hover:text-destructive" variant="outline" size="sm" onClick={() => { setExtractedItems([]); setIsReviewing(false); }}>
                       Cancel review
                     </Button>
-                    <Link href="/dashboard/products">
-                      <Button variant="outline" size="sm">
-                        <List className="h-4 w-4 mr-2" />
-                        View All Products
-                      </Button>
-                    </Link>
+
                     <Button size="sm" onClick={handleSaveToInventory} disabled={isProcessing}>
                       {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                       Save to inventory

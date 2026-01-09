@@ -181,7 +181,7 @@ export function AnalyticsPage() {
       </div>
 
       {/* Filter Bar - Sticky */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b-3 border-l-2 border-r-2 border-primary rounded-lg p-2">
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background border-b-3 border-l-2 border-r-2 border-primary/20 border-t-1 rounded-lg p-2">
         <div className="flex flex-wrap gap-3 items-center">
           <Filter className="h-5 w-5 text-foreground" />
 

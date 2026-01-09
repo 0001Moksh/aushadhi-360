@@ -569,10 +569,10 @@ export function AdminDashboard() {
         {/* Message Alert */}
         {message && (
           <div
-            className={`p-4 rounded-lg border flex items-center gap-2 ${
+            className={`fixed top-2 left-1/2 -translate-x-1/2 p-2 rounded-lg border flex items-center gap-2 ${
               message.type === "success"
-                ? "bg-success/10 border-success/20 text-success"
-                : "bg-destructive/10 border-destructive/20 text-destructive"
+                ? "bg-success/50 border-success/20 text-foreground"
+                : "bg-destructive/50 border-destructive/20 text-foreground"
             }`}
           >
             <AlertCircle className="h-5 w-5" />

@@ -342,9 +342,9 @@ export function SettingsPage() {
 
       {message && (
         <div
-          className={`p-4 rounded-lg border ${message.type === "success"
-              ? "bg-success/10 border-success/20 text-success"
-              : "bg-destructive/10 border-destructive/20 text-destructive"
+          className={`fixed top-6 left-1/2 -translate-x-1/2 z-10 p-4 rounded-lg border ${message.type === "success"
+            ? "bg-success/50 border-success/20 text-foregrounf"
+            : "bg-destructive/50 border-destructive/20 text-foreground"
             }`}
         >
           {message.text}
@@ -428,8 +428,209 @@ export function SettingsPage() {
           </Button>
         </Card>
 
+        {/* Invoice Template Preview Dialog */}
+        <Dialog open={showPreview} onOpenChange={setShowPreview}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader className="text-center justify-between flex">
+              <DialogTitle>Invoice Email Preview</DialogTitle>
+              <DialogDescription>
+                Template: <span className="font-medium capitalize">{preferences.invoiceTemplate}</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="border rounded-lg p-6 bg-background text-foreground">
+              <div className="space-y-4">
+                {/* Email header */}
+                <div className="border-b pb-4">
+                  <h2 className="text-xl font-bold">{formData.storeName || "Your Medical Store"}</h2>
+                  <p className="text-sm text-gray-600">Invoice for Customer</p>
+                  <p className="text-xs text-gray-500">Date: {new Date().toLocaleDateString()}</p>
+                </div>
+
+                {/* Customer details (detailed & compact) */}
+                {preferences.invoiceTemplate !== "minimal" && (
+                  <div className="border-b pb-4">
+                    <h3 className="font-semibold mb-2">Customer Information</h3>
+                    <p className="text-sm text-gray-600">Name: Customer Name</p>
+                    <p className="text-sm text-gray-600">Phone: +91 98765 43210</p>
+                  </div>
+                )}
+
+                {/* Items table */}
+                <div>
+                  <h3 className="font-semibold mb-2">Items</h3>
+                  <table className="w-full text-sm border">
+                    <thead className="bg-background-100">
+                      <tr>
+                        {preferences.invoiceColumns.includes("name") && <th className="border p-2 text-left">Medicine</th>}
+                        {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <th className="border p-2">Batch</th>}
+                        {preferences.invoiceColumns.includes("quantity") && <th className="border p-2">Qty</th>}
+                        {preferences.invoiceColumns.includes("price") && <th className="border p-2">Price</th>}
+                        {preferences.invoiceColumns.includes("amount") && <th className="border p-2">Total</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        {preferences.invoiceColumns.includes("name") && <td className="border p-2">Paracetamol 500mg</td>}
+                        {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <td className="border p-2 text-center">B123</td>}
+                        {preferences.invoiceColumns.includes("quantity") && <td className="border p-2 text-center">2</td>}
+                        {preferences.invoiceColumns.includes("price") && <td className="border p-2 text-center">₹50</td>}
+                        {preferences.invoiceColumns.includes("amount") && <td className="border p-2 text-center">₹100</td>}
+                      </tr>
+                      <tr>
+                        {preferences.invoiceColumns.includes("name") && <td className="border p-2">Cough Syrup 100ml</td>}
+                        {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <td className="border p-2 text-center">B456</td>}
+                        {preferences.invoiceColumns.includes("quantity") && <td className="border p-2 text-center">1</td>}
+                        {preferences.invoiceColumns.includes("price") && <td className="border p-2 text-center">₹120</td>}
+                        {preferences.invoiceColumns.includes("amount") && <td className="border p-2 text-center">₹120</td>}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Total */}
+                <div className="border-t pt-4">
+                  <div className="flex justify-end">
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Subtotal: ₹220</p>
+                      {preferences.invoiceTemplate === "detailed" && (
+                        <>
+                          <p className="text-sm text-gray-600">Tax (0%): ₹0</p>
+                          <p className="text-sm text-gray-600">Discount: ₹0</p>
+                        </>
+                      )}
+                      <p className="text-lg font-bold mt-2">Total: ₹220</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                {preferences.invoiceTemplate !== "minimal" && (
+                  <div className="text-center text-xs text-gray-500 pt-4 border-t">
+                    <p>Thank you for your business!</p>
+                    <p>{formData.address || "Store Address"} | {formData.phone || "Phone"}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Quick Actions */}
         <div className="space-y-6">
+
+
+          <Card className="p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <Database className="h-5 w-5" />
+              <h3 className="font-semibold">Data Management</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-sm">Export dataset</Label>
+                <Select value={exportDataset} onValueChange={setExportDataset}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose dataset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="billing">Billing (customer data)</SelectItem>
+                    <SelectItem value="medicines">Medicine data</SelectItem>
+                    <SelectItem value="users">User profile</SelectItem>
+                    {/* <SelectItem value="all">Everything (profile + billing + medicines)</SelectItem> */}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full justify-center"
+                onClick={handleExport}
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Export Data
+              </Button>
+              {exportStatus && (
+                <p
+                  className={`text-sm ${exportStatus.type === "success" ? "text-success" : "text-destructive"
+                    }`}
+                >
+                  {exportStatus.text}
+                </p>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-4 space-y-2">
+            <div className="flex items-center gap-3">
+              <Shield className="h-5 w-5" />
+              <h3 className="font-semibold">Security</h3>
+              <Button
+                variant="outline"
+                className="flex-1 border-r-3 rounded-lg border-b-4 justify-center"
+                onClick={handleSendOtp}
+                disabled={otpSending || isDemoAccount}
+              >
+                {otpSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending OTP
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Send OTP
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+
+              <div className="space-y-2">
+                <Label htmlFor="otp">OTP Code</Label>
+                <Input
+                  id="otp"
+                  placeholder="Enter 6-digit code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  disabled={otpSending || otpVerifying || isDemoAccount}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={otpSending || otpVerifying || isDemoAccount}
+                />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+
+                <Button
+                  className="flex-1 justify-center"
+                  onClick={handleResetPassword}
+                  disabled={otpVerifying || !otpCode || !newPassword || isDemoAccount}
+                >
+                  {otpVerifying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating
+                    </>
+                  ) : (
+                    "Update Password"
+                  )}
+                </Button>
+                {isDemoAccount && (
+                  <p className="text-xs text-muted-foreground">
+                    Password changes are disabled for demo@aushadhi360.com
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+
           <Card className="p-6 space-y-4">
             <div className="flex items-center gap-3">
               <Bell className="h-5 w-5" />
@@ -439,7 +640,7 @@ export function SettingsPage() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="email-alerts" className="text-sm flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  Email Alerts
+                  Send Invoice Email 
                 </Label>
                 <Switch
                   id="email-alerts"
@@ -452,7 +653,11 @@ export function SettingsPage() {
                   }
                 />
               </div>
+            </div>
 
+          </Card>
+          <Card className="p-6 space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">Invoice Email Template</Label>
@@ -518,206 +723,10 @@ export function SettingsPage() {
               </Button>
             </div>
           </Card>
-
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <Database className="h-5 w-5" />
-              <h3 className="font-semibold">Data Management</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label className="text-sm">Export dataset</Label>
-                <Select value={exportDataset} onValueChange={setExportDataset}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose dataset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="billing">Billing (customer data)</SelectItem>
-                    <SelectItem value="medicines">Medicine data</SelectItem>
-                    <SelectItem value="users">User profile</SelectItem>
-                    {/* <SelectItem value="all">Everything (profile + billing + medicines)</SelectItem> */}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full justify-center"
-                onClick={handleExport}
-                disabled={exporting}
-              >
-                {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                Export Data
-              </Button>
-              {exportStatus && (
-                <p
-                  className={`text-sm ${exportStatus.type === "success" ? "text-success" : "text-destructive"
-                    }`}
-                >
-                  {exportStatus.text}
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <Shield className="h-5 w-5" />
-              <h3 className="font-semibold">Security</h3>
-              <Button
-                variant="outline"
-                className="flex-1 border-r-3 rounded-lg border-b-4 justify-center"
-                onClick={handleSendOtp}
-                disabled={otpSending || isDemoAccount}
-              >
-                {otpSending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending OTP
-                  </>
-                ) : (
-                  <>
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Send OTP
-                  </>
-                )}
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {isDemoAccount && (
-                <p className="text-xs text-muted-foreground">
-                  Password changes are disabled for demo@aushadhi360.com
-                </p>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="otp">OTP Code</Label>
-                <Input
-                  id="otp"
-                  placeholder="Enter 6-digit code"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  disabled={otpSending || otpVerifying || isDemoAccount}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={otpSending || otpVerifying || isDemoAccount}
-                />
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-
-                <Button
-                  className="flex-1 justify-center"
-                  onClick={handleResetPassword}
-                  disabled={otpVerifying || !otpCode || !newPassword || isDemoAccount}
-                >
-                  {otpVerifying ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating
-                    </>
-                  ) : (
-                    "Update Password"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
 
-      {/* Invoice Template Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Invoice Email Preview</DialogTitle>
-            <DialogDescription>
-              Template: <span className="font-medium capitalize">{preferences.invoiceTemplate}</span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="border rounded-lg p-6 bg-white text-black">
-            <div className="space-y-4">
-              {/* Email header */}
-              <div className="border-b pb-4">
-                <h2 className="text-xl font-bold">{formData.storeName || "Your Medical Store"}</h2>
-                <p className="text-sm text-gray-600">Invoice for Customer</p>
-                <p className="text-xs text-gray-500">Date: {new Date().toLocaleDateString()}</p>
-              </div>
 
-              {/* Customer details (detailed & compact) */}
-              {preferences.invoiceTemplate !== "minimal" && (
-                <div className="border-b pb-4">
-                  <h3 className="font-semibold mb-2">Customer Information</h3>
-                  <p className="text-sm">Name: Customer Name</p>
-                  <p className="text-sm">Phone: +91 98765 43210</p>
-                </div>
-              )}
-
-              {/* Items table */}
-              <div>
-                <h3 className="font-semibold mb-2">Items</h3>
-                <table className="w-full text-sm border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      {preferences.invoiceColumns.includes("name") && <th className="border p-2 text-left">Medicine</th>}
-                      {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <th className="border p-2">Batch</th>}
-                      {preferences.invoiceColumns.includes("quantity") && <th className="border p-2">Qty</th>}
-                      {preferences.invoiceColumns.includes("price") && <th className="border p-2">Price</th>}
-                      {preferences.invoiceColumns.includes("amount") && <th className="border p-2">Total</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {preferences.invoiceColumns.includes("name") && <td className="border p-2">Paracetamol 500mg</td>}
-                      {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <td className="border p-2 text-center">B123</td>}
-                      {preferences.invoiceColumns.includes("quantity") && <td className="border p-2 text-center">2</td>}
-                      {preferences.invoiceColumns.includes("price") && <td className="border p-2 text-center">₹50</td>}
-                      {preferences.invoiceColumns.includes("amount") && <td className="border p-2 text-center">₹100</td>}
-                    </tr>
-                    <tr>
-                      {preferences.invoiceColumns.includes("name") && <td className="border p-2">Cough Syrup 100ml</td>}
-                      {preferences.invoiceColumns.includes("batch") && preferences.invoiceTemplate === "detailed" && <td className="border p-2 text-center">B456</td>}
-                      {preferences.invoiceColumns.includes("quantity") && <td className="border p-2 text-center">1</td>}
-                      {preferences.invoiceColumns.includes("price") && <td className="border p-2 text-center">₹120</td>}
-                      {preferences.invoiceColumns.includes("amount") && <td className="border p-2 text-center">₹120</td>}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Total */}
-              <div className="border-t pt-4">
-                <div className="flex justify-end">
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Subtotal: ₹220</p>
-                    {preferences.invoiceTemplate === "detailed" && (
-                      <>
-                        <p className="text-sm text-gray-600">Tax (0%): ₹0</p>
-                        <p className="text-sm text-gray-600">Discount: ₹0</p>
-                      </>
-                    )}
-                    <p className="text-lg font-bold mt-2">Total: ₹220</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              {preferences.invoiceTemplate !== "minimal" && (
-                <div className="text-center text-xs text-gray-500 pt-4 border-t">
-                  <p>Thank you for your business!</p>
-                  <p>{formData.address || "Store Address"} | {formData.phone || "Phone"}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
