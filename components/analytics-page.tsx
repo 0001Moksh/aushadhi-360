@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -96,9 +96,13 @@ export function AnalyticsPage() {
     severity: 'all',
   })
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [trendGranularity, setTrendGranularity] = useState<'day' | 'month' | 'year'>('day')
+  const hasLoadedData = useRef(false)
 
   useEffect(() => {
     const loadAnalytics = async () => {
+      if (hasLoadedData.current) return
+      hasLoadedData.current = true
       try {
         const email = localStorage.getItem("user_email")
         if (!email) {
@@ -137,7 +141,7 @@ export function AnalyticsPage() {
         }
 
         // Process analytics
-        const processed = processAnalytics(medicines, salesData)
+        const processed = processAnalytics(medicines, salesData, trendGranularity)
         setAnalytics(processed)
       } catch (err) {
         console.error("Failed to load analytics:", err)
@@ -147,7 +151,7 @@ export function AnalyticsPage() {
     }
 
     loadAnalytics()
-  }, [])
+  }, [trendGranularity])
 
   if (isLoading) {
     return (
@@ -212,7 +216,7 @@ export function AnalyticsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Total Medicines"
           value={analytics.kpis.totalMedicines}
@@ -221,13 +225,7 @@ export function AnalyticsPage() {
           subtitle="In inventory"
         />
 
-        <KPICard
-          title="Stock Quantity"
-          value={analytics.kpis.totalStockQuantity}
-          icon={<Package className="h-5 w-5"  />}
-          color="yellow"
-          subtitle="Total units"
-        />
+        {/* Stock Quantity removed as requested */}
 
         <KPICard
           title="Near Expiry"
@@ -282,9 +280,19 @@ export function AnalyticsPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold">Sales Trend</h2>
-                <p className="text-sm text-muted-foreground">
-                  Last 30 days performance
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-muted-foreground">Performance by</p>
+                  <Select value={trendGranularity} onValueChange={(val) => setTrendGranularity(val as any)}>
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">Day</SelectItem>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="year">Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Growth Indicator */}
@@ -349,63 +357,7 @@ export function AnalyticsPage() {
           </Card>
 
 
-          {/* Expiry Analytics */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Expiry Analytics</h2>
-              <Badge variant={filteredExpiry.length > 0 ? "destructive" : "secondary"}>
-                {filteredExpiry.length} items
-              </Badge>
-            </div>
-            {filteredExpiry.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Medicine</TableHead>
-                      <TableHead>Batch</TableHead>
-                      <TableHead>Expiry</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Value</TableHead>
-                      <TableHead>Days Left</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredExpiry.map(item => (
-                      <TableRow
-                        key={item.id}
-                        className={`
-                          ${item.severity === 'critical' ? 'bg-red-50 dark:bg-red-950/20' : ''}
-                          ${item.severity === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}
-                        `}
-                      >
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{item.batch}</TableCell>
-                        <TableCell>{item.expiryDate}</TableCell>
-                        <TableCell className="text-right font-semibold">{item.quantity}</TableCell>
-                        <TableCell className="text-right">₹{item.stockValue.toLocaleString("en-IN")}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              item.severity === 'critical' ? 'destructive' :
-                                item.severity === 'warning' ? 'secondary' : 'outline'
-                            }
-                          >
-                            {item.daysUntilExpiry}d
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <AlertCircle className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                <p>No expiring medicines in selected range</p>
-              </div>
-            )}
-          </Card>
+          {/* Expiry Analytics removed as requested */}
         </div>
 
         {/* Right Column */}
@@ -503,12 +455,13 @@ function KPICard({
 
 // ============= DATA PROCESSING FUNCTION =============
 
-function processAnalytics(medicines: Medicine[], salesData: SalesData[]): AnalyticsData {
+function processAnalytics(medicines: Medicine[], salesData: any[], granularity: 'day' | 'month' | 'year'): AnalyticsData {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   // KPI Calculations
-  const totalMedicines = medicines.length
+  // Show total available units for the user
+  const totalMedicines = medicines.reduce((sum, m) => sum + (Number(m.quantity) || 0), 0)
   const totalStockQuantity = medicines.reduce((sum, m) => sum + m.quantity, 0)
 
   // Expiry calculations
@@ -552,8 +505,52 @@ function processAnalytics(medicines: Medicine[], salesData: SalesData[]): Analyt
   // Sort by days until expiry
   expiryItems.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
 
-  // Sales trend (mock data)
-  const salesTrend: SalesData[] = generateSalesTrend()
+  // Normalize sales entries (support varying API shapes)
+  type RawSale = any
+  const parseAmount = (s: RawSale) => {
+    const candidates = [s.paymentReceived, s.payment, s.amount, s.totalAmount, s.total, s.paidAmount, s.sales]
+    const val = candidates.find(v => typeof v === 'number' && !isNaN(v))
+    return Number(val || 0)
+  }
+  const parseDate = (s: RawSale) => {
+    const candidates = [s.date, s.billDate, s.createdAt, s.timestamp]
+    const val = candidates.find(v => typeof v === 'string' || v instanceof Date)
+    const d = val ? new Date(val) : new Date()
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  }
+
+  const normalizedSales = (Array.isArray(salesData) ? salesData : []).map(s => ({
+    date: parseDate(s),
+    amount: parseAmount(s),
+  }))
+
+  // Aggregate by selected granularity
+  const keyFor = (d: Date) => (
+    granularity === 'year' ? `${d.getFullYear()}` :
+    granularity === 'month' ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` :
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  )
+
+  const labelFor = (key: string) => {
+    if (granularity === 'year') return key
+    if (granularity === 'month') {
+      const [y,m] = key.split('-')
+      const d = new Date(Number(y), Number(m)-1, 1)
+      return d.toLocaleString('en-IN', { month: 'short', year: 'numeric' })
+    }
+    const [y,m,d] = key.split('-')
+    const dt = new Date(Number(y), Number(m)-1, Number(d))
+    return dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+  }
+
+  const aggMap = new Map<string, number>()
+  normalizedSales.forEach(s => {
+    const k = keyFor(s.date)
+    aggMap.set(k, (aggMap.get(k) || 0) + (s.amount || 0))
+  })
+  const salesTrend: SalesData[] = Array.from(aggMap.entries())
+    .sort(([a],[b]) => a.localeCompare(b))
+    .map(([k, amt]) => ({ date: labelFor(k), sales: Math.round(amt), orders: 0 }))
 
   // Top medicines (based on stock value as proxy for revenue potential)
   const topMedicines: TopMedicine[] = medicines
@@ -619,8 +616,14 @@ function processAnalytics(medicines: Medicine[], salesData: SalesData[]): Analyt
       totalStockQuantity,
       expiryAlerts: { days7: days7Count, days30: days30Count, days90: days90Count },
       expiredStockValue: expiredValue,
-      todaySales: salesTrend[salesTrend.length - 1]?.sales || 0,
-      monthlySales: salesTrend.reduce((sum, s) => sum + s.sales, 0),
+      // Today sales: sum of payments for today's bills
+      todaySales: normalizedSales
+        .filter(s => s.date.getTime() === today.getTime())
+        .reduce((sum, s) => sum + (s.amount || 0), 0),
+      // Monthly sales: sum for current month
+      monthlySales: normalizedSales
+        .filter(s => s.date.getFullYear() === now.getFullYear() && s.date.getMonth() === now.getMonth())
+        .reduce((sum, s) => sum + (s.amount || 0), 0),
     },
     expiryItems,
     salesTrend,

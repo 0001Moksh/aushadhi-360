@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { invalidateCacheWithFeedback } from "@/lib/cache-invalidation"
 import { Card } from "@/components/ui/card"
@@ -171,6 +171,7 @@ export function ProductsPage() {
   const [medicines, setMedicines] = useState<NormalizedMedicine[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const hasLoadedMedicines = useRef(false)
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [sortField, setSortField] = useState<keyof NormalizedMedicine | null>(null)
@@ -216,6 +217,8 @@ export function ProductsPage() {
   }
 
   useEffect(() => {
+    if (hasLoadedMedicines.current) return
+    hasLoadedMedicines.current = true
     loadMedicines()
   }, [])
 

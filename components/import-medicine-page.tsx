@@ -49,6 +49,7 @@ export function ImportMedicinePage() {
   const [excludedItems, setExcludedItems] = useState<ExtractedItem[]>([])
   const [userPassword, setUserPassword] = useState<string>("")
   const [hasGroqKeyImport, setHasGroqKeyImport] = useState<boolean | null>(null)
+  const hasCheckedGroqKey = useRef(false)
 
   const appendLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString()
@@ -144,6 +145,8 @@ export function ImportMedicinePage() {
   // Check if user has GROQ API key configured for import
   useEffect(() => {
     const checkGroqKey = async () => {
+      if (hasCheckedGroqKey.current) return
+      hasCheckedGroqKey.current = true
       try {
         const email = localStorage.getItem("user_email")
         if (!email) return

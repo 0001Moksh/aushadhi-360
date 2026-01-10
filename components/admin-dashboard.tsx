@@ -112,6 +112,7 @@ export function AdminDashboard() {
   }, [])
 
   const loadUsers = async () => {
+    setIsLoadingUsers(true)
     try {
       const response = await fetch("/api/admin/users")
       if (response.ok) {
@@ -152,6 +153,7 @@ export function AdminDashboard() {
   }
 
   const loadRequests = async () => {
+    setIsLoadingRequests(true)
     try {
       const response = await fetch("/api/admin/requests")
       if (response.ok) {
@@ -586,7 +588,7 @@ export function AdminDashboard() {
             <div className="flex justify-between items-start mb-2">
               <p className="text-sm text-muted-foreground">Total Users</p>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadUsers}>
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
               </Button>
             </div>
             <p className="text-3xl font-bold">{users.length}</p>
@@ -595,7 +597,7 @@ export function AdminDashboard() {
             <div className="flex justify-between items-start mb-2">
               <p className="text-sm text-muted-foreground">Active Users</p>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadUsers}>
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
               </Button>
             </div>
             <p className="text-3xl font-bold">{users.filter((u) => u.approved).length}</p>
@@ -604,7 +606,7 @@ export function AdminDashboard() {
             <div className="flex justify-between items-start mb-2">
               <p className="text-sm text-muted-foreground">Pending Requests</p>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadRequests}>
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isLoadingRequests ? 'animate-spin' : ''}`} />
               </Button>
             </div>
             <div className="text-3xl font-bold flex items-center gap-2">
@@ -653,7 +655,7 @@ export function AdminDashboard() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">User Lookup & Information</h2>
                 <Button variant="outline" size="sm" onClick={loadUsers}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingUsers ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
               </div>
@@ -1074,7 +1076,7 @@ export function AdminDashboard() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Manage Users</h2>
                 <Button variant="outline" size="sm" onClick={loadUsers}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingUsers ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
               </div>

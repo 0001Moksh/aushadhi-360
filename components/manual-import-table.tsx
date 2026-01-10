@@ -94,6 +94,7 @@ export function ManualImportTable() {
   const [newColumnName, setNewColumnName] = useState("")
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [userPassword, setUserPassword] = useState<string>("")
+  const hasLoadedCategories = useRef(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -102,9 +103,11 @@ export function ManualImportTable() {
     return () => window.removeEventListener("resize", checkMobile)
   }, [])
 
-  // Load categories
+  // Load categories (guarded to avoid double-fetch in React StrictMode)
   useEffect(() => {
     const loadCategories = async () => {
+      if (hasLoadedCategories.current) return
+      hasLoadedCategories.current = true
       const email = localStorage.getItem("user_email")
       if (!email) return
 

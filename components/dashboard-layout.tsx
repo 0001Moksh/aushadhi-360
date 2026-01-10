@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -57,8 +57,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [])
 
+  const hasLoadedProfile = useRef(false)
+
   useEffect(() => {
     const loadProfile = async () => {
+      if (hasLoadedProfile.current) return
+      hasLoadedProfile.current = true
       if (typeof window === "undefined") return
       const email = localStorage.getItem("user_email")
       if (!email) return

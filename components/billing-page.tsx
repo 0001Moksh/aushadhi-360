@@ -193,6 +193,12 @@ export function BillingPage() {
     }
   }, [])
 
+  const hasLoadedInitialData = useRef(false)
+  const hasCheckedGroqKey = useRef(false)
+  const hasLoadedProfile = useRef(false)
+  const hasLoadedPreferences = useRef(false)
+  const lastSearchQuery = useRef<string | null>(null)
+
   // Load favorites from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("billing_favorites")
@@ -217,6 +223,8 @@ export function BillingPage() {
   // Check if user has GROQ API key configured for AI mode
   useEffect(() => {
     const checkGroqKey = async () => {
+      if (hasCheckedGroqKey.current) return
+      hasCheckedGroqKey.current = true
       try {
         const email = localStorage.getItem("user_email")
         if (!email) return
@@ -240,6 +248,8 @@ export function BillingPage() {
   // Load store profile for invoice header
   useEffect(() => {
     const loadStoreProfile = async () => {
+      if (hasLoadedProfile.current) return
+      hasLoadedProfile.current = true
       if (typeof window === "undefined") return
       const email = localStorage.getItem("user_email")
       if (!email) return
@@ -264,6 +274,8 @@ export function BillingPage() {
   // Load user preferences (email notifications and invoice template)
   useEffect(() => {
     const loadPreferences = async () => {
+      if (hasLoadedPreferences.current) return
+      hasLoadedPreferences.current = true
       if (typeof window === "undefined") return
       const email = localStorage.getItem("user_email")
       if (!email) return
@@ -403,11 +415,16 @@ export function BillingPage() {
 
   // Load medicines on mount and when debounced query changes
   useEffect(() => {
+    // Skip if query hasn't actually changed (prevents StrictMode double-call)
+    if (lastSearchQuery.current === debouncedSearchQuery) return
+    lastSearchQuery.current = debouncedSearchQuery
     loadMedicines()
   }, [debouncedSearchQuery, loadMedicines])
 
-  // Load recent bills on mount
+  // Load recent bills on mount (guarded to avoid duplicate calls)
   useEffect(() => {
+    if (hasLoadedInitialData.current) return
+    hasLoadedInitialData.current = true
     loadRecentBills()
   }, [])
 

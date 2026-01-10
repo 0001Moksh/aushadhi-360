@@ -76,8 +76,11 @@ export function SettingsPage() {
   const [otpVerifying, setOtpVerifying] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const hasLoadedProfile = useRef(false)
 
   useEffect(() => {
+    if (hasLoadedProfile.current) return
+    hasLoadedProfile.current = true
     loadUserProfile()
   }, [])
 
@@ -466,6 +469,7 @@ export function SettingsPage() {
                         {preferences.invoiceColumns.includes("quantity") && <th className="border p-2">Qty</th>}
                         {preferences.invoiceColumns.includes("price") && <th className="border p-2">Price</th>}
                         {preferences.invoiceColumns.includes("amount") && <th className="border p-2">Total</th>}
+                        {preferences.invoiceColumns.includes("description") && <th className="border p-2 text-left">Description</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -475,6 +479,7 @@ export function SettingsPage() {
                         {preferences.invoiceColumns.includes("quantity") && <td className="border p-2 text-center">2</td>}
                         {preferences.invoiceColumns.includes("price") && <td className="border p-2 text-center">₹50</td>}
                         {preferences.invoiceColumns.includes("amount") && <td className="border p-2 text-center">₹100</td>}
+                        {preferences.invoiceColumns.includes("description") && <td className="border p-2">Pain relief tablets</td>}
                       </tr>
                       <tr>
                         {preferences.invoiceColumns.includes("name") && <td className="border p-2">Cough Syrup 100ml</td>}
@@ -482,6 +487,7 @@ export function SettingsPage() {
                         {preferences.invoiceColumns.includes("quantity") && <td className="border p-2 text-center">1</td>}
                         {preferences.invoiceColumns.includes("price") && <td className="border p-2 text-center">₹120</td>}
                         {preferences.invoiceColumns.includes("amount") && <td className="border p-2 text-center">₹120</td>}
+                        {preferences.invoiceColumns.includes("description") && <td className="border p-2">Soothes cough and throat</td>}
                       </tr>
                     </tbody>
                   </table>
