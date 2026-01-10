@@ -186,8 +186,17 @@ async function matchAndUpdateRecords(
 
       if (existing) {
         // Update existing
-        const updatedRecord = {
-          ...existing,
+        const updatedRecord: MedicineRecord = {
+          Batch_ID: existing.Batch_ID,
+          "Name of Medicine": existing["Name of Medicine"],
+          Category: existing.Category,
+          "Medicine Forms": existing["Medicine Forms"],
+          Quantity_per_pack: existing.Quantity_per_pack,
+          "Cover Disease": existing["Cover Disease"],
+          Symptoms: existing.Symptoms,
+          "Side Effects": existing["Side Effects"],
+          Instructions: existing.Instructions,
+          "Description in Hinglish": existing["Description in Hinglish"],
           Price_INR: record.Price_INR || existing.Price_INR,
           Total_Quantity: (existing.Total_Quantity || 0) + (record.Total_Quantity || 0),
           Manufacturer: record.Manufacturer || existing.Manufacturer,
