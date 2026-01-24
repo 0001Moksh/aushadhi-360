@@ -10,53 +10,58 @@ interface UserGuardProps {
 
 export function UserGuard({ children }: UserGuardProps) {
   const router = useRouter()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [redirected, setRedirected] = useState(false)
 
   useEffect(() => {
-    // Check if user is authenticated
-    const authToken = localStorage.getItem("auth_token")
-    const userEmail = localStorage.getItem("user_email")
-    const userRole = localStorage.getItem("user_role")
+    const checkAuth = async () => {
+      try {
+        const userRole = localStorage.getItem("user_role")
+        const authToken = localStorage.getItem("auth_token")
+        const userEmail = localStorage.getItem("user_email")
 
-    if (authToken && userEmail) {
-      // Allow both admin and regular users
-      if (userRole === "admin" || userRole === "user") {
-        setIsAuthenticated(true)
-      } else {
-        // Invalid role, redirect to login
-        router.push("/login")
+        // Check if user is properly authenticated
+        if (userRole === "user" && authToken && userEmail) {
+          setIsAuthorized(true)
+        } else {
+          // User not authenticated - redirect to login
+          setRedirected(true)
+          router.push("/login")
+        }
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
-    } else {
-      // Not authenticated, redirect to login
-      router.push("/login")
-      setIsLoading(false)
     }
+
+    checkAuth()
   }, [router])
 
+  // Show loading state while checking
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verifying authentication...</p>
+          <p className="text-muted-foreground">Verifying user access...</p>
         </div>
       </div>
     )
   }
 
-  if (!isAuthenticated) {
+  // If not authorized and redirected, show access denied message
+  if (redirected || !isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-          <p className="text-muted-foreground mt-2">Please login to access this page.</p>
+          <p className="text-muted-foreground mt-2">You do not have permission to access this page.</p>
           <p className="text-muted-foreground text-sm mt-4">Redirecting to login...</p>
         </div>
       </div>
     )
   }
 
-  return <>{children}</>
+  // Only render children if authorized
+  return isAuthorized ? <>{children}</> : null
 }

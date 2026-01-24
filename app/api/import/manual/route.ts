@@ -17,6 +17,7 @@ interface ManualMedicineRecord {
   Price_INR: number
   Total_Quantity: number
   status_import?: string
+  feature_type?: 'manual' | 'ai' | 'image' | 'excel' | 'csv' | 'ocr'
   customFields?: Record<string, string>
 }
 
@@ -29,7 +30,11 @@ async function getDatabase() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { email, medicines } = body as { email: string; medicines: ManualMedicineRecord[] }
+    const { email, medicines, featureType = 'manual' } = body as { 
+      email: string
+      medicines: ManualMedicineRecord[]
+      featureType?: 'manual' | 'ai' | 'image' | 'excel' | 'csv' | 'ocr'
+    }
 
     if (!email || !Array.isArray(medicines)) {
       return NextResponse.json({ error: "email and medicines array required" }, { status: 400 })
@@ -48,7 +53,13 @@ export async function POST(req: NextRequest) {
 
       let updatedCount = 0
       let newCount = 0
+      let newColumnsDetected = false
       const bulkOps = []
+      const newColumns: string[] = []
+
+      // Get existing schema from one document
+      const existingDoc = await medicinesCollection.findOne({ userId: email })
+      const existingFields = new Set(Object.keys(existingDoc || {}))
 
       for (const rec of medicines) {
         // Check if medicine with this Batch_ID already exists
@@ -56,6 +67,15 @@ export async function POST(req: NextRequest) {
           userId: email, 
           Batch_ID: rec.Batch_ID 
         })
+
+        // Detect new columns
+        const incomingFields = Object.keys(rec)
+        for (const field of incomingFields) {
+          if (!existingFields.has(field) && !newColumns.includes(field)) {
+            newColumns.push(field)
+            newColumnsDetected = true
+          }
+        }
 
         if (existing) {
           // Update existing medicine
@@ -65,21 +85,30 @@ export async function POST(req: NextRequest) {
               update: {
                 $set: {
                   ...rec,
-                  status_import: "updated manually",
-                  updatedAt: new Date()
+                  feature_type: featureType,
+                  status_import: `updated via ${featureType}`,
+                  updatedAt: new Date(),
+                  // Add any new fields from this import
+                  ...incomingFields.reduce((acc, field) => {
+                    if (!existingFields.has(field)) {
+                      acc[field] = rec[field as keyof ManualMedicineRecord]
+                    }
+                    return acc
+                  }, {} as Record<string, any>)
                 }
               }
             }
           })
           updatedCount += 1
         } else {
-          // Insert new medicine
+          // Insert new medicine with feature type
           bulkOps.push({
             insertOne: {
               document: {
                 userId: email,
                 ...rec,
-                status_import: "new item added - manual",
+                feature_type: featureType,
+                status_import: `new item added via ${featureType}`,
                 createdAt: new Date(),
                 updatedAt: new Date()
               }
@@ -98,9 +127,21 @@ export async function POST(req: NextRequest) {
       const totalMedicines = await medicinesCollection.countDocuments({ userId: email })
       await users.updateOne({ email }, { $set: { totalMedicines } })
 
+      // Log new columns if detected
+      if (newColumnsDetected) {
+        console.log(`New columns detected for ${email}: ${newColumns.join(', ')}`)
+      }
+
       return NextResponse.json({
         message: "Manual import saved",
-        summary: { total: medicines.length, updated: updatedCount, new: newCount },
+        summary: { 
+          total: medicines.length, 
+          updated: updatedCount, 
+          new: newCount,
+          featureType,
+          newColumnsDetected,
+          newColumns: newColumnsDetected ? newColumns : undefined
+        },
       })
     } finally {
       await client.close()

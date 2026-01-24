@@ -48,7 +48,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isExpanded, setIsExpanded] = useState(true) // Expanded by default
   const [profile, setProfile] = useState<{ email: string; storeName?: string; ownerName?: string; photoUrl?: string } | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const PROFILE_CACHE_KEY = "dashboard_profile_cache"
+  const hasLoadedProfile = useRef(false)
+
+  // Check authentication on mount
+  useEffect(() => {
+    const userRole = localStorage.getItem("user_role")
+    const authToken = localStorage.getItem("auth_token")
+    const userEmail = localStorage.getItem("user_email")
+
+    if (userRole === "user" && authToken && userEmail) {
+      setIsAuthenticated(true)
+    } else {
+      // Redirect to login if not authenticated
+      router.push("/login")
+    }
+  }, [router])
 
   useEffect(() => {
     const savedState = localStorage.getItem("sidebarExpanded")
@@ -56,8 +72,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       setIsExpanded(savedState === "true")
     }
   }, [])
-
-  const hasLoadedProfile = useRef(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -133,6 +147,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [isExpanded])
 
   const showFullSidebar = isExpanded || sidebarOpen
+
+  // If not authenticated, don't render anything
+  if (!isAuthenticated) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-background">

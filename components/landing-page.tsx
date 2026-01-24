@@ -252,9 +252,9 @@ export function LandingPage() {
                         {features.map((feature, index) => (
                             <div
                                 key={`first-${index}`}
-                                className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-card/50 dark:bg-background/50 border-r-6 border-t-2 border-primary/50 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 transition-all duration-300 hover:scale-105 min-w-fit whitespace-nowrap group"
+                                className="flex items-center gap-3 px-2 md:px-6 md:py-4 rounded-2xl bg-card/50 dark:bg-background/50 border-r-6 border-t-2 border-primary/50 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 transition-all duration-300 hover:scale-105 min-w-fit whitespace-nowrap group"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
+                                <div className="md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
                                     {feature.icon}
                                 </div>
                                 <span className="font-semibold text-sm md:text-base text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
@@ -267,9 +267,9 @@ export function LandingPage() {
                         {features.map((feature, index) => (
                             <div
                                 key={`second-${index}`}
-                                className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-card/50 dark:bg-background/50 border border-primary/10 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 transition-all duration-300 hover:scale-105 min-w-fit whitespace-nowrap group"
+                                className="flex items-center gap-3 px-6 py-2 rounded-2xl bg-card/50 dark:bg-background/50 border border-primary/10 dark:border-primary/20 hover:border-primary/30 dark:hover:border-primary/40 transition-all duration-300 hover:scale-105 min-w-fit whitespace-nowrap group"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
+                                <div className="w-10 h-5 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 flex items-center justify-center text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300">
                                     {feature.icon}
                                 </div>
                                 <span className="font-semibold text-sm md:text-base text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-secondary transition-colors duration-300">
@@ -295,6 +295,30 @@ export function LandingPage() {
                     }
                 `}</style>
             </section>
+
+            {/* Tutorial Video Section */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 md:py-20 py-10">
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+                        Watch How Aushadhi 360 Works
+                    </h2>
+                    {/* <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+                        A quick tutorial walkthrough of the features & how to use the dashboard.
+                    </p> */}
+                </div>
+
+                <div className="relative aspect-video rounded-3xl overflow-hidden border border-primary/20 dark:border-primary/30 shadow-2xl">
+                    <iframe
+                        className="absolute inset-0 w-full h-full"
+                        src="https://www.youtube.com/embed/pl2SnZezJK0"
+                        title="Aushadhi 360 Tutorial"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                    ></iframe>
+                </div>
+            </section>
+
 
             {/* Features Grid - Premium Accordion Design */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative">
@@ -437,21 +461,6 @@ export function LandingPage() {
                                             alt={features[expandedFeature]?.title}
                                             className="w-full h-full object-cover hidden dark:hidden lg:block aspect-video"
                                         />
-
-                                        {/* Mobile Dark image - shows below lg in dark mode */}
-                                        {/* <img
-                                            src={imgSrcMobileDark}
-                                            alt={features[expandedFeature]?.title}
-                                            className="w-full h-full object-cover block dark:block lg:hidden aspect-video"
-                                        /> */}
-
-                                        {/* Mobile Light image - shows below lg in light mode */}
-                                        {/* <img
-                                            src={imgSrcMobileLight}
-                                            alt={features[expandedFeature]?.title}
-                                            className="w-full h-full object-cover block dark:hidden lg:hidden aspect-video"
-                                        /> */}
-
                                         {/* Overlay gradient */}
                                         <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-background/0 to-transparent" />
                                     </div>
@@ -654,16 +663,16 @@ export function LandingPage() {
                             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                                 <p className="text-center">&copy; 2026 Aushadhi 360. All rights reserved.</p>
                                 <div className="flex gap-4">
-                                    <a href="#" className="hover:text-foreground transition" aria-label="Facebook">
+                                    <a href="https://www.facebook.com/aushadhi360" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition" aria-label="Facebook">
                                         <Facebook className="h-5 w-5" />
                                     </a>
-                                    <a href="#" className="hover:text-foreground transition" aria-label="Twitter">
+                                    <a href="https://x.com/aushadhi360" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition" aria-label="Twitter">
                                         <Twitter className="h-5 w-5" />
                                     </a>
-                                    <a href="#" className="hover:text-foreground transition" aria-label="Instagram">
+                                    <a href="https://www.instagram.com/aushadhi360" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition" aria-label="Instagram">
                                         <Instagram className="h-5 w-5" />
                                     </a>
-                                    <a href="#" className="hover:text-foreground transition" aria-label="LinkedIn">
+                                    <a href="https://www.linkedin.com/company/aushadhi360" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition" aria-label="LinkedIn">
                                         <Linkedin className="h-5 w-5" />
                                     </a>
                                 </div>

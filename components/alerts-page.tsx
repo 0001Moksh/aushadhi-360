@@ -112,6 +112,8 @@ export function AlertsPage() {
       const email = localStorage.getItem("user_email")
       if (!email) {
         console.warn("Alerts: No user_email in localStorage; skipping fetch.")
+        setData({ medicines: [], topSelling: [] })
+        setError("User not authenticated")
         setIsLoading(false)
         return
       }
@@ -174,7 +176,8 @@ export function AlertsPage() {
         })
       } else {
         const text = await medicinesRes.text().catch(() => "")
-        console.error("Failed to load medicines", { status: medicinesRes.status, text })
+        console.warn("Failed to load medicines", { status: medicinesRes.status, text })
+        // Don't throw - allow the page to work with empty data
       }
 
       if (topSellingRes.ok) {
@@ -186,7 +189,8 @@ export function AlertsPage() {
         console.debug("Alerts: Top selling fetched", { count: topSelling.length, sample: topSelling.slice(0, 3) })
       } else {
         const text = await topSellingRes.text().catch(() => "")
-        console.error("Failed to load top selling", { status: topSellingRes.status, text })
+        console.warn("Failed to load top selling", { status: topSellingRes.status, text })
+        // Don't throw - allow the page to work with empty data
       }
 
       setData({

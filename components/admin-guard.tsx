@@ -10,24 +10,34 @@ interface AdminGuardProps {
 
 export function AdminGuard({ children }: AdminGuardProps) {
   const router = useRouter()
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [redirected, setRedirected] = useState(false)
 
   useEffect(() => {
-    // Check if user is authenticated and is admin
-    const userRole = localStorage.getItem("user_role")
-    const authToken = localStorage.getItem("auth_token")
+    const checkAuth = async () => {
+      try {
+        const userRole = localStorage.getItem("user_role")
+        const authToken = localStorage.getItem("auth_token")
+        const userEmail = localStorage.getItem("user_email")
 
-    if (userRole === "admin" && authToken) {
-      setIsAdmin(true)
-      setIsLoading(false)
-    } else {
-      // Redirect to login if not admin
-      router.push("/")
-      setIsLoading(false)
+        // Check if user is properly authenticated as admin
+        if (userRole === "admin" && authToken && userEmail) {
+          setIsAuthorized(true)
+        } else {
+          // Admin not authenticated - redirect to login
+          setRedirected(true)
+          router.push("/login")
+        }
+      } finally {
+        setIsLoading(false)
+      }
     }
+
+    checkAuth()
   }, [router])
 
+  // Show loading state while checking
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -39,7 +49,8 @@ export function AdminGuard({ children }: AdminGuardProps) {
     )
   }
 
-  if (!isAdmin) {
+  // If not authorized and redirected, show access denied message
+  if (redirected || !isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -51,5 +62,6 @@ export function AdminGuard({ children }: AdminGuardProps) {
     )
   }
 
-  return <>{children}</>
+  // Only render children if authorized
+  return isAuthorized ? <>{children}</> : null
 }

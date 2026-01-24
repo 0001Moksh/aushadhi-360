@@ -31,6 +31,7 @@ interface MedicineRecord {
   Price_INR: number
   Total_Quantity: number
   status_import?: string
+  feature_type?: 'manual' | 'ai' | 'image' | 'excel' | 'csv' | 'ocr'
 }
 
 async function getDatabase() {
@@ -283,8 +284,9 @@ async function enrichMedicineData(records: MedicineRecord[], groqKeyAssist?: str
 async function syncToDatabase(
   updated: MedicineRecord[],
   newRecords: MedicineRecord[],
-  userEmail: string
-): Promise<boolean> {
+  userEmail: string,
+  featureType: 'excel' | 'csv' | 'ocr' | 'image' = 'excel'
+): Promise<{ success: boolean; newColumns?: string[] }> {
   const { client, db } = await getDatabase()
 
   try {
@@ -295,20 +297,42 @@ async function syncToDatabase(
 
     if (!user) {
       await client.close()
-      return false
+      return { success: false }
     }
 
     const bulkOps = []
+    const newColumns: string[] = []
+
+    // Get existing schema
+    const existingDoc = await medicinesCollection.findOne({ userId: userEmail })
+    const existingFields = new Set(Object.keys(existingDoc || {}))
 
     // Update existing records
     for (const updatedRecord of updated) {
+      const incomingFields = Object.keys(updatedRecord)
+      
+      // Detect new columns
+      for (const field of incomingFields) {
+        if (!existingFields.has(field) && !newColumns.includes(field)) {
+          newColumns.push(field)
+        }
+      }
+
       bulkOps.push({
         updateOne: {
           filter: { userId: userEmail, Batch_ID: updatedRecord.Batch_ID },
           update: {
             $set: {
               ...updatedRecord,
-              updatedAt: new Date()
+              feature_type: featureType,
+              updatedAt: new Date(),
+              // Add any new fields from this import
+              ...incomingFields.reduce((acc, field) => {
+                if (!existingFields.has(field)) {
+                  acc[field] = updatedRecord[field as keyof MedicineRecord]
+                }
+                return acc
+              }, {} as Record<string, any>)
             }
           }
         }
@@ -317,11 +341,21 @@ async function syncToDatabase(
 
     // Add new records
     for (const newRecord of newRecords) {
+      const incomingFields = Object.keys(newRecord)
+      
+      // Detect new columns
+      for (const field of incomingFields) {
+        if (!existingFields.has(field) && !newColumns.includes(field)) {
+          newColumns.push(field)
+        }
+      }
+
       bulkOps.push({
         insertOne: {
           document: {
             userId: userEmail,
             ...newRecord,
+            feature_type: featureType,
             createdAt: new Date(),
             updatedAt: new Date()
           }
@@ -338,8 +372,12 @@ async function syncToDatabase(
     const totalMedicines = await medicinesCollection.countDocuments({ userId: userEmail })
     await usersCollection.updateOne({ email: userEmail }, { $set: { totalMedicines } })
 
+    if (newColumns.length > 0) {
+      console.log(`New columns detected: ${newColumns.join(', ')}`)
+    }
+
     await client.close()
-    return true
+    return { success: true, newColumns: newColumns.length > 0 ? newColumns : undefined }
   } catch (error) {
     await client.close()
     throw error
@@ -478,9 +516,10 @@ export async function POST(request: NextRequest) {
     }
 
     // LAYER 7 & 8: Consolidate and sync to database
-    const success = await syncToDatabase(updated, enrichedNewRecords, userEmail)
+    const featureType = inputType === "image" || inputType === "ocr" ? "ocr" : (file.name.endsWith('.csv') ? 'csv' : 'excel')
+    const syncResult = await syncToDatabase(updated, enrichedNewRecords, userEmail, featureType)
 
-    if (!success) {
+    if (!syncResult.success) {
       return NextResponse.json({ error: "Failed to sync to database" }, { status: 500 })
     }
 
@@ -490,6 +529,9 @@ export async function POST(request: NextRequest) {
         total: extractedRecords.length,
         updated: updated.length,
         new: enrichedNewRecords.length,
+        featureType,
+        newColumnsDetected: !!syncResult.newColumns,
+        newColumns: syncResult.newColumns,
       },
       data: {
         updated,

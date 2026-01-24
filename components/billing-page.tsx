@@ -12,12 +12,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw, Stethoscope, Activity, Sparkles, Pill, Clock, X, Lightbulb } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, Loader2, CheckCircle, AlertCircle, Package, Printer, History, Star, Keyboard, Download, Save, FileText, Eye, Trash, Zap, RefreshCw, Stethoscope, Activity, Sparkles, Pill, Clock, X, Lightbulb, Mail, Mic, MicOff } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { useVoiceSearch } from "@/hooks/use-voice-search"
 
 interface Medicine {
   id: string
@@ -102,6 +103,7 @@ export function BillingPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [recentBills, setRecentBills] = useState<BillHistory[]>([])
+  const [isLoadingBills, setIsLoadingBills] = useState(false)
   const [favorites, setFavorites] = useState<string[]>([])
   const [drafts, setDrafts] = useState<DraftBill[]>([])
   const [restoredDraftId, setRestoredDraftId] = useState<string | null>(null)
@@ -121,6 +123,25 @@ export function BillingPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const draggingFavorite = useRef<string | null>(null)
 
+  // Voice Search States
+  const { 
+    transcript, 
+    isListening, 
+    isSpeaking, 
+    startListening, 
+    stopListening, 
+    resetTranscript, 
+    isSupported: isVoiceSupported 
+  } = useVoiceSearch({
+    onTranscript: (text) => {
+      setSearchQuery(text.trim())
+    },
+    onError: (error) => {
+      setError(error)
+      setTimeout(() => setError(null), 3000)
+    },
+  })
+
   // AI Assist Mode States
   const [isAIMode, setIsAIMode] = useState(false)
   const [symptoms, setSymptoms] = useState("")
@@ -129,6 +150,8 @@ export function BillingPage() {
   const [showAIWarning, setShowAIWarning] = useState(true)
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([])
   const [hasGroqKeyAssist, setHasGroqKeyAssist] = useState<boolean | null>(null)
+  const [isCallingDoctor, setIsCallingDoctor] = useState(false)
+  const [doctorCallMsg, setDoctorCallMsg] = useState<string | null>(null)
   const [embeddingStatus, setEmbeddingStatus] = useState<{
     ready: boolean
     attempts: number
@@ -173,7 +196,8 @@ export function BillingPage() {
   }, [searchQuery])
 
   // Load recent bills
-  const loadRecentBills = useCallback(async () => {
+  const loadRecentBills = useCallback(async (showLoading = false) => {
+    if (showLoading) setIsLoadingBills(true)
     try {
       const email = localStorage.getItem("user_email")
       if (!email) return
@@ -182,14 +206,16 @@ export function BillingPage() {
       if (res.ok) {
         const data = await res.json()
         const allBills = data.bills || []
-        const today = new Date().toDateString()
-        const todaysBills = allBills
-          .filter((bill: any) => new Date(bill.date).toDateString() === today)
+        // Show last 10 bills (sorted newest first)
+        const recentTen = allBills
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        setRecentBills(todaysBills)
+          .slice(0, 10)
+        setRecentBills(recentTen)
       }
     } catch (err) {
       console.error("Failed to load recent bills:", err)
+    } finally {
+      if (showLoading) setIsLoadingBills(false)
     }
   }, [])
 
@@ -848,6 +874,33 @@ export function BillingPage() {
     setTimeout(() => setSuccess(null), 2000)
   }
 
+  const callDoctorAI = async () => {
+    setIsCallingDoctor(true)
+    setDoctorCallMsg(null)
+    try {
+      const email = process.env.NEXT_PUBLIC_ADMIN_MAIL || localStorage.getItem("user_email") || ""
+      const password = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || ""
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (res.ok) {
+        setDoctorCallMsg("Doctor AI contacted successfully.")
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setDoctorCallMsg(data.message || "Doctor AI call failed.")
+      }
+    } catch {
+      setDoctorCallMsg("Unable to reach authentication service.")
+    } finally {
+      setIsCallingDoctor(false)
+      setTimeout(() => setDoctorCallMsg(null), 4000)
+    }
+  }
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const gst = subtotal * 0.18
   const total = subtotal + gst
@@ -955,6 +1008,26 @@ export function BillingPage() {
         deleteDraft(restoredDraftId)
         setRestoredDraftId(null)
       }
+
+      // Optimistically add bill to recent bills to avoid reload requirement
+      const optimisticBill: BillHistory = {
+        id: `temp-${billData.billId}`,
+        billId: billData.billId,
+        date: new Date(),
+        items: tempCart,
+        subtotal,
+        gst,
+        total,
+        customerEmail: tempCustomerEmail || undefined,
+        customerPhone: tempCustomerPhone || undefined,
+        itemCount: tempCart.length,
+        storeName,
+      }
+      // Only add if not already present (avoid duplicates)
+      setRecentBills((prev) => {
+        const exists = prev.some(b => b.billId === billData.billId)
+        return exists ? prev : [optimisticBill, ...prev].slice(0, 10)
+      })
 
       // Send invoice email in background (non-blocking)
       if (tempCustomerEmail && emailAlertsEnabled) {
@@ -1637,6 +1710,30 @@ export function BillingPage() {
                         </TooltipContent>
                       )}
                     </Tooltip>
+                    <div className="mt-2">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={callDoctorAI}
+                        disabled={isCallingDoctor}
+                        title="Authenticate with backend and contact Doctor AI"
+                      >
+                        {isCallingDoctor ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Contacting Doctor...
+                          </>
+                        ) : (
+                          <>
+                            <Stethoscope className="mr-2 h-4 w-4" />
+                            Call Doctor AI
+                          </>
+                        )}
+                      </Button>
+                      {doctorCallMsg && (
+                        <p className="text-xs text-muted-foreground mt-1">{doctorCallMsg}</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* AI Recommendations List */}
@@ -1835,60 +1932,119 @@ export function BillingPage() {
               </TabsContent>
 
               <TabsContent value="history" className="mt-0">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold">Recent Bills</h2>
-                  <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline">View all Bills</Link>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold">Recent Bills (Last 10)</h2>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadRecentBills(true)}
+                      disabled={isLoadingBills}
+                      className="h-7 px-2"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${isLoadingBills ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline flex items-center">View All</Link>
+                  </div>
                 </div>
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
-                  {recentBills.length === 0 ? (
+                  {isLoadingBills ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary" />
+                      <p>Loading bills...</p>
+                    </div>
+                  ) : recentBills.length === 0 ? (
                     <div className="text-center text-muted-foreground py-12">
                       <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p>No recent bills</p>
                       <p className="text-xs mt-1">Your billing history will appear here</p>
                     </div>
                   ) : (
-                    recentBills.map((bill) => (
-                      <Card key={bill.id} className="p-3 hover:border-accent transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold text-sm">{bill.billId}</p>
-                            <p className="text-sm text-foreground">
-                              {new Date(bill.date).toLocaleDateString("en-IN", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
+                    recentBills.map((bill, index) => {
+                      const billDate = new Date(bill.date)
+                      const now = new Date()
+                      const diffMs = now.getTime() - billDate.getTime()
+                      const diffMins = Math.floor(diffMs / 60000)
+                      const diffHours = Math.floor(diffMins / 60)
+                      const diffDays = Math.floor(diffHours / 24)
+                      
+                      let timeAgo = ''
+                      if (diffMins < 1) timeAgo = 'Just now'
+                      else if (diffMins < 60) timeAgo = `${diffMins}m ago`
+                      else if (diffHours < 24) timeAgo = `${diffHours}h ago`
+                      else if (diffDays === 1) timeAgo = 'Yesterday'
+                      else if (diffDays < 7) timeAgo = `${diffDays}d ago`
+                      else timeAgo = billDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+
+                      const fullDateTime = billDate.toLocaleString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+
+                      const timeOnly = billDate.toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+
+                      return (
+                        <Card key={bill.id} className="p-3 hover:border-primary/50 transition-all hover:shadow-md">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xs font-mono">#{recentBills.length - index}</Badge>
+                                <p className="font-semibold text-sm">{bill.billId}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{timeAgo}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{timeOnly}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-primary text-lg">₹{bill.total.toFixed(2)}</p>
+                              <Badge className="mt-1 text-xs" variant="outline">{bill.itemCount} items</Badge>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center text-sm">
-                          <span className="text-muted-foreground">Total: </span>
-                          <span className="font-semibold ml-2 text-primary"> ₹{bill.total.toFixed(2)}</span>
-                          <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
-                        </div>
-                        {bill.customerEmail && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Customer: {bill.customerEmail}
-                          </p>
-                        )}
-                        {bill.customerPhone && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Phone: {bill.customerPhone}
-                          </p>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full hover:text-primary"
-                          onClick={() => previewInvoice(bill)}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View Invoice
-                        </Button>
-                      </Card>
-                    ))
+                          
+                          <div className="mb-2 pb-2 border-b space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Subtotal:</span>
+                              <span className="font-medium">₹{bill.subtotal.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">GST:</span>
+                              <span className="font-medium">₹{bill.gst.toFixed(2)}</span>
+                            </div>
+                          </div>
+
+                          {(bill.customerEmail || bill.customerPhone) && (
+                            <div className="mb-2 pb-2 border-b text-xs space-y-0.5">
+                              {bill.customerEmail && (
+                                <p className="text-muted-foreground truncate">
+                                  <Mail className="h-3 w-3 inline mr-1" />{bill.customerEmail}
+                                </p>
+                              )}
+                              {bill.customerPhone && (
+                                <p className="text-muted-foreground truncate">
+                                  📞 {bill.customerPhone}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                            onClick={() => previewInvoice(bill)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View Invoice
+                          </Button>
+                        </Card>
+                      )
+                    })
                   )}
                 </div>
               </TabsContent>
@@ -2065,8 +2221,42 @@ export function BillingPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => handleSearchKeyDown(e, orderedMedicines)}
-                    className="pl-10 pr-16"
+                    className="pl-10 pr-32"
                   />
+
+                  {isVoiceSupported && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isListening) {
+                              stopListening()
+                            } else {
+                              resetTranscript()
+                              startListening()
+                            }
+                          }}
+                          className={`absolute right-12 top-1/2 -translate-y-1/2 p-0 rounded-md transition-all duration-200 ${
+                            isListening || isSpeaking
+                              ? 'bg-primary/20 text-red-600 dark:text-red-400 animate-pulse'
+                              : 'text-muted-foreground hover:text-foreground hover:text-primary'
+                          }`}
+                          title="Voice search"
+                          aria-label={isListening ? 'Stop listening' : 'Start voice search'}
+                        >
+                          {isListening || isSpeaking ? (
+                            <Mic className="h-4 w-4" />
+                          ) : (
+                            <MicOff className="h-4 w-4" />
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {isListening ? 'Listening... Click to stop' : 'Click to search by voice'}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
                   {searchQuery && (
                     <button
@@ -2362,65 +2552,119 @@ export function BillingPage() {
               </TabsContent>
 
               <TabsContent value="history" className="mt-0">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold">Recent Bills</h2>
-                  <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline">View all Bills</Link>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold">Recent Bills (Last 10)</h2>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadRecentBills(true)}
+                      disabled={isLoadingBills}
+                      className="h-7 px-2"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${isLoadingBills ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Link href="/dashboard/billing/history" className="text-xs text-primary hover:underline flex items-center">View All</Link>
+                  </div>
                 </div>
                 <div className="space-y-3 max-h-[550px] overflow-y-auto pr-2 scrollbar-thin">
-                  {recentBills.length === 0 ? (
+                  {isLoadingBills ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary" />
+                      <p>Loading bills...</p>
+                    </div>
+                  ) : recentBills.length === 0 ? (
                     <div className="text-center text-muted-foreground py-12">
                       <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p>No recent bills</p>
                       <p className="text-xs mt-1">Your billing history will appear here</p>
                     </div>
                   ) : (
-                    recentBills.map((bill) => (
-                      <Card key={bill.id} className="p-3 hover:border-accent transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold text-sm">{bill.billId}</p>
-                            <p className="text-sm text-foreground">
-                              {new Date(bill.date).toLocaleDateString("en-IN", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
+                    recentBills.map((bill, index) => {
+                      const billDate = new Date(bill.date)
+                      const now = new Date()
+                      const diffMs = now.getTime() - billDate.getTime()
+                      const diffMins = Math.floor(diffMs / 60000)
+                      const diffHours = Math.floor(diffMins / 60)
+                      const diffDays = Math.floor(diffHours / 24)
+                      
+                      let timeAgo = ''
+                      if (diffMins < 1) timeAgo = 'Just now'
+                      else if (diffMins < 60) timeAgo = `${diffMins}m ago`
+                      else if (diffHours < 24) timeAgo = `${diffHours}h ago`
+                      else if (diffDays === 1) timeAgo = 'Yesterday'
+                      else if (diffDays < 7) timeAgo = `${diffDays}d ago`
+                      else timeAgo = billDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+
+                      const fullDateTime = billDate.toLocaleString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+
+                      const timeOnly = billDate.toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+
+                      return (
+                        <Card key={bill.id} className="p-3 hover:border-primary/50 transition-all hover:shadow-md">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xl font-mono"># {index + 1}</Badge>
+                                <p className="font-semibold text-sm">{bill.billId}</p>
+                              <p className="text-xs text-foreground">{timeAgo}</p>
+                              </div>
+                              <p className="text-[12px] text-muted-foreground mt-0.5">{timeOnly}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-primary text-lg">₹{bill.total.toFixed(2)}</p>
+                              <Badge className="mt-1 text-xs" variant="outline">{bill.itemCount} items</Badge>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center text-sm">
-                          <span className="text-muted-foreground">Total: </span>
-                          <span className="font-semibold ml-2 text-primary"> ₹{bill.total.toFixed(2)}</span>
-                          <Badge className="ml-2 border-accent" variant="outline">{bill.itemCount} items</Badge>
-                        </div>
-                        {bill.customerEmail && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Customer: {bill.customerEmail}
-                          </p>
-                        )}
-                        {bill.customerPhone && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Phone: {bill.customerPhone}
-                          </p>
-                        )}
-                        {/* {bill.storeName && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          Store: {bill.storeName}
-                        </p>
-                      )} */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full hover:text-primary"
-                          onClick={() => previewInvoice(bill)}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View Invoice
-                        </Button>
-                      </Card>
-                    ))
+                          
+                          {/* <div className="mb-2 pb-2 border-b space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Subtotal:</span>
+                              <span className="font-medium">₹{bill.subtotal.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">GST:</span>
+                              <span className="font-medium">₹{bill.gst.toFixed(2)}</span>
+                            </div>
+                          </div> */}
+
+                          {(bill.customerEmail || bill.customerPhone) && (
+                            <div className="mb-2 pb-2 border-b text-xs space-y-0.5">
+                              {bill.customerEmail && (
+                                <p className="text-muted-foreground truncate">
+                                  <Mail className="h-3 w-3 inline mr-1" />{bill.customerEmail}
+                                </p>
+                              )}
+                              {bill.customerPhone && (
+                                <p className="text-muted-foreground truncate">
+                                  📞 {bill.customerPhone}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                            onClick={() => previewInvoice(bill)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View Invoice
+                          </Button>
+                        </Card>
+                      )
+                    })
                   )}
                 </div>
               </TabsContent>

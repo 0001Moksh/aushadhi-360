@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     const bills = await billsCollection
       .find(query)
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .limit(limit)
       .toArray()
 
@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       gst: bill.gst,
       total: bill.total,
       customerEmail: bill.customerEmail,
+      customerPhone: bill.customerPhone,
       itemCount: bill.items?.length || 0,
     }))
 

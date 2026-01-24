@@ -732,6 +732,18 @@ export function AdminDashboard() {
                         <p className="font-medium">{selectedUser.address || "-"}</p>
                       </div>
                       <div>
+                        <p className="text-muted-foreground">Created</p>
+                        <p className="font-medium">
+                          {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleString() : "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Last Login</p>
+                        <p className="font-medium">
+                          {selectedUser.lastLogin ? new Date(selectedUser.lastLogin).toLocaleString() : "Never"}
+                        </p>
+                      </div>
+                      <div>
                         <p className="text-muted-foreground">Status</p>
                         {(() => { const meta = getStatusMeta(selectedUser.status); const Icon = meta.icon; return (
                           <Badge variant="outline" className={`mt-1 ${meta.className}`}>
@@ -1147,8 +1159,7 @@ export function AdminDashboard() {
                           <TableHead>Owner</TableHead>
                           <TableHead>Email</TableHead>
                           {/* <TableHead>Role</TableHead> */}
-                          <TableHead>Created</TableHead>
-                          <TableHead>Last Login</TableHead>
+                          {/* Simplified: created/last login moved to User Lookup */}
                           <TableHead>Phone</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>LLM API (Import/Assist)</TableHead>
@@ -1162,12 +1173,6 @@ export function AdminDashboard() {
                             <TableCell>{user.ownerName || "-"}</TableCell>
                             <TableCell className="text-sm">{user.email}</TableCell>
                             {/* <TableCell className="text-sm capitalize">{user.role || "user"}</TableCell> */}
-                            <TableCell className="text-xs text-muted-foreground">
-                              {user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
-                            </TableCell>
                             <TableCell className="text-sm">{user.phone || "-"}</TableCell>
                             <TableCell>
                               {(() => { const meta = getStatusMeta(user.status); const Icon = meta.icon; return (

@@ -5,7 +5,7 @@ const mongoUri = process.env.DATABASE_URL || ""
 
 // Simple in-memory cache
 const cache = new Map<string, { data: any; timestamp: number }>()
-const CACHE_TTL = 30000 // 30 seconds
+const CACHE_TTL = 10000 // 10 seconds for faster updates
 
 function getCacheKey(email: string, query: string): string {
   return `${email}:${query}`
@@ -65,6 +65,12 @@ export async function GET(req: NextRequest) {
         const disease = (med?.["Cover Disease"] || med?.Disease || "").toLowerCase()
         const symptoms = (med?.Symptoms || "").toLowerCase()
         const description = (med?.Description || med?.description || med?.["Description in Hinglish"] || med?.Notes || "").toLowerCase()
+        const manufacturer = (med?.Manufacturer || med?.["Manufacturer Name"] || "").toLowerCase()
+        const composition = (med?.Composition || med?.Salt || med?.["Salt Composition"] || "").toLowerCase()
+        const genericName = (med?.["Generic Name"] || med?.generic || "").toLowerCase()
+        const dosage = (med?.Dosage || med?.["Dosage Strength"] || "").toLowerCase()
+        const packSize = (med?.["Pack Size"] || med?.packaging || "").toLowerCase()
+        const therapeuticClass = (med?.["Therapeutic Class"] || med?.therapeutic || "").toLowerCase()
 
         return (
           name.includes(searchLower) ||
@@ -73,7 +79,13 @@ export async function GET(req: NextRequest) {
           form.includes(searchLower) ||
           disease.includes(searchLower) ||
           symptoms.includes(searchLower) ||
-          description.includes(searchLower)
+          description.includes(searchLower) ||
+          manufacturer.includes(searchLower) ||
+          composition.includes(searchLower) ||
+          genericName.includes(searchLower) ||
+          dosage.includes(searchLower) ||
+          packSize.includes(searchLower) ||
+          therapeuticClass.includes(searchLower)
         )
       })
       .map((med: any) => ({
