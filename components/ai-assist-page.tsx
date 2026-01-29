@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sparkles, AlertCircle, PlusCircle, ShoppingCart, Stethoscope, Pill, Info, Activity, AlertTriangle, Lightbulb, CheckCircle, Clock, X, Download, Printer, Trash2 } from "lucide-react"
+import { searchMedicinesNoAuth, FastAPIError } from "@/lib/fastapi-service"
 
 interface Medicine {
   S?: number
@@ -146,18 +147,19 @@ export function AIAssistPage() {
     setResponse(null)
 
     try {
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/get_medicines?query=` + encodeURIComponent(symptoms), {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      if (!apiResponse.ok) {
-        throw new Error("Failed to get AI suggestions")
-      }
-
-      const data = await apiResponse.json()
+      const data = await searchMedicinesNoAuth(symptoms)
       setResponse(data)
     } catch (err) {
+      if (err instanceof FastAPIError) {
+        if (err.statusCode === 503) {
+          setError("AI embeddings are still being prepared. Please wait a moment and try again.")
+        } else if (err.statusCode === 404) {
+          setError("No medicines found. Please try a different query.")
+        } else {
+          setError(err.detail || "Failed to get AI suggestions")
+        }
+      } else {
+        setError("Network error: Cannot connect to AI service")
       setError(err instanceof Error ? err.message : "An error occurred while fetching suggestions")
       console.error("AI Assistant Error:", err)
     } finally {

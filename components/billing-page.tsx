@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { useVoiceSearch } from "@/hooks/use-voice-search"
+import { searchMedicines, getUserMedicines, FastAPIError, enrichMedicinesWithDetails } from "@/lib/fastapi-service"
 
 interface Medicine {
   id: string
@@ -39,6 +40,17 @@ interface CartItem {
   quantity: number
   availableQty: number
   description?: string
+  isFromAI?: boolean
+  aiMetadata?: {
+    instructions?: string
+    dosage?: string
+    quantityPerPack?: string
+    sideEffects?: string
+    coverDisease?: string
+    symptoms?: string
+    category?: string
+    medicineForm?: string
+  }
 }
 
 interface DraftBill {
@@ -374,13 +386,17 @@ export function BillingPage() {
       return
     }
 
+    const draftSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const draftGst = draftSubtotal * 0.18
+    const draftTotal = draftSubtotal + draftGst
+
     const draft: DraftBill = {
       id: `draft-${Date.now()}`,
       createdAt: Date.now(),
       items: cart,
-      subtotal,
-      gst,
-      total,
+      subtotal: draftSubtotal,
+      gst: draftGst,
+      total: draftTotal,
       customerEmail: customerEmail || undefined,
       customerPhone: customerPhone || undefined,
       storeName,
@@ -734,7 +750,7 @@ export function BillingPage() {
 
   const handleAIAssist = async () => {
     // Check if user has GROQ API key configured
-    if (hasGroqKeyAssist === false) {
+    if (hasGroqKeyAssist !== true) {
       setError(
         "AI Service Disabled\n\n" +
         "This AI assistance service has been disabled by your administrator.\n\n" +
@@ -784,64 +800,87 @@ export function BillingPage() {
         }
       }
 
-      const apiResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_FASTAPI_URL}/get_medicines?query=${encodeURIComponent(symptoms)}&mail=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
+      // Use FastAPI service for medicine search with proper error handling
+      try {
+        const result = await searchMedicines(symptoms, email, password)
+        
+        // Enrich medicines with detailed MongoDB data (prices, categories, side effects, etc.)
+        const enrichedMedicines = await enrichMedicinesWithDetails(result.Medicines, email)
+        
+        // Transform to AIResponse format with enriched data
+        const aiResponse: AIResponse = {
+          "AI Response": result["AI Response"] || result.AI || "Recommendations based on symptoms",
+          Medicines: enrichedMedicines.map((med: any) => ({
+            "S.no": med["S.no"],
+            "Name of Medicine": med["Name of Medicine"] || "",
+            "Batch_ID": med.Batch_ID || "",
+            Description: med.Description || "",
+            Quantity: med.Quantity || med.Stock?.toString() || "",
+            Instructions: med.Instructions || "As recommended",
+            "Cover Disease": med["Cover Disease"] || "Based on symptoms",
+            Symptoms: med.Symptoms || symptoms,
+            Price_INR: med.Price ? (typeof med.Price === 'string' ? parseFloat(med.Price) : med.Price) : 0,
+            Category: med.Category || "",
+            "Medicine Forms": med["Medicine Forms"] || med.form || "",
+            Quantity_per_pack: med["Pack Size"] || "1",
+            "Side Effects": med["Side Effects"] || "Consult doctor",
+          })),
+          Score: result.Score || "100%",
+          "overall instructions": result.overall_instructions || result.overall || "Consult with a healthcare professional before taking these medicines.",
         }
-      )
-
-      if (!apiResponse.ok) {
-        const errorData = await apiResponse.json().catch(() => ({ detail: "Unknown error" }))
-
-        // Handle specific error cases
-        if (apiResponse.status === 404) {
-          setError(
-            "❌ No medicines found for AI recommendations.\n\n" +
-            "Please import medicines from the 'Import' section first."
-          )
-        } else if (apiResponse.status === 403) {
-          setError(
-            "❌ AI Service Not Available for Admin.\n\n" +
-            "Admin accounts cannot use AI recommendations. Please log in with a regular user account."
-          )
-        } else if (apiResponse.status === 500) {
-          setError(
-            "⚠️ AI Service Error: Check if GROQ API Key is configured.\n\n" +
-            "The AI service encountered an error. Please ensure:\n" +
-            "1. GROQ_API_KEY is set in environment variables\n" +
-            "2. FastAPI backend is running correctly"
-          )
+        setAiResponse(aiResponse)
+      } catch (apiError) {
+        // Handle specific error cases using FastAPIError
+        if (apiError instanceof FastAPIError) {
+          if (apiError.statusCode === 404) {
+            setError(
+              "❌ No medicines found for AI recommendations.\n\n" +
+              "Please import medicines from the 'Import' section first."
+            )
+          } else if (apiError.statusCode === 403) {
+            setError(
+              "❌ AI Service Not Available for Admin.\n\n" +
+              "Admin accounts cannot use AI recommendations. Please log in with a regular user account."
+            )
+          } else if (apiError.statusCode === 500) {
+            setError(
+              "⚠️ AI Service Error: Check if GROQ API Key is configured.\n\n" +
+              "The AI service encountered an error. Please ensure:\n" +
+              "1. GROQ_API_KEY is set in environment variables\n" +
+              "2. FastAPI backend is running correctly"
+            )
+          } else if (apiError.statusCode === 503) {
+            setError(
+              "⏳ Embeddings are still being prepared.\n\n" +
+              "Please wait a moment and try again. This typically takes 30-60 seconds on first login."
+            )
+          } else {
+            setError(apiError.detail || `API error: ${apiError.statusCode}`)
+          }
         } else {
-          setError(errorData.detail || `API error: ${apiResponse.status}`)
+          // Network or other errors
+          const errorMessage = apiError instanceof Error ? apiError.message : "An error occurred while fetching suggestions"
+          if (errorMessage.includes("fetch") || errorMessage.includes("Failed")) {
+            setError(
+              "❌ Cannot connect to AI Service.\n\n" +
+              "Make sure:\n" +
+              "1. FastAPI backend is running\n" +
+              "2. GROQ_API_KEY is available\n" +
+              "3. Medicines are imported in the system"
+            )
+          } else {
+            setError(errorMessage)
+          }
+          console.error("AI Assistant Error:", apiError)
         }
         setTimeout(() => setError(null), 6000)
+      } finally {
         setIsAILoading(false)
-        return
       }
-
-      const data = await apiResponse.json()
-      setAiResponse(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An error occurred while fetching suggestions"
-
-      // Check if it's a connection error
-      if (errorMessage.includes("fetch") || errorMessage.includes("Failed")) {
-        setError(
-          "❌ Cannot connect to AI Service.\n\n" +
-          "Make sure:\n" +
-          "1. FastAPI backend is running\n" +
-          "2. GROQ_API_KEY is available\n" +
-          "3. Medicines are imported in the system"
-        )
-      } else {
-        setError(errorMessage)
-      }
-
-      console.error("AI Assistant Error:", err)
-      setTimeout(() => setError(null), 6000)
-    } finally {
+      // Outer try-catch for any unexpected errors
+      setError("An unexpected error occurred. Please try again.")
+      console.error("Unexpected error in AI Assist:", err)
       setIsAILoading(false)
     }
   }
@@ -855,6 +894,17 @@ export function BillingPage() {
       quantity: 1,
       availableQty: Number.parseInt(medicine.Quantity || "999"),
       description: medicine.Description,
+      isFromAI: true,
+      aiMetadata: {
+        instructions: medicine.Instructions,
+        dosage: medicine.Quantity,
+        quantityPerPack: medicine.Quantity_per_pack,
+        sideEffects: medicine["Side Effects"],
+        coverDisease: medicine["Cover Disease"],
+        symptoms: medicine.Symptoms,
+        category: medicine.Category,
+        medicineForm: medicine["Medicine Forms"],
+      },
     }
 
     const existing = cart.find((item) => item.batch === cartItem.batch)
@@ -1308,16 +1358,31 @@ export function BillingPage() {
         </tr>
       </thead>
       <tbody>
-        ${payload.items.map(item => `
+        ${payload.items.map(item => {
+          const aiInfo = item.isFromAI && item.aiMetadata ? `
+            <div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 12px;">
+              <div style="font-weight: 600; color: #1e40af; margin-bottom: 4px; display: flex; align-items: center;">
+                <span style="margin-right: 4px;">🤖</span> AI Recommended
+              </div>
+              ${item.aiMetadata.instructions ? `<div style="margin-top: 4px;"><strong>Instructions:</strong> ${item.aiMetadata.instructions}</div>` : ''}
+              ${item.aiMetadata.dosage ? `<div style="margin-top: 4px;"><strong>Dosage:</strong> ${item.aiMetadata.dosage}</div>` : ''}
+              ${item.aiMetadata.quantityPerPack ? `<div style="margin-top: 4px;"><strong>Quantity per Pack:</strong> ${item.aiMetadata.quantityPerPack}</div>` : ''}
+              ${item.aiMetadata.medicineForm ? `<div style="margin-top: 4px;"><strong>Form:</strong> ${item.aiMetadata.medicineForm}</div>` : ''}
+              ${item.aiMetadata.coverDisease ? `<div style="margin-top: 4px;"><strong>For:</strong> ${item.aiMetadata.coverDisease}</div>` : ''}
+              ${item.aiMetadata.sideEffects ? `<div style="margin-top: 4px; color: #dc2626;"><strong>⚠️ Side Effects:</strong> ${item.aiMetadata.sideEffects}</div>` : ''}
+            </div>
+          ` : '';
+          
+          return `
           <tr>
-            <td>${item.name}</td>
+            <td>${item.name}${item.isFromAI ? ' <span style="display: inline-block; background: #3b82f6; color: white; font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-left: 4px;">AI</span>' : ''}</td>
             <td>${item.batch}</td>
             <td class="right">${item.quantity}</td>
             <td class="right">₹${item.price.toFixed(2)}</td>
             <td class="right">₹${(item.price * item.quantity).toFixed(2)}</td>
-            <td>${item.description || "Medicine sale"}</td>
+            <td>${item.description || "Medicine sale"}${aiInfo}</td>
           </tr>
-        `).join("")}
+        `}).join("")}
       </tbody>
     </table>
 
@@ -1678,7 +1743,7 @@ export function BillingPage() {
                             size="lg"
                             className="w-full"
                             onClick={handleAIAssist}
-                            disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready || hasGroqKeyAssist === false}
+                            disabled={!symptoms.trim() || isAILoading || !embeddingStatus.ready || hasGroqKeyAssist !== true}
                           >
                             {isAILoading ? (
                               <>
@@ -1687,7 +1752,7 @@ export function BillingPage() {
                               </>
                             ) : !embeddingStatus.ready ? (
                               <>Preparing AI...</>
-                            ) : hasGroqKeyAssist === false ? (
+                            ) : hasGroqKeyAssist !== true ? (
                               <>
                                 <AlertCircle className="mr-2 h-5 w-5" />
                                 Service Disabled
@@ -1701,7 +1766,7 @@ export function BillingPage() {
                           </Button>
                         </div>
                       </TooltipTrigger>
-                      {hasGroqKeyAssist === false && (
+                      {hasGroqKeyAssist !== true && (
                         <TooltipContent side="top" align="center" className="max-w-sm text-left">
                           <p className="font-medium">⚠️ AI Service Disabled</p>
                           <p className="text-xs text-muted-foreground mt-1">
