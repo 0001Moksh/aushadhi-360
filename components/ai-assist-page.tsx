@@ -146,25 +146,25 @@ export function AIAssistPage() {
     setError(null)
     setResponse(null)
 
-    try {
-      const data = await searchMedicinesNoAuth(symptoms)
-      setResponse(data)
-    } catch (err) {
-      if (err instanceof FastAPIError) {
-        if (err.statusCode === 503) {
-          setError("AI embeddings are still being prepared. Please wait a moment and try again.")
-        } else if (err.statusCode === 404) {
-          setError("No medicines found. Please try a different query.")
-        } else {
-          setError(err.detail || "Failed to get AI suggestions")
-        }
-      } else {
-        setError("Network error: Cannot connect to AI service")
-      setError(err instanceof Error ? err.message : "An error occurred while fetching suggestions")
-      console.error("AI Assistant Error:", err)
-    } finally {
-      setIsLoading(false)
-    }
+  //   try {
+  //     const data = await searchMedicinesNoAuth(symptoms)
+  //     setResponse(data)
+  //   } catch (err) {
+  //     if (err instanceof FastAPIError) {
+  //       if (err.statusCode === 503) {
+  //         setError("AI embeddings are still being prepared. Please wait a moment and try again.")
+  //       } else if (err.statusCode === 404) {
+  //         setError("No medicines found. Please try a different query.")
+  //       } else {
+  //         setError(err.detail || "Failed to get AI suggestions")
+  //       }
+  //     } else {
+  //       setError("Network error: Cannot connect to AI service")
+  //     setError(err instanceof Error ? err.message : "An error occurred while fetching suggestions")
+  //     console.error("AI Assistant Error:", err)
+  //   } finally {
+  //     setIsLoading(false)
+  //   }
   }
 
   const addToCart = (medicine: Medicine) => {
