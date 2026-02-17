@@ -31,6 +31,7 @@ import {
 
 export function LandingPage() {
     const [expandedFeature, setExpandedFeature] = useState<number | null>(0)
+    const [mobileImagePreview, setMobileImagePreview] = useState(false)
     const features = [
         {
             icon: <BarChart3 className="w-6 h-6" />,
@@ -44,6 +45,13 @@ export function LandingPage() {
             description:
                 "Fast GST-compliant billing with invoice generation, discounts, and multiple payment options.",
         },
+        {
+            icon: <Brain className="w-6 h-6" />,
+            title: "AI Mode Billing",
+            description:
+                "AI analyzes patient symptoms to suggest safe OTC medicines from store stock, with dosage guidance and intake instructions in simple language.",
+        },
+
         {
             icon: <Upload className="w-6 h-6" />,
             title: "Bulk Data Import",
@@ -404,42 +412,46 @@ export function LandingPage() {
                                 const featureImagesDark: Record<number, string> = {
                                     0: "/analytics.png",
                                     1: "/billing1.png",
-                                    2: "/import.png",
-                                    3: "/alert.png",
-                                    4: "/dashboard2.png",
-                                    5: "/setting.png",
-                                    6: "/manual-import.png",
-                                    7: "/all-products.png",
+                                    2: "/ai_mode_billing.png",
+                                    3: "/import.png",
+                                    4: "/alert.png",
+                                    5: "/dashboard2.png",
+                                    6: "/setting.png",
+                                    7: "/manual-import.png",
+                                    8: "/all-products.png",
                                 }
                                 const featureImagesLight: Record<number, string> = {
                                     0: "/analytics-light.png",
                                     1: "/billing-light.png",
-                                    2: "/import-light.png",
-                                    3: "/alert-light.png",
-                                    4: "/dashboard2-light.png",
-                                    5: "/setting-light.png",
-                                    6: "/manual-import-light.png",
-                                    7: "/all-products-light.png",
+                                    2: "/ai_mode_billing.png",
+                                    3: "/import-light.png",
+                                    4: "/alert-light.png",
+                                    5: "/dashboard2-light.png",
+                                    6: "/setting-light.png",
+                                    7: "/manual-import-light.png",
+                                    8: "/all-products-light.png",
                                 }
                                 const featureImagesMobileDark: Record<number, string> = {
                                     0: "/analytics-mb.jpg",
                                     1: "/billing1-mb.jpg",
-                                    2: "/import-mb.jpg",
-                                    3: "/alert-mb.jpg",
-                                    4: "/dashbord1-mb.jpg",
-                                    5: "/setting-mb.jpg",
-                                    6: "/manual-import-mb.jpg",
-                                    7: "/all-products-mb.jpg",
+                                    2: "/ai_mode_billing.png",
+                                    3: "/import-mb.jpg",
+                                    4: "/alert-mb.jpg",
+                                    5: "/dashbord1-mb.jpg",
+                                    6: "/setting-mb.jpg",
+                                    7: "/manual-import-mb.jpg",
+                                    8: "/all-products-mb.jpg",
                                 }
                                 const featureImagesMobileLight: Record<number, string> = {
                                     0: "/analytics-light-mb.jpg",
                                     1: "/billing-light-mb.jpg",
-                                    2: "/import-light-mb.jpg",
-                                    3: "/alert-light-mb.jpg",
-                                    4: "/dashboard2-light-mb.jpg",
-                                    5: "/setting-light-mb.jpg",
-                                    6: "/manual-import-light-mb.jpg",
-                                    7: "/all-products-light-mb.jpg",
+                                    2: "/ai_mode_billing.png",
+                                    3: "/import-light-mb.jpg",
+                                    4: "/alert-light-mb.jpg",
+                                    5: "/dashboard2-light-mb.jpg",
+                                    6: "/setting-light-mb.jpg",
+                                    7: "/manual-import-light-mb.jpg",
+                                    8: "/all-products-light-mb.jpg",
                                 }
                                 const imgSrcDark = featureImagesDark[expandedFeature] ?? featureImagesDark[0]
                                 const imgSrcLight = featureImagesLight[expandedFeature] ?? featureImagesDark[expandedFeature] ?? featureImagesDark[0]
@@ -447,23 +459,121 @@ export function LandingPage() {
                                 const imgSrcMobileLight = featureImagesMobileLight[expandedFeature] ?? featureImagesLight[expandedFeature] ?? featureImagesDark[expandedFeature] ?? featureImagesDark[0]
 
                                 return (
-                                    <div className="relative rounded-xl overflow-hidden border border-primary/20 dark:border-primary/30 shadow-2xl animate-in fade-in duration-500">
-                                        {/* Desktop Dark image - shows on lg+ in dark mode */}
-                                        <img
-                                            src={imgSrcDark}
-                                            alt={features[expandedFeature]?.title}
-                                            className="w-full h-full object-cover hidden dark:hidden lg:dark:block aspect-video"
-                                        />
+                                    <>
+                                        {/* Mobile Images - Click to Preview - Sticky with feature menu */}
+                                        <button
+                                            onClick={() => setMobileImagePreview(true)}
+                                            className="relative rounded-xl border border-primary/20 dark:border-primary/30 shadow-2xl animate-in fade-in duration-500 lg:hidden w-full bg-transparent hover:shadow-lg transition-shadow duration-300"
+                                        >
+                                            <div className="relative h-48 w-full">
+                                                {/* Mobile Dark image - shows on mobile in dark mode */}
+                                                <img
+                                                    src={imgSrcMobileDark}
+                                                    alt={features[expandedFeature]?.title}
+                                                    className="w-full h-full object-contain dark:block hidden"
+                                                />
 
-                                        {/* Desktop Light image - shows on lg+ in light mode */}
-                                        <img
-                                            src={imgSrcLight}
-                                            alt={features[expandedFeature]?.title}
-                                            className="w-full h-full object-cover hidden dark:hidden lg:block aspect-video"
-                                        />
-                                        {/* Overlay gradient */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-background/0 to-transparent" />
-                                    </div>
+                                                {/* Mobile Light image - shows on mobile in light mode */}
+                                                <img
+                                                    src={imgSrcMobileLight}
+                                                    alt={features[expandedFeature]?.title}
+                                                    className="w-full h-full object-contain dark:hidden"
+                                                />
+                                                {/* Overlay gradient + tap indicator */}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-background/0 to-transparent pointer-events-none" />
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors duration-300 rounded-xl">
+                                                    <div className="text-white bg-black/30 px-3 py-1 rounded-full text-xs font-medium opacity-0 hover:opacity-100 transition-opacity">
+                                                        Tap to expand
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        {/* Mobile Image Preview Modal */}
+                                        {mobileImagePreview && (
+                                            <div 
+                                                className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm lg:hidden flex items-end animate-in fade-in duration-300"
+                                                onClick={() => setMobileImagePreview(false)}
+                                            >
+                                                <div 
+                                                    className="w-full bg-card dark:bg-background rounded-t-3xl shadow-2xl px-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    {/* Header */}
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        {/* <h3 className="text-lg font-bold text-foreground">{features[expandedFeature]?.title}</h3> */}
+                                                        <button
+                                                            onClick={() => setMobileImagePreview(false)}
+                                                            className="w-8 h-8 right-1/2 translate-x-1/2 fixed top-4 z-20 rounded-full bg-foreground/90 hover:bg-primary/20 flex items-center justify-center text-background transition-colors"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Image */}
+                                                    <div className="relative rounded-2xl overflow-hidden border border-primary/20 dark:border-primary/30 mb-4 bg-muted">
+                                                        {/* Mobile Dark image - shows in dark mode */}
+                                                        <img
+                                                            src={imgSrcMobileDark}
+                                                            alt={features[expandedFeature]?.title}
+                                                            className="w-full h-auto object-contain dark:block hidden"
+                                                        />
+
+                                                        {/* Mobile Light image - shows in light mode */}
+                                                        <img
+                                                            src={imgSrcMobileLight}
+                                                            alt={features[expandedFeature]?.title}
+                                                            className="w-full h-auto object-contain dark:hidden"
+                                                        />
+                                                    </div>
+
+                                                    {/* Description */}
+                                                    {/* <p className="text-sm text-foreground/80 dark:text-foreground/70 leading-relaxed mb-6">
+                                                        {features[expandedFeature]?.description}
+                                                    </p> */}
+
+                                                    {/* Navigation */}
+                                                    <div className="flex mb-10 gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setExpandedFeature((prev) => prev !== null && prev > 0 ? prev - 1 : features.length - 1);
+                                                            }}
+                                                            className="flex-1 px-4 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-foreground font-medium transition-colors"
+                                                        >
+                                                            ← Previous
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setExpandedFeature((prev) => prev !== null && prev < features.length - 1 ? prev + 1 : 0);
+                                                            }}
+                                                            className="flex-1 px-4 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-foreground font-medium transition-colors"
+                                                        >
+                                                            Next →
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Desktop Images - with overflow hidden */}
+                                        <div className="relative rounded-xl overflow-hidden border border-primary/20 dark:border-primary/30 shadow-2xl animate-in fade-in duration-500 hidden lg:block">
+                                            {/* Desktop Dark image - shows on lg+ in dark mode */}
+                                            <img
+                                                src={imgSrcDark}
+                                                alt={features[expandedFeature]?.title}
+                                                className="w-full h-full object-cover dark:block hidden aspect-video"
+                                            />
+
+                                            {/* Desktop Light image - shows on lg+ in light mode */}
+                                            <img
+                                                src={imgSrcLight}
+                                                alt={features[expandedFeature]?.title}
+                                                className="w-full h-full object-cover dark:hidden aspect-video"
+                                            />
+                                            {/* Overlay gradient */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-background/0 to-transparent" />
+                                        </div>
+                                    </>
                                 );
                             })()}
 
